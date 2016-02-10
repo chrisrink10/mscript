@@ -25,7 +25,7 @@
 *
 * The C standard library provides the FILE object for operating on a
 * file stream, but there is no cross platform equivalent to the POSIX
-* @c fmemopen stream wrapper for a @c char* . A @c sr_Reader object
+* @c fmemopen stream wrapper for a @c char* . A @c ms_StreamReader object
 * is meant to provide a light wrapper around both object types to
 * allow universal access.
 */
@@ -35,50 +35,50 @@
 /**
 * @brief Stream wrapper object
 *
-* A @c sr_Reader object is the wrapper for either a @c FILE or a
+* A @c ms_StreamReader object is the wrapper for either a @c FILE or a
 * @c char* C-style string.
 */
-typedef struct sr_Reader sr_Reader;
+typedef struct ms_StreamReader ms_StreamReader;
 
 /**
 * @brief Create a new stream from the given string.
 *
 * @param str the string to iterate on
-* @returns a new @c sr_Reader object or NULL if allocation failed
+* @returns a new @c ms_StreamReader object or NULL if allocation failed
 */
-sr_Reader * sr_NewString(const char *str);
+ms_StreamReader *ms_StreamNewString(const char *str);
 
 /**
 * @brief Create a new stream from the given string with input length.
 *
 * @param str the string to iterate on
 * @param len the length of the input string
-* @returns a new @c sr_Reader object or NULL if allocation failed
+* @returns a new @c ms_StreamReader object or NULL if allocation failed
 */
-sr_Reader * sr_NewStringL(const char *str, size_t len);
+ms_StreamReader *ms_StreamNewStringL(const char *str, size_t len);
 
 /**
 * @brief Create a new stream from the given file.
 *
 * @param fname the name of a file to open
-* @returns a new @c sr_Reader object or NULL if either allocation or
+* @returns a new @c ms_StreamReader object or NULL if either allocation or
 *          opening the specified file failed
 */
-sr_Reader * sr_NewFile(const char *fname);
+ms_StreamReader *ms_StreamNewFile(const char *fname);
 
 /**
-* @brief Destroy a @c sr_Reader object.
+* @brief Destroy a @c ms_StreamReader object.
 */
-void sr_Destroy(sr_Reader *stream);
+void ms_StreamDestroy(ms_StreamReader *stream);
 
 /**
 * @brief Return the next character in the stream.
 *
-* @param stream the @c sr_Reader object to get the next character from
+* @param stream the @c ms_StreamReader object to get the next character from
 * @returns the next character from the stream or EOF if there are no
 *          more characters in the stream.
 */
-int sr_NextChar(sr_Reader *stream);
+int ms_StreamNextChar(ms_StreamReader *stream);
 
 /**
 * @brief Move the stream pointer back one character, allowing that
@@ -90,10 +90,10 @@ int sr_NextChar(sr_Reader *stream);
 * guaranteed to unread at most one character from the current pointer
 * position.
 *
-* @param stream the @c sr_Reader object to get the next character from
+* @param stream the @c ms_StreamReader object to get the next character from
 * @returns the previous character in the stream or EOF if the stream is
 *          at the beginning
 */
-int sr_Unread(sr_Reader *stream);
+int ms_StreamUnread(ms_StreamReader *stream);
 
 #endif //MSCRIPT_STREAMREADER_H

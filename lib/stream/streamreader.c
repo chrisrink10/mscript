@@ -29,7 +29,7 @@ union StreamValue {
     const char *s;
 };
 
-struct sr_Reader {
+struct ms_StreamReader {
     union StreamValue val;  /** value of the stream */
     enum StreamType type;   /** type of stream (STRING or FILE) */
     size_t pos;             /** current stream position */
@@ -37,13 +37,13 @@ struct sr_Reader {
     int cur;                /** current character */
 };
 
-sr_Reader * sr_NewString(const char *str) {
+ms_StreamReader *ms_StreamNewString(const char *str) {
     size_t len = strlen(str);
-    return sr_NewStringL(str, len);
+    return ms_StreamNewStringL(str, len);
 }
 
-sr_Reader * sr_NewStringL(const char *str, size_t len) {
-    sr_Reader *stream = malloc(sizeof(sr_Reader));
+ms_StreamReader *ms_StreamNewStringL(const char *str, size_t len) {
+    ms_StreamReader *stream = malloc(sizeof(ms_StreamReader));
     if (!stream) {
         return NULL;
     }
@@ -56,15 +56,15 @@ sr_Reader * sr_NewStringL(const char *str, size_t len) {
     return stream;
 }
 
-sr_Reader * sr_NewFile(const char *fname) {
-    sr_Reader *stream = malloc(sizeof(sr_Reader));
+ms_StreamReader *ms_StreamNewFile(const char *fname) {
+    ms_StreamReader *stream = malloc(sizeof(ms_StreamReader));
     if (!stream) {
         return NULL;
     }
 
     stream->val.f = fopen(fname, "r");
     if (!stream->val.f) {
-        sr_Destroy(stream);
+        ms_StreamDestroy(stream);
         return NULL;
     }
 
@@ -75,7 +75,7 @@ sr_Reader * sr_NewFile(const char *fname) {
     return stream;
 }
 
-void sr_Destroy(sr_Reader *stream) {
+void ms_StreamDestroy(ms_StreamReader *stream) {
     if (!stream) { return; }
     if ((stream->type == TYPE_FILE) && (stream->val.f)) {
         int err = fclose(stream->val.f);
@@ -86,7 +86,7 @@ void sr_Destroy(sr_Reader *stream) {
     free(stream);
 }
 
-int sr_NextChar(sr_Reader *stream) {
+int ms_StreamNextChar(ms_StreamReader *stream) {
     if (!stream) {
         return EOF;
     }
@@ -110,7 +110,7 @@ int sr_NextChar(sr_Reader *stream) {
     }
 }
 
-int sr_Unread(sr_Reader *stream) {
+int ms_StreamUnread(ms_StreamReader *stream) {
     if (!stream) {
         return EOF;
     }

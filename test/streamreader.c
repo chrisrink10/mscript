@@ -38,69 +38,69 @@ void sr_CleanUpTempFile(void *file) {
 }
 
 MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file) {
-    sr_Reader *stream = sr_NewFile((char *)file);
+    ms_StreamReader *stream = ms_StreamNewFile((char *) file);
     munit_assert_non_null(stream);
 
     const char *cur = &TestString[0];
     while (cur[0] != '\0') {
-        int next = sr_NextChar(stream);
+        int next = ms_StreamNextChar(stream);
         munit_assert_cmp_int(next, ==, cur[0]);
         cur++;
     }
 
-    sr_Destroy(stream);
+    ms_StreamDestroy(stream);
     return MUNIT_OK;
 }
 
 MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) {
-    sr_Reader *stream = sr_NewFile((char *)file);
+    ms_StreamReader *stream = ms_StreamNewFile((char *) file);
     munit_assert_non_null(stream);
 
-    while (sr_NextChar(stream) != EOF) {
+    while (ms_StreamNextChar(stream) != EOF) {
         /* do nothing */
     }
 
     size_t pos = strlen(TestString) - 1;
     while (1) {
         if (pos == 0) { break; }
-        int next = sr_Unread(stream);
+        int next = ms_StreamUnread(stream);
         munit_assert_cmp_int(next, ==, TestString[pos]);
         pos--;
     }
-    sr_Destroy(stream);
+    ms_StreamDestroy(stream);
     return MUNIT_OK;
 }
 
 MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na) {
-    sr_Reader *stream = sr_NewString(TestString);
+    ms_StreamReader *stream = ms_StreamNewString(TestString);
     munit_assert_non_null(stream);
 
     const char *cur = &TestString[0];
     while (cur[0] != '\0') {
-        int next = sr_NextChar(stream);
+        int next = ms_StreamNextChar(stream);
         munit_assert_cmp_int(next, ==, cur[0]);
         cur++;
     }
 
-    sr_Destroy(stream);
+    ms_StreamDestroy(stream);
     return MUNIT_OK;
 }
 
 MunitResult sr_TestStringUnread(const MunitParameter params[], void *na) {
-    sr_Reader *stream = sr_NewString(TestString);
+    ms_StreamReader *stream = ms_StreamNewString(TestString);
     munit_assert_non_null(stream);
 
-    while (sr_NextChar(stream) != EOF) {
+    while (ms_StreamNextChar(stream) != EOF) {
         /* do nothing */
     }
 
     size_t pos = strlen(TestString) - 1;
     while (1) {
         if (pos == 0) { break; }
-        int next = sr_Unread(stream);
+        int next = ms_StreamUnread(stream);
         munit_assert_cmp_int(next, ==, TestString[pos]);
         pos--;
     }
-    sr_Destroy(stream);
+    ms_StreamDestroy(stream);
     return MUNIT_OK;
 }
