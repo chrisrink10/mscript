@@ -135,8 +135,8 @@ int ms_StreamUnread(ms_StreamReader *stream) {
                 return EOF;
             } else if (stream->pos <= stream->len) {
                 do {
-                    stream->cur = stream->val.s[stream->pos];
                     stream->pos--;
+                    stream->cur = stream->val.s[stream->pos];
                 } while (stream->cur == '\0');
                 return stream->cur;
             } else {
