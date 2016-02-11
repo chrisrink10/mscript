@@ -17,7 +17,7 @@
 #ifndef MSCRIPT_TEST_STREAMREADER_H
 #define MSCRIPT_TEST_STREAMREADER_H
 
-#include <munit/munit.h>
+#include "munit/munit.h"
 #include "stream/streamreader.h"
 
 void *sr_CreateTempFile(const MunitParameter params[], void *user_data);
