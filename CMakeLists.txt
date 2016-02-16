@@ -31,20 +31,30 @@ include_directories(${PROJECT_SOURCE_DIR}/lib)
 
 # Compiler and Linker flags
 set(C_WARNING_FLAGS "-Wall -Wextra -pedantic")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 ${C_WARNING_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
 
 #######################################################################
 # MAIN EXECUTABLE
 #######################################################################
 
+# Dependency code
+set(LIBDS_SOURCE_FILES deps/libds/array.c
+                       deps/libds/buffer.c
+                       deps/libds/dict.c
+                       deps/libds/hash.c
+                       deps/libds/iter.c
+                       deps/libds/list.c)
+
 # Library code
 set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 
 # mscript source files
-set(MSCRIPT_SOURCE_FILES src/main.c)
+set(MSCRIPT_SOURCE_FILES src/main.c
+                         src/lexer.c)
 
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
-                       ${STREAM_SOURCE_FILES})
+                       ${STREAM_SOURCE_FILES}
+                       ${LIBDS_SOURCE_FILES})
 
 #######################################################################
 # TEST EXECUTABLE
@@ -56,8 +66,10 @@ set(C_TEST_WARNING_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
 # Testing code
 set(TESTING_SOURCE_FILES deps/munit/munit.c
                          lib/stream/streamreader.c test/streamreader.c
+                         src/lexer.c test/lexer.c
                          test/main.c)
 
-add_executable(mscript_test ${TESTING_SOURCE_FILES})
+add_executable(mscript_test ${TESTING_SOURCE_FILES}
+                            ${LIBDS_SOURCE_FILES})
 set_target_properties(mscript_test PROPERTIES
                                    COMPILE_FLAGS ${C_TEST_WARNING_FLAGS})
