@@ -122,7 +122,7 @@ bool dsbuf_append(DSBuffer *str, DSBuffer *newc) {
 }
 
 bool dsbuf_append_char(DSBuffer *str, int newc) {
-    if ((!str) || (newc < 0)) {
+    if (!str) {
         return false;
     }
 
