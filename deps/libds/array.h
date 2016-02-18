@@ -26,12 +26,12 @@ typedef struct DSArray DSArray;
 /**
 * @brief The default capacity of a @c DSArray.
 */
-static const int DSARRAY_DEFAULT_CAPACITY = 10;
+static const size_t DSARRAY_DEFAULT_CAPACITY = 10;
 
 /**
 * @brief The factor by which a @c DSArray is resized when needed
 */
-static const int DSARRAY_CAPACITY_FACTOR = 2;
+static const size_t DSARRAY_CAPACITY_FACTOR = 2;
 
 /**
 * @brief Comparator function used in a @c DSArray to sort and search.
@@ -118,6 +118,15 @@ size_t dsarray_cap(DSArray *array);
 *          object otherwise
 */
 void* dsarray_get(DSArray *array, size_t index);
+
+/**
+* @brief Return the top element in the array without popping it.
+*
+* @param array a @c DSArray object
+* @returns @c NULL if there are no elements in the array; the top of
+*          the stack (array) otherwise
+*/
+void* dsarray_top(DSArray *array);
 
 /**
 * @brief Perform the given function on each object in the array.
