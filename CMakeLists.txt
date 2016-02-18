@@ -50,7 +50,9 @@ set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 
 # mscript source files
 set(MSCRIPT_SOURCE_FILES src/main.c
-                         src/lexer.c)
+                         src/lang.c
+                         src/lexer.c
+                         src/parser.c)
 
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
                        ${STREAM_SOURCE_FILES}
