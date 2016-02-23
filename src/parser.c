@@ -32,7 +32,7 @@
 struct ms_Parser {
     ms_Lexer *lex;
     ms_Token *cur;
-    ms_Expr *ast;
+    ms_AST *ast;
     DSDict *opcache;
 };
 
@@ -127,6 +127,11 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_ParseError **err) {
     assert(err);
 
     return ParserParseExpression(prs, &prs->ast, err);
+}
+
+ms_AST *ms_ParserGetAST(ms_Parser *prs) {
+    if (!prs) { return NULL; }
+    return prs->ast;
 }
 
 void ms_ParseErrorDestroy(ms_ParseError *err) {

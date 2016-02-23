@@ -74,6 +74,11 @@ void ms_ParserDestroy(ms_Parser *prs);
 ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_ParseError **err);
 
 /**
+* @brief Return a reference to the parsed AST node.
+*/
+ms_AST *ms_ParserGetAST(ms_Parser *prs);
+
+/**
 * @brief Destroy a @c ms_ParseError object.
 */
 void ms_ParseErrorDestroy(ms_ParseError *err);

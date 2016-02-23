@@ -19,6 +19,7 @@
 
 #include "libds/array.h"
 #include "lexer.h"
+#include "vm.h"
 
 /**
 * @brief Operator associativity enumeration
@@ -128,6 +129,11 @@ struct ms_Expr {
 };
 
 /**
+* @brief Placeholder for a more sophisticated AST object.
+*/
+typedef ms_Expr ms_AST;
+
+/**
 * @brief Create a new @c ms_Expr object.
 */
 ms_Expr *ms_ExprNew(ms_ExprType type);
@@ -136,6 +142,11 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 * @brief Create a new @c ms_Expr object containing from a string.
 */
 ms_Expr *ms_ExprNumberFromString(const char *str);
+
+/**
+* @brief Generate mscript VM bytecode from the given expression value.
+*/
+ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
 
 /**
 * @brief Destroy the given @c ms_Expr and any nested expressions.
