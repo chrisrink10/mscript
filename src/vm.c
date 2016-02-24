@@ -30,7 +30,7 @@ struct ms_VM {
 };
 
 struct ms_VMByteCode{
-    ms_VMOpCode **code;
+    ms_VMOpCode *code;
     size_t len;
 };
 
@@ -62,37 +62,13 @@ ms_VM *ms_VMNew(void) {
     return vm;
 }
 
-ms_VMByteCode *ms_VMOpCodesToByteCode(DSArray *stack) {
-    if (!stack) { return NULL; }
-
-    ms_VMByteCode *bc = malloc(sizeof(ms_VMByteCode));
-    if (!bc) {
-        return NULL;
-    }
-
-    bc->len = dsarray_len(stack);
-    bc->code = malloc(sizeof(ms_VMOpCode *) * (bc->len));
-    if (!bc->code) {
-        free(bc);
-        return NULL;
-    }
-
-    DSIter *iter = dsarray_iter(stack);
-    while (dsiter_next(iter)) {
-        size_t i = dsiter_index(iter);
-        bc->code[i] = dsiter_value(iter);
-    }
-
-    return bc;
-}
-
 void ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc) {
     assert(vm);
     if (!bc) { return; }
 
     for (vm->ip = 0; vm->ip < bc->len; ) {
         size_t inc = 0;
-        ms_VMOpCode *code = bc->code[vm->ip];
+        ms_VMOpCode *code = &bc->code[vm->ip];
         switch (code->type) {
             case OPC_PRINT:         inc = VMPrint(vm);            break;
             case OPC_PUSH:          inc = VMPush(vm, code->arg);  break;
@@ -113,6 +89,43 @@ void ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc) {
 void ms_VMDestroy(ms_VM *vm) {
     if (!vm) { return; }
     free(vm);
+}
+
+ms_VMByteCode *ms_VMOpCodesToByteCode(DSArray *stack) {
+    if (!stack) { return NULL; }
+
+    ms_VMByteCode *bc = malloc(sizeof(ms_VMByteCode));
+    if (!bc) {
+        return NULL;
+    }
+
+    bc->len = dsarray_len(stack);
+    bc->code = malloc(sizeof(ms_VMOpCode) * (bc->len));
+    if (!bc->code) {
+        free(bc);
+        return NULL;
+    }
+
+    DSIter *iter = dsarray_iter(stack);
+    if (!iter) {
+        free(bc->code);
+        free(bc);
+        return NULL;
+    }
+
+    while (dsiter_next(iter)) {
+        size_t i = dsiter_index(iter);
+        bc->code[i] = *(ms_VMOpCode *)dsiter_value(iter);
+    }
+
+    dsiter_destroy(iter);
+    return bc;
+}
+
+void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
+    if (!bc) { return; }
+    free(bc->code);
+    free(bc);
 }
 
 /*

@@ -67,15 +67,6 @@ typedef struct ms_VMByteCode ms_VMByteCode;
 ms_VM *ms_VMNew(void);
 
 /**
-* @brief Convert a stack consisting of ms_VMOpCodes into a single
-* @c ms_VMByteCode container.
-*
-* @param stack a @c DSArray with all @c ms_VMOpCode objects
-* @returns an @c ms_VMByteCode container suitable for execution by the VM
-*/
-ms_VMByteCode *ms_VMOpCodesToByteCode(DSArray *stack);
-
-/**
 * @brief Execute a bytecode script on the mscript VM.
 *
 * @param VM a @c ms_VM object
@@ -89,5 +80,21 @@ void ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc);
 * @param VM a @c ms_VM object
 */
 void ms_VMDestroy(ms_VM *vm);
+
+/**
+* @brief Convert a stack consisting of ms_VMOpCodes into a single
+* @c ms_VMByteCode container.
+*
+* @param stack a @c DSArray with all @c ms_VMOpCode objects
+* @returns an @c ms_VMByteCode container suitable for execution by the VM
+*/
+ms_VMByteCode *ms_VMOpCodesToByteCode(DSArray *stack);
+
+/**
+* @brief Destroy the memory held by byte code.
+*
+* @param bc a @c ms_VMByteCode object
+*/
+void ms_VMByteCodeDestroy(ms_VMByteCode *bc);
 
 #endif //MSCRIPT_VM_H

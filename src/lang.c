@@ -19,6 +19,8 @@
 #include <sys/errno.h>
 #include "lang.h"
 
+static const int EXPR_BYTECODE_STACK_LEN = 50;
+
 // Static table of operator precedence values
 static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
     { OP_UMINUS, 110, ASSOC_RIGHT },
@@ -145,7 +147,8 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
 ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr) {
     if (!expr) { return 0; }
 
-    DSArray *stack = dsarray_new_cap(50, NULL, NULL);
+    DSArray *stack = dsarray_new_cap(EXPR_BYTECODE_STACK_LEN, NULL,
+                                     (dsarray_free_fn)free);
     if (!stack) {
         return 0;
     }
