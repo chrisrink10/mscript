@@ -29,6 +29,9 @@
  * FORWARD DECLARATIONS
  */
 
+static const int EXPRESSION_STACK_DEFAULT_LEN = 10;
+static const int OPERATOR_STACK_DEFAULT_LEN = 10;
+
 struct ms_Parser {
     ms_Lexer *lex;
     ms_Token *cur;
@@ -41,7 +44,7 @@ static const char *const EXPECTING_TOKEN_ERROR = "PARSE ERROR: Expecting '%s', f
 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_ParseError **err);
 static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *next);
-static bool ParserExprCombine(DSArray *exprstack, ms_Token *op);
+static ms_ParseResult ParserExprCombine(DSArray *exprstack, ms_Token *op, ms_ParseError **err);
 static inline ms_Token *ParserCurrentToken(ms_Parser *prs);
 static inline ms_Token *ParserNextToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
@@ -157,14 +160,16 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
     assert(err);
 
     // Data structure for defining parse tree
-    DSArray *exprstack = dsarray_new_cap(10, NULL, (dsarray_free_fn)ms_ExprDestroy);
+    DSArray *exprstack = dsarray_new_cap(EXPRESSION_STACK_DEFAULT_LEN,
+                                         NULL, (dsarray_free_fn)ms_ExprDestroy);
     if (!exprstack) {
         *err = ParseErrorNew("Out of memory", NULL);
         return PARSE_ERROR;
     }
 
     // Operator stack
-    DSArray *opstack = dsarray_new_cap(10, NULL, (dsarray_free_fn)ms_TokenDestroy);
+    DSArray *opstack = dsarray_new_cap(OPERATOR_STACK_DEFAULT_LEN,
+                                       NULL, (dsarray_free_fn)ms_TokenDestroy);
     if (!opstack) {
         *err = ParseErrorNew("Out of memory", NULL);
         dsarray_destroy(exprstack);
@@ -172,9 +177,13 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
     }
 
     // Iterate on every token in the stream performing Shunting Yard
+    ms_TokenType prevtype = ERROR;
     ms_ParseResult res = PARSE_SUCCESS;
     for (ms_Token *cur = ParserCurrentToken(prs), *prev = NULL; cur;
             prev = cur, cur = ParserCurrentToken(prs)) {
+        // By default, consume (destroy) the current token and advance the pointer
+        void (*cleanup_token)(ms_Parser *) = ParserConsumeToken;
+
         switch (cur->type) {
             case NUMBER:        // Fall through
             case HEX_NUMBER: {
@@ -186,12 +195,11 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
                     goto parse_expr_cleanup;
                 }
                 dsarray_append(exprstack, newexpr);
-                ParserConsumeToken(prs);    /* discard token and advance */
                 break;
             }
             case LPAREN: {
                 dsarray_append(opstack, cur);
-                ParserNextToken(prs);       /* leave reference to token */
+                cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                 break;
             }
             case RPAREN: {
@@ -200,9 +208,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
                     ms_Token *tok = dsarray_top(opstack);
                     if (tok->type != LPAREN) {
                         tok = dsarray_pop(opstack);
-                        if (!ParserExprCombine(exprstack, tok)) {
-                            *err = ParseErrorNew("Out of memory", tok);
-                            res = PARSE_ERROR;
+                        if ((res = ParserExprCombine(exprstack, tok, err)) == PARSE_ERROR) {
                             goto parse_expr_cleanup;
                         }
                         ms_TokenDestroy(tok);
@@ -218,14 +224,13 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
                     res = PARSE_ERROR;
                     goto parse_expr_cleanup;
                 }
-                ParserConsumeToken(prs);    /* discard token and advance */
                 break;
             }
             case OP_MINUS: {    // Unary minus case
-                if ((!prev) || (ms_TokenIsOp(prev)) || (prev->type == LPAREN)) {
+                if ((!prev) || (ms_TokenTypeIsOp(prevtype)) || (prevtype == LPAREN)) {
                     cur->type = OP_UMINUS;
                     dsarray_append(opstack, cur);
-                    ParserNextToken(prs);       /* leave reference to token */
+                    cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                     break;
                 }
             }
@@ -233,18 +238,19 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
                 ms_Token *top = dsarray_top(opstack);
                 if ((dsarray_len(opstack) > 0) && ParserExprShouldCombine(prs, top, cur)) {
                     top = dsarray_pop(opstack);
-                    if (!ParserExprCombine(exprstack, top)) {
-                        *err = ParseErrorNew("Out of memory", top);
-                        res = PARSE_ERROR;
+                    if ((res = ParserExprCombine(exprstack, top, err)) == PARSE_ERROR) {
                         goto parse_expr_cleanup;
                     }
                     ms_TokenDestroy(top);
                 }
                 dsarray_append(opstack, cur);
-                ParserNextToken(prs);       /* leave reference to token */
+                cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                 break;
             }
         }
+
+        prevtype = cur->type;
+        cleanup_token(prs);
     }
 
     while (dsarray_len(opstack) > 0) {
@@ -256,9 +262,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
             res = PARSE_ERROR;
             goto parse_expr_cleanup;
         }
-        if (!ParserExprCombine(exprstack, tok)) {
-            *err = ParseErrorNew("Out of memory", tok);
-            res = PARSE_ERROR;
+        if ((res = ParserExprCombine(exprstack, tok, err)) == PARSE_ERROR) {
             goto parse_expr_cleanup;
         }
         ms_TokenDestroy(tok);
@@ -288,11 +292,11 @@ static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *nex
     ms_ExprOpPrecedence *topop = dsdict_get(prs->opcache, (void *)topname);
     ms_ExprOpPrecedence *nextop = dsdict_get(prs->opcache, (void *)nextname);
 
-    if ((nextop->assoc == ASSOC_LEFT) && (nextop->precedence >= topop->precedence)) {
+    if ((nextop->assoc == ASSOC_LEFT) && (nextop->precedence <= topop->precedence)) {
         return true;
     }
 
-    if ((nextop->assoc == ASSOC_RIGHT) && (nextop->precedence > topop->precedence)) {
+    if ((nextop->assoc == ASSOC_RIGHT) && (nextop->precedence < topop->precedence)) {
         return true;
     }
 
@@ -300,7 +304,7 @@ static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *nex
 }
 
 // Combine an expression using the order of precedence defined for
-static bool ParserExprCombine(DSArray *exprstack, ms_Token *tok) {
+static ms_ParseResult ParserExprCombine(DSArray *exprstack, ms_Token *tok, ms_ParseError **err) {
     assert(exprstack);
     assert(tok);
 
@@ -308,31 +312,41 @@ static bool ParserExprCombine(DSArray *exprstack, ms_Token *tok) {
     if (tok->type == OP_UMINUS) {
         ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
         if (!expr) {
-            return false;
+            *err = ParseErrorNew("Out of memory", tok);
+            return PARSE_ERROR;
         }
 
-        assert(dsarray_len(exprstack) >= 1);
+        if(dsarray_len(exprstack) < 1) {
+            *err = ParseErrorNew("Expected an operand, but got none", tok);
+            return PARSE_ERROR;
+        }
         ms_Expr *operand = dsarray_pop(exprstack);
 
         expr = ms_ExprFlatten(expr, operand, EXPRLOC_UNARY);
         expr->expr.u->op = UNARY_MINUS;
 
         dsarray_append(exprstack, expr);
-        return true;
+        return PARSE_SUCCESS;
     }
 
     // Binary operations
     ms_ExprBinaryOp op = ms_ExprTokenToBinaryOp(tok->type);
     if (op == BINARY_EMPTY) {
-        return false;
+        *err = ParseErrorNew("Expected a binary operator but got none.", tok);
+        return PARSE_ERROR;
     }
 
     ms_Expr *expr = ms_ExprNew(EXPRTYPE_BINARY);
     if (!expr) {
-        return false;
+        *err = ParseErrorNew("Out of memory", tok);
+        return PARSE_ERROR;
     }
 
-    assert(dsarray_len(exprstack) >= 2);
+    if(dsarray_len(exprstack) < 2) {
+        *err = ParseErrorNew("Expected an operand, but got none", tok);
+        return PARSE_ERROR;
+    }
+
     ms_Expr *second = dsarray_pop(exprstack);
     ms_Expr *first = dsarray_pop(exprstack);
 
@@ -341,7 +355,7 @@ static bool ParserExprCombine(DSArray *exprstack, ms_Token *tok) {
     expr->expr.b->op = op;
 
     dsarray_append(exprstack, expr);
-    return true;
+    return PARSE_SUCCESS;
 }
 
 // Peek at the next token in the stream.
@@ -399,9 +413,9 @@ static bool ParserConstructOpCache(ms_Parser *prs) {
     const ms_ExprOpPrecedence *tbl;
     size_t len = ms_ExprOpPrecedenceTable(&tbl);
     for (size_t i = 0; i < len; i++) {
-        ms_ExprOpPrecedence op = tbl[i];
-        const char *name = ms_TokenTypeName(op.type);
-        dsdict_put(prs->opcache, (void *)name, &op);
+        const ms_ExprOpPrecedence *op = &tbl[i];
+        const char *name = ms_TokenTypeName(op->type);
+        dsdict_put(prs->opcache, (void *)name, (void *)op);
     }
 
     return true;
