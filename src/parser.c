@@ -130,16 +130,15 @@ void ms_ParserDestroy(ms_Parser *prs) {
     free(prs);
 }
 
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_ParseError **err) {
+ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, ms_ParseError **err) {
     assert(prs);
+    assert(code);
     assert(err);
 
-    return ParserParseExpression(prs, &prs->ast, err);
-}
-
-ms_AST *ms_ParserGetAST(ms_Parser *prs) {
-    if (!prs) { return NULL; }
-    return prs->ast;
+    *err = NULL;
+    ms_ParseResult res = ParserParseExpression(prs, &prs->ast, err);
+    *code = (*err) ? NULL : ms_ExprToOpCodes(prs->ast);
+    return res;
 }
 
 void ms_ParseErrorDestroy(ms_ParseError *err) {

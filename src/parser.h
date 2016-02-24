@@ -70,13 +70,17 @@ void ms_ParserDestroy(ms_Parser *prs);
 
 /**
 * @brief Parse the mscript string or file associated with this @c ms_Parser .
+*
+* @param prs a @c ms_Parser object
+* @param code a pointer to a pointer to hold the resultant byte-code; set to
+*        @c NULL if the return from this function is not @c PARSE_SUCCESS
+* @param err a pointer to a pointer to hold any errors resulting from parsing;
+*        set to @c NULL if no error occurs
+* @returns a result value indicating if the parsing completed successfully;
+*          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
+*          examine the value of @c to determine what went wrong
 */
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_ParseError **err);
-
-/**
-* @brief Return a reference to the parsed AST node.
-*/
-ms_AST *ms_ParserGetAST(ms_Parser *prs);
+ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, ms_ParseError **err);
 
 /**
 * @brief Destroy a @c ms_ParseError object.
