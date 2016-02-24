@@ -240,6 +240,8 @@ begin_lex:              // Jump label for ignored input
             n = LexerNextChar(lex);
             if (n == '=') {
                 return LexerTokenNew(lex, OP_TIMES_EQUALS, "*=", 2);
+            } else if (n == '*') {
+                return LexerTokenNew(lex, OP_EXPONENTIATE, "**", 2);
             }
             LexerBackup(lex);
             return LexerTokenNew(lex, OP_TIMES, "*", 1);
