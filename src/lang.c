@@ -21,6 +21,7 @@
 
 // Static table of operator precedence values
 static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
+    { OP_UMINUS, 110, ASSOC_RIGHT },
     { OP_TIMES, 100, ASSOC_LEFT },
     { OP_DIVIDE, 100, ASSOC_LEFT },
     { OP_IDIVIDE, 100, ASSOC_LEFT },
@@ -93,6 +94,54 @@ ms_Expr *ms_ExprNumberFromString(const char *str) {
     return expr;
 }
 
+ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
+    if ((!outer) || (!inner)) { return NULL; }
+
+    bool should_flatten = (inner->type == EXPRTYPE_UNARY) &&
+                          (inner->expr.u->op == UNARY_NONE);
+
+    switch (loc) {
+        case EXPRLOC_UNARY:
+            assert(outer->type == EXPRTYPE_UNARY);
+            if (!should_flatten) {
+                outer->expr.u->expr.expr = inner;
+                outer->expr.u->type = EXPRATOM_EXPRESSION;
+            } else {
+                outer->expr.u->expr = inner->expr.u->expr;
+                outer->expr.u->type = inner->expr.u->type;
+                inner->expr.u = NULL;
+                ms_ExprDestroy(inner);
+            }
+            break;
+        case EXPRLOC_LEFT:
+            assert(outer->type == EXPRTYPE_BINARY);
+            if (!should_flatten) {
+                outer->expr.b->left.expr = inner;
+                outer->expr.b->ltype = EXPRATOM_EXPRESSION;
+            } else {
+                outer->expr.b->left = inner->expr.u->expr;
+                outer->expr.b->ltype = inner->expr.u->type;
+                inner->expr.u = NULL;
+                ms_ExprDestroy(inner);
+            }
+            break;
+        case EXPRLOC_RIGHT:
+            assert(outer->type == EXPRTYPE_BINARY);
+            if (!should_flatten) {
+                outer->expr.b->right.expr = inner;
+                outer->expr.b->rtype = EXPRATOM_EXPRESSION;
+            } else {
+                outer->expr.b->right = inner->expr.u->expr;
+                outer->expr.b->rtype = inner->expr.u->type;
+                inner->expr.u = NULL;
+                ms_ExprDestroy(inner);
+            }
+            break;
+    }
+
+    return outer;
+}
+
 ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr) {
     if (!expr) { return 0; }
 
@@ -162,6 +211,7 @@ void ExprToOpCodes(ms_Expr *expr, DSArray *stack) {
 
     if (expr->type == EXPRTYPE_UNARY) {
         ExprComponentToOpCodes(&expr->expr.u->expr, expr->expr.u->type, stack);
+        ExprOpToOpCode(expr, stack);
     } else {
         ExprComponentToOpCodes(&expr->expr.b->left, expr->expr.b->ltype, stack);
         ExprComponentToOpCodes(&expr->expr.b->right, expr->expr.b->rtype, stack);
@@ -197,8 +247,6 @@ void ExprOpToOpCode(ms_Expr *expr, DSArray *stack) {
 
     if (expr->type == EXPRTYPE_BINARY) {
         switch (expr->expr.b->op) {
-            case BINARY_EMPTY:
-                return;
             case BINARY_PLUS:
                 o->type = OPC_ADD;
                 break;
@@ -220,8 +268,19 @@ void ExprOpToOpCode(ms_Expr *expr, DSArray *stack) {
             case BINARY_EXPONENTIATE:
                 o->type = OPC_EXPONENTIATE;
                 break;
+            default:
+                free(o);
+                return;
         }
 
         dsarray_append(stack, o);
+    } else {
+        if (expr->expr.u->op == UNARY_MINUS) {
+            o->type = OPC_NEGATE;
+            dsarray_append(stack, o);
+            return;
+        }
+
+        free(o);
     }
 }

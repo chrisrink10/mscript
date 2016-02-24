@@ -45,6 +45,7 @@ static inline size_t VMDivide(ms_VM *vm);
 static inline size_t VMIDivide(ms_VM *vm);
 static inline size_t VMModulo(ms_VM *vm);
 static inline size_t VMExponentiate(ms_VM *vm);
+static inline size_t VMNegate(ms_VM *vm);
 
 /*
  * PUBLIC FUNCTIONS
@@ -103,6 +104,7 @@ void ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc) {
             case OPC_IDIVIDE:       inc = VMIDivide(vm);          break;
             case OPC_MODULO:        inc = VMModulo(vm);           break;
             case OPC_EXPONENTIATE:  inc = VMExponentiate(vm);     break;
+            case OPC_NEGATE:        inc = VMNegate(vm);           break;
         }
         vm->ip += inc;
     }
@@ -221,5 +223,13 @@ static inline size_t VMExponentiate(ms_VM *vm) {
     ms_VMValue v2 = VMPop(vm);
     ms_VMValue v1 = VMPop(vm);
     VMPush(vm, pow(v1, v2));
+    return 1;
+}
+
+static inline size_t VMNegate(ms_VM *vm) {
+    assert(vm);
+    assert(vm->dp >= 2);
+    ms_VMValue v = VMPop(vm);
+    VMPush(vm, -v);
     return 1;
 }

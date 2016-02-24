@@ -66,7 +66,6 @@ typedef enum {
 */
 typedef enum {
     UNARY_NONE,
-    UNARY_PLUS,
     UNARY_MINUS,
 } ms_ExprUnaryOp;
 
@@ -129,6 +128,16 @@ struct ms_Expr {
 };
 
 /**
+* @brief Enumeration used to indicate which part of an expression to flatten
+* into the outer/containing expression.
+*/
+typedef enum {
+    EXPRLOC_UNARY,
+    EXPRLOC_LEFT,
+    EXPRLOC_RIGHT,
+} ms_ExprLocation;
+
+/**
 * @brief Placeholder for a more sophisticated AST object.
 */
 typedef ms_Expr ms_AST;
@@ -139,9 +148,26 @@ typedef ms_Expr ms_AST;
 ms_Expr *ms_ExprNew(ms_ExprType type);
 
 /**
-* @brief Create a new @c ms_Expr object containing from a string.
+* @brief Create a new unary @c ms_Expr object containing from a string.
 */
 ms_Expr *ms_ExprNumberFromString(const char *str);
+
+/**
+* @brief Flatten two expressions such that the expression tree does not
+* become too deep too quickly.
+*
+* This function WILL FREE @c inner if it is no longer needed (i.e. if the
+* expression is flattened). Be careful to NULL out any remaining pointers
+* you have to @c inner after calling this function.
+*
+* @param outer the outer/containing @c ms_Expr object
+* @param inner the inner/contained @c ms_Expr object; this memory may be
+*        freed if the inner expression is superfluous
+* @param loc the location to flatten the inner expression in the outer
+*        expression
+* @returns the outer expression
+*/
+ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
 * @brief Generate mscript VM bytecode from the given expression value.
@@ -162,5 +188,10 @@ size_t ms_ExprOpPrecedenceTable(const ms_ExprOpPrecedence **tbl);
 * @brief Convert a token type into a binary operation enumeration.
 */
 ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type);
+
+/*
+* @brief Placeholder for real AST destroy function.
+*/
+#define ms_ASTDestroy(ast) ms_ExprDestroy(ast)
 
 #endif //MSCRIPT_LANG_H

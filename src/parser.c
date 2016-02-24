@@ -71,6 +71,7 @@ ms_Parser *ms_ParserNew(void) {
     }
 
     prs->cur = NULL;
+    prs->ast = NULL;
     return prs;
 }
 
@@ -83,11 +84,13 @@ bool ms_ParserInitFile(ms_Parser *prs, const char *fname) {
         return false;
     }
 
+    ms_TokenDestroy(prs->cur);
     prs->cur = ms_LexerNextToken(prs->lex);
     if (!prs->cur) {
         return false;
     }
 
+    ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
     return true;
 }
@@ -105,11 +108,13 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
         return false;
     }
 
+    ms_TokenDestroy(prs->cur);
     prs->cur = ms_LexerNextToken(prs->lex);
     if (!prs->cur) {
         return false;
     }
 
+    ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
     return true;
 }
@@ -118,7 +123,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
     if (!prs) { return; }
     ms_LexerDestroy(prs->lex);
     ms_TokenDestroy(prs->cur);
-    ms_ExprDestroy(prs->ast);
+    ms_ASTDestroy(prs->ast);
     free(prs);
 }
 
@@ -168,58 +173,77 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
 
     // Iterate on every token in the stream performing Shunting Yard
     ms_ParseResult res = PARSE_SUCCESS;
-    for (ms_Token *cur = ParserCurrentToken(prs); cur; cur = ParserCurrentToken(prs)) {
-        if ((cur->type == NUMBER) || (cur->type == HEX_NUMBER)) {
-            const char *val = dsbuf_char_ptr(cur->value);
-            ms_Expr *newexpr = ms_ExprNumberFromString(val);
-            if (!newexpr) {
-                *err = ParseErrorNew("Out of memory", NULL);
-                res = PARSE_ERROR;
-                goto parse_expr_cleanup;
-            }
-            dsarray_append(exprstack, newexpr);
-            ParserConsumeToken(prs);    /* discard token and advance */
-        } else if (cur->type == LPAREN) {
-            dsarray_append(opstack, cur);
-            ParserNextToken(prs);       /* leave reference to token */
-        } else if (cur->type == RPAREN) {
-            bool found = false;
-            while (dsarray_len(opstack) > 0) {
-                ms_Token *tok = dsarray_top(opstack);
-                if (tok->type != LPAREN) {
-                    tok = dsarray_pop(opstack);
-                    if (!ParserExprCombine(exprstack, tok)) {
-                        *err = ParseErrorNew("Out of memory", tok);
-                        res = PARSE_ERROR;
-                        goto parse_expr_cleanup;
-                    }
-                    ms_TokenDestroy(tok);
-                } else {
-                    found = true;
-                    ms_Token *op = dsarray_pop(opstack);
-                    ms_TokenDestroy(op);
-                    break;
-                }
-            }
-            if (!found) {
-                *err = ParseErrorNew("Mismatched parentheses", cur);
-                res = PARSE_ERROR;
-                goto parse_expr_cleanup;
-            }
-            ParserConsumeToken(prs);    /* discard token and advance */
-        } else {
-            ms_Token *top = dsarray_top(opstack);
-            if ((dsarray_len(opstack) > 0) && ParserExprShouldCombine(prs, top, cur)) {
-                top = dsarray_pop(opstack);
-                if (!ParserExprCombine(exprstack, top)) {
-                    *err = ParseErrorNew("Out of memory", top);
+    for (ms_Token *cur = ParserCurrentToken(prs), *prev = NULL; cur;
+            prev = cur, cur = ParserCurrentToken(prs)) {
+        switch (cur->type) {
+            case NUMBER:        // Fall through
+            case HEX_NUMBER: {
+                const char *val = dsbuf_char_ptr(cur->value);
+                ms_Expr *newexpr = ms_ExprNumberFromString(val);
+                if (!newexpr) {
+                    *err = ParseErrorNew("Out of memory", NULL);
                     res = PARSE_ERROR;
                     goto parse_expr_cleanup;
                 }
-                ms_TokenDestroy(top);
+                dsarray_append(exprstack, newexpr);
+                ParserConsumeToken(prs);    /* discard token and advance */
+                break;
             }
-            dsarray_append(opstack, cur);
-            ParserNextToken(prs);       /* leave reference to token */
+            case LPAREN: {
+                dsarray_append(opstack, cur);
+                ParserNextToken(prs);       /* leave reference to token */
+                break;
+            }
+            case RPAREN: {
+                bool found = false;
+                while (dsarray_len(opstack) > 0) {
+                    ms_Token *tok = dsarray_top(opstack);
+                    if (tok->type != LPAREN) {
+                        tok = dsarray_pop(opstack);
+                        if (!ParserExprCombine(exprstack, tok)) {
+                            *err = ParseErrorNew("Out of memory", tok);
+                            res = PARSE_ERROR;
+                            goto parse_expr_cleanup;
+                        }
+                        ms_TokenDestroy(tok);
+                    } else {
+                        found = true;
+                        ms_Token *op = dsarray_pop(opstack);
+                        ms_TokenDestroy(op);
+                        break;
+                    }
+                }
+                if (!found) {
+                    *err = ParseErrorNew("Mismatched parentheses", cur);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                ParserConsumeToken(prs);    /* discard token and advance */
+                break;
+            }
+            case OP_MINUS: {    // Unary minus case
+                if ((!prev) || (ms_TokenIsOp(prev)) || (prev->type == LPAREN)) {
+                    cur->type = OP_UMINUS;
+                    dsarray_append(opstack, cur);
+                    ParserNextToken(prs);       /* leave reference to token */
+                    break;
+                }
+            }
+            default: {
+                ms_Token *top = dsarray_top(opstack);
+                if ((dsarray_len(opstack) > 0) && ParserExprShouldCombine(prs, top, cur)) {
+                    top = dsarray_pop(opstack);
+                    if (!ParserExprCombine(exprstack, top)) {
+                        *err = ParseErrorNew("Out of memory", top);
+                        res = PARSE_ERROR;
+                        goto parse_expr_cleanup;
+                    }
+                    ms_TokenDestroy(top);
+                }
+                dsarray_append(opstack, cur);
+                ParserNextToken(prs);       /* leave reference to token */
+                break;
+            }
         }
     }
 
@@ -280,6 +304,24 @@ static bool ParserExprCombine(DSArray *exprstack, ms_Token *tok) {
     assert(exprstack);
     assert(tok);
 
+    // Handle the unary minus
+    if (tok->type == OP_UMINUS) {
+        ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+        if (!expr) {
+            return false;
+        }
+
+        assert(dsarray_len(exprstack) >= 1);
+        ms_Expr *operand = dsarray_pop(exprstack);
+
+        expr = ms_ExprFlatten(expr, operand, EXPRLOC_UNARY);
+        expr->expr.u->op = UNARY_MINUS;
+
+        dsarray_append(exprstack, expr);
+        return true;
+    }
+
+    // Binary operations
     ms_ExprBinaryOp op = ms_ExprTokenToBinaryOp(tok->type);
     if (op == BINARY_EMPTY) {
         return false;
@@ -294,11 +336,9 @@ static bool ParserExprCombine(DSArray *exprstack, ms_Token *tok) {
     ms_Expr *second = dsarray_pop(exprstack);
     ms_Expr *first = dsarray_pop(exprstack);
 
-    expr->expr.b->left.expr = first;
-    expr->expr.b->ltype = EXPRATOM_EXPRESSION;
+    expr = ms_ExprFlatten(expr, first, EXPRLOC_LEFT);
+    expr = ms_ExprFlatten(expr, second, EXPRLOC_RIGHT);
     expr->expr.b->op = op;
-    expr->expr.b->right.expr = second;
-    expr->expr.b->rtype = EXPRATOM_EXPRESSION;
 
     dsarray_append(exprstack, expr);
     return true;

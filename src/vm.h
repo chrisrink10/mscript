@@ -38,6 +38,7 @@ typedef enum {
     OPC_IDIVIDE,
     OPC_MODULO,
     OPC_EXPONENTIATE,
+    OPC_NEGATE,
 } ms_VMOpCodeType;
 
 /**

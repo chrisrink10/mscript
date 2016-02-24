@@ -67,6 +67,7 @@ static const char *const TOK_OP_DIVIDE = "OP_DIVIDE";
 static const char *const TOK_OP_TIMES = "OP_TIMES";
 static const char *const TOK_OP_MINUS = "OP_MINUS";
 static const char *const TOK_OP_PLUS = "OP_PLUS";
+static const char *const TOK_OP_UMINUS = "OP_UMINUS";
 static const char *const TOK_KW_MERGE = "KW_MERGE";
 static const char *const TOK_KW_NULL = "KW_NULL";
 static const char *const TOK_KW_FALSE = "KW_FALSE";
@@ -129,6 +130,7 @@ typedef enum ms_TokenType {
     KW_IS,
     KW_AS,
     KW_IN,
+    OP_UMINUS,
     OP_PLUS,
     OP_MINUS,
     OP_TIMES,
@@ -278,6 +280,14 @@ ms_Token *ms_TokenNew(ms_TokenType type, const char *value, size_t len, size_t l
 char *ms_TokenToString(ms_Token *tok);
 
 /**
+* @brief Indicate if the given token qualifies as an operator.
+*
+* @param tok a token object
+* @returns true if the given token is an operator; false otherwise
+*/
+bool ms_TokenIsOp(ms_Token *tok);
+
+/**
 * @brief Destroy a token.
 *
 * @param tok a token object
@@ -299,5 +309,13 @@ const char *ms_TokenName(ms_Token *tok);
 * @returns the string name of the given token type
 */
 const char *ms_TokenTypeName(ms_TokenType type);
+
+/**
+* @brief Indicate if the given type of token qualifies as an operator.
+*
+* @param type a type of token
+* @returns true if the given token type is an operator; false otherwise
+*/
+bool ms_TokenTypeIsOp(ms_TokenType type);
 
 #endif //MSCRIPT_LEXER_H
