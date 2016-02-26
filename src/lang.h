@@ -49,7 +49,7 @@ typedef struct ms_Expr ms_Expr;
 */
 typedef union {
     ms_Expr *expr;
-    double num;
+    ms_VMValue val;
 } ms_ExprAtom;
 
 /**
@@ -58,7 +58,7 @@ typedef union {
 typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
-    EXPRATOM_NUMBER,
+    EXPRATOM_VALUE,
 } ms_ExprAtomType;
 
 /**
@@ -90,6 +90,19 @@ typedef enum {
     BINARY_IDIVIDE,
     BINARY_MODULO,
     BINARY_EXPONENTIATE,
+    BINARY_SHIFT_LEFT,
+    BINARY_SHIFT_RIGHT,
+    BINARY_BITWISE_AND,
+    BINARY_BITWISE_XOR,
+    BINARY_BITWISE_OR,
+    BINARY_LE,
+    BINARY_LT,
+    BINARY_GE,
+    BINARY_GT,
+    BINARY_EQ,
+    BINARY_NOT_EQ,
+    BINARY_AND,
+    BINARY_OR,
 } ms_ExprBinaryOp;
 
 /**
@@ -146,6 +159,11 @@ typedef ms_Expr ms_AST;
 * @brief Create a new @c ms_Expr object.
 */
 ms_Expr *ms_ExprNew(ms_ExprType type);
+
+/**
+* @brief Create a new @c ms_Expr object with a primitive value.
+*/
+ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v);
 
 /**
 * @brief Create a new unary @c ms_Expr object containing from a string.

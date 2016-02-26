@@ -15,11 +15,15 @@
  *----------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <sys/errno.h>
 #include "lang.h"
+#include "vm.h"
 
-static const int EXPR_BYTECODE_STACK_LEN = 50;
+static const int EXPR_OPCODE_STACK_LEN = 50;
+static const int EXPR_VALUE_STACK_LEN = 50;
 
 // Static table of operator precedence values
 static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
@@ -31,11 +35,24 @@ static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
     { OP_MODULO, 100, ASSOC_LEFT },
     { OP_PLUS, 90, ASSOC_LEFT },
     { OP_MINUS, 90, ASSOC_LEFT },
+    { OP_SHIFT_LEFT, 80, ASSOC_LEFT },
+    { OP_SHIFT_RIGHT, 80, ASSOC_LEFT },
+    { OP_BITWISE_AND, 75, ASSOC_LEFT },
+    { OP_BITWISE_XOR, 70, ASSOC_LEFT },
+    { OP_BITWISE_OR, 65, ASSOC_LEFT },
+    { OP_LE, 60, ASSOC_LEFT },
+    { OP_LT, 60, ASSOC_LEFT },
+    { OP_GE, 60, ASSOC_LEFT },
+    { OP_GT, 60, ASSOC_LEFT },
+    { OP_EQ, 50, ASSOC_LEFT },
+    { OP_NOT_EQ, 50, ASSOC_LEFT },
+    { OP_AND, 40, ASSOC_LEFT },
+    { OP_OR, 30, ASSOC_LEFT }
 };
 
-void ExprToOpCodes(ms_Expr *expr, DSArray *stack);
-void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *stack);
-void ExprOpToOpCode(ms_Expr *expr, DSArray *stack);
+static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values);
+static void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *opcodes, DSArray *values);
+static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes, DSArray *values);
 
 /*
  * PUBLIC FUNCTIONS
@@ -75,6 +92,19 @@ ms_Expr *ms_ExprNew(ms_ExprType type) {
     return expr;
 }
 
+ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v) {
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->expr.u->expr.val.type = type;
+    expr->expr.u->expr.val.val = v;
+    expr->expr.u->type = EXPRATOM_VALUE;
+    expr->expr.u->op = UNARY_NONE;
+    return expr;
+}
+
 ms_Expr *ms_ExprNumberFromString(const char *str) {
     assert(str);
 
@@ -84,14 +114,22 @@ ms_Expr *ms_ExprNumberFromString(const char *str) {
     }
 
     errno = 0;
-    double val = strtod(str, NULL);
+    ms_VMFloat f = strtod(str, NULL);
     if (errno != 0) {
         ms_ExprDestroy(expr);
         return NULL;
     }
 
-    expr->expr.u->expr.num = val;
-    expr->expr.u->type = EXPRATOM_NUMBER;
+    ms_VMInt i;
+    if (ms_VMFloatIsInt(f, &i)) {
+        expr->expr.u->expr.val.type = VMVAL_INT;
+        expr->expr.u->expr.val.val.i = i;
+    } else {
+        expr->expr.u->expr.val.type = VMVAL_FLOAT;
+        expr->expr.u->expr.val.val.f = f;
+    }
+
+    expr->expr.u->type = EXPRATOM_VALUE;
     expr->expr.u->op = UNARY_NONE;
     return expr;
 }
@@ -145,17 +183,25 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
 }
 
 ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr) {
-    if (!expr) { return 0; }
+    if (!expr) { return NULL; }
 
-    DSArray *stack = dsarray_new_cap(EXPR_BYTECODE_STACK_LEN, NULL,
-                                     (dsarray_free_fn)free);
-    if (!stack) {
-        return 0;
+    DSArray *opcodes = dsarray_new_cap(EXPR_OPCODE_STACK_LEN, NULL,
+                                       (dsarray_free_fn)free);
+    if (!opcodes) {
+        return NULL;
     }
 
-    ExprToOpCodes(expr, stack);
-    ms_VMByteCode *bc = ms_VMOpCodesToByteCode(stack);
-    dsarray_destroy(stack);
+    DSArray *values = dsarray_new_cap(EXPR_VALUE_STACK_LEN, NULL,
+                                      (dsarray_free_fn)free);
+    if (!values) {
+        dsarray_destroy(opcodes);
+        return NULL;
+    }
+
+    ExprToOpCodes(expr, opcodes, values);
+    ms_VMByteCode *bc = ms_VMByteCodeNew(opcodes, values);
+    dsarray_destroy(opcodes);
+    dsarray_destroy(values);
     return bc;
 }
 
@@ -208,79 +254,122 @@ ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type) {
  * PRIVATE FUNCTIONS
  */
 
-void ExprToOpCodes(ms_Expr *expr, DSArray *stack) {
+static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values) {
     assert(expr);
-    assert(stack);
+    assert(opcodes);
+    assert(values);
 
     if (expr->type == EXPRTYPE_UNARY) {
-        ExprComponentToOpCodes(&expr->expr.u->expr, expr->expr.u->type, stack);
-        ExprOpToOpCode(expr, stack);
+        ExprComponentToOpCodes(&expr->expr.u->expr, expr->expr.u->type, opcodes, values);
+        ExprOpToOpCode(expr, opcodes, values);
     } else {
-        ExprComponentToOpCodes(&expr->expr.b->left, expr->expr.b->ltype, stack);
-        ExprComponentToOpCodes(&expr->expr.b->right, expr->expr.b->rtype, stack);
-        ExprOpToOpCode(expr, stack);
+        ExprComponentToOpCodes(&expr->expr.b->left, expr->expr.b->ltype, opcodes, values);
+        ExprComponentToOpCodes(&expr->expr.b->right, expr->expr.b->rtype, opcodes, values);
+        ExprOpToOpCode(expr, opcodes, values);
     }
 }
 
-void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *stack) {
+static void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *opcodes, DSArray *values) {
     assert(a);
-    assert(stack);
+    assert(opcodes);
+    assert(values);
 
     if (type == EXPRATOM_EXPRESSION) {
-        ExprToOpCodes(a->expr, stack);
-    } else if (type == EXPRATOM_NUMBER) {
+        ExprToOpCodes(a->expr, opcodes, values);
+    } else if (type == EXPRATOM_VALUE) {
         ms_VMOpCode *o = malloc(sizeof(ms_VMOpCode));
-        if (!o) {
-            return;
-        }
-        o->type = OPC_PUSH;
-        o->arg = a->num;
-        dsarray_append(stack, o);
+        if (!o) { return; }
+        ms_VMValue *v = malloc(sizeof(ms_VMValue));
+        if (!v) { free(o); return; }
+        *v = a->val;
+        dsarray_append(values, v);
+        size_t nvals = dsarray_len(values);
+        assert(nvals <= INT_MAX);
+        *o = ms_VMOpCodeWithArg(OPC_PUSH, (int)(nvals - 1));
+        dsarray_append(opcodes, o);
     }
 }
 
-void ExprOpToOpCode(ms_Expr *expr, DSArray *stack) {
+static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes, DSArray *values) {
     assert(expr);
-    assert(stack);
+    assert(opcodes);
+    assert(values);
 
     ms_VMOpCode *o = malloc(sizeof(ms_VMOpCode));
-    if (!o) {
-        return;
-    }
+    if (!o) { return; }
 
     if (expr->type == EXPRTYPE_BINARY) {
         switch (expr->expr.b->op) {
             case BINARY_PLUS:
-                o->type = OPC_ADD;
+                *o = OPC_ADD;
                 break;
             case BINARY_MINUS:
-                o->type = OPC_SUBTRACT;
+                *o = OPC_SUBTRACT;
                 break;
             case BINARY_TIMES:
-                o->type = OPC_MULTIPLY;
+                *o = OPC_MULTIPLY;
                 break;
             case BINARY_DIVIDE:
-                o->type = OPC_DIVIDE;
+                *o = OPC_DIVIDE;
                 break;
             case BINARY_IDIVIDE:
-                o->type = OPC_IDIVIDE;
+                *o = OPC_IDIVIDE;
                 break;
             case BINARY_MODULO:
-                o->type = OPC_MODULO;
+                *o = OPC_MODULO;
                 break;
             case BINARY_EXPONENTIATE:
-                o->type = OPC_EXPONENTIATE;
+                *o = OPC_EXPONENTIATE;
+                break;
+            case BINARY_SHIFT_LEFT:
+                *o = OPC_SHIFT_LEFT;
+                break;
+            case BINARY_SHIFT_RIGHT:
+                *o = OPC_SHIFT_RIGHT;
+                break;
+            case BINARY_BITWISE_AND:
+                *o = OPC_BITWISE_AND;
+                break;
+            case BINARY_BITWISE_XOR:
+                *o = OPC_BITWISE_XOR;
+                break;
+            case BINARY_BITWISE_OR:
+                *o = OPC_BITWISE_OR;
+                break;
+            case BINARY_LE:
+                *o = OPC_LE;
+                break;
+            case BINARY_LT:
+                *o = OPC_LT;
+                break;
+            case BINARY_GE:
+                *o = OPC_GE;
+                break;
+            case BINARY_GT:
+                *o = OPC_GT;
+                break;
+            case BINARY_EQ:
+                *o = OPC_EQ;
+                break;
+            case BINARY_NOT_EQ:
+                *o = OPC_NOT_EQ;
+                break;
+            case BINARY_AND:
+                *o = OPC_AND;
+                break;
+            case BINARY_OR:
+                *o = OPC_OR;
                 break;
             default:
                 free(o);
                 return;
         }
 
-        dsarray_append(stack, o);
+        dsarray_append(opcodes, o);
     } else {
         if (expr->expr.u->op == UNARY_MINUS) {
-            o->type = OPC_NEGATE;
-            dsarray_append(stack, o);
+            *o = OPC_NEGATE;
+            dsarray_append(opcodes, o);
             return;
         }
 

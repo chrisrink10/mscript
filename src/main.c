@@ -14,8 +14,49 @@
  *  limitations under the License.
  *----------------------------------------------------------------------------*/
 
+#include <assert.h>
 #include <stdlib.h>
+#include <readline/readline.h>
+#include "parser.h"
+#include "vm.h"
+
+static int StartREPL(const char *prog) {
+    ms_Parser *prs = ms_ParserNew();
+    assert(prs);
+    ms_VM *vm = ms_VMNew();
+    assert(vm);
+
+    char *input;
+    printf("mscript v0.1\n");
+    while ((input = readline("> "))) {
+        ms_ParserInitString(prs, input);
+
+        ms_ParseError *err;
+        ms_VMByteCode *code;    /* freed by the VM */
+        if (ms_ParserParse(prs, &code, &err) == PARSE_ERROR) {
+            printf("%s: \nLine %zu, Col %zu :: %s\n",
+                   prog, err->tok->line, err->tok->col, err->msg);
+            free(input);
+            continue;
+        }
+
+        assert(code);
+        assert(!err);
+
+        const ms_VMError *vmerr;
+        if (ms_VMExecuteAndPrint(vm, code, &vmerr) != VMEXEC_SUCCESS) {
+            printf("%s: %s\n", prog, vmerr->msg);
+        }
+
+        ms_VMClear(vm);
+        free(input);
+    }
+
+    ms_ParserDestroy(prs);
+    ms_VMDestroy(vm);
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char *argv[]) {
-    return EXIT_SUCCESS;
+    return StartREPL(argv[0]);
 }

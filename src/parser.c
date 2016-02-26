@@ -24,6 +24,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "lang.h"
+#include "vm.h"
 
 /*
  * FORWARD DECLARATIONS
@@ -189,7 +190,45 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
                 const char *val = dsbuf_char_ptr(cur->value);
                 ms_Expr *newexpr = ms_ExprNumberFromString(val);
                 if (!newexpr) {
-                    *err = ParseErrorNew("Out of memory", NULL);
+                    *err = ParseErrorNew("Out of memory", cur);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                dsarray_append(exprstack, newexpr);
+                break;
+            }
+            case STRING: {
+                ms_VMPrimitive p;
+                p.s = cur->value;
+                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
+                if (!newexpr) {
+                    *err = ParseErrorNew("Out of memory", cur);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                cur->value = NULL; /* prevent the buffer being destroyed when the token is destroyed */
+                dsarray_append(exprstack, newexpr);
+                break;
+            }
+            case KW_TRUE:       // Fall through
+            case KW_FALSE: {
+                ms_VMPrimitive p;
+                p.b = (cur->type == KW_TRUE) ? true : false;
+                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
+                if (!newexpr) {
+                    *err = ParseErrorNew("Out of memory", cur);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                dsarray_append(exprstack, newexpr);
+                break;
+            }
+            case KW_NULL: {
+                ms_VMPrimitive p;
+                p.n = MS_VM_NULL_POINTER;
+                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
+                if (!newexpr) {
+                    *err = ParseErrorNew("Out of memory", cur);
                     res = PARSE_ERROR;
                     goto parse_expr_cleanup;
                 }

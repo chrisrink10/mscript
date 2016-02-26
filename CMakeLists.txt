@@ -32,6 +32,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib)
 # Compiler and Linker flags
 set(C_WARNING_FLAGS "-Wall -Wextra -pedantic")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
+set(C_LINKER_FLAGS  "-lreadline")
 
 #######################################################################
 # MAIN EXECUTABLE
@@ -52,12 +53,15 @@ set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 set(MSCRIPT_SOURCE_FILES src/main.c
                          src/lang.c
                          src/lexer.c
+                         src/obj.c
                          src/parser.c
                          src/vm.c)
 
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
                        ${STREAM_SOURCE_FILES}
                        ${LIBDS_SOURCE_FILES})
+set_target_properties(mscript PROPERTIES
+                              LINK_FLAGS ${C_LINKER_FLAGS})
 
 #######################################################################
 # TEST EXECUTABLE
