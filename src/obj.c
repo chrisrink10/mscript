@@ -80,18 +80,6 @@ static int ms_StrToFloat(ms_VM *vm);
 static int ms_StrToInt(ms_VM *vm);
 static int ms_StrToBool(ms_VM *vm);
 static int ms_StrAdd(ms_VM *vm);
-static int ms_StrSubtract(ms_VM *vm);
-static int ms_StrMultiply(ms_VM *vm);
-static int ms_StrDivide(ms_VM *vm);
-static int ms_StrIDivide(ms_VM *vm);
-static int ms_StrModulo(ms_VM *vm);
-static int ms_StrExponentiate(ms_VM *vm);
-static int ms_StrNegate(ms_VM *vm);
-static int ms_StrLShift(ms_VM *vm);
-static int ms_StrRShift(ms_VM *vm);
-static int ms_StrBitwiseAnd(ms_VM *vm);
-static int ms_StrBitwiseXor(ms_VM *vm);
-static int ms_StrBitwiseOr(ms_VM *vm);
 static int ms_StrLessThan(ms_VM *vm);
 static int ms_StrLessEqual(ms_VM *vm);
 static int ms_StrGreaterThan(ms_VM *vm);
@@ -131,23 +119,6 @@ static int ms_NullToStr(ms_VM *vm);
 static int ms_NullToFloat(ms_VM *vm);
 static int ms_NullToInt(ms_VM *vm);
 static int ms_NullToBool(ms_VM *vm);
-static int ms_NullAdd(ms_VM *vm);
-static int ms_NullSubtract(ms_VM *vm);
-static int ms_NullMultiply(ms_VM *vm);
-static int ms_NullDivide(ms_VM *vm);
-static int ms_NullIDivide(ms_VM *vm);
-static int ms_NullModulo(ms_VM *vm);
-static int ms_NullExponentiate(ms_VM *vm);
-static int ms_NullNegate(ms_VM *vm);
-static int ms_NullLShift(ms_VM *vm);
-static int ms_NullRShift(ms_VM *vm);
-static int ms_NullBitwiseAnd(ms_VM *vm);
-static int ms_NullBitwiseXor(ms_VM *vm);
-static int ms_NullBitwiseOr(ms_VM *vm);
-static int ms_NullLessThan(ms_VM *vm);
-static int ms_NullLessEqual(ms_VM *vm);
-static int ms_NullGreaterThan(ms_VM *vm);
-static int ms_NullGreaterEqual(ms_VM *vm);
 static int ms_NullEqual(ms_VM *vm);
 static int ms_NullNotEqual(ms_VM *vm);
 static int ms_NullAnd(ms_VM *vm);
@@ -225,18 +196,6 @@ const ms_FuncDef MS_STR_PROTOTYPE[] = {
     { "__int__", ms_StrToInt },
     { "__bool__", ms_StrToBool },
     { "__add__", ms_StrAdd },
-    { "__sub__", ms_StrSubtract },
-    { "__mult__", ms_StrMultiply },
-    { "__div__", ms_StrDivide },
-    { "__idiv__", ms_StrIDivide },
-    { "__mod__", ms_StrModulo },
-    { "__exp__", ms_StrExponentiate },
-    { "__neg__", ms_StrNegate },
-    { "__lshift__", ms_StrLShift },
-    { "__rshift__", ms_StrRShift },
-    { "__band__", ms_StrBitwiseAnd },
-    { "__bxor__", ms_StrBitwiseXor },
-    { "__bor__", ms_StrBitwiseOr },
     { "__lt__", ms_StrLessThan },
     { "__le__", ms_StrLessEqual },
     { "__gt__", ms_StrGreaterThan },
@@ -282,23 +241,6 @@ const ms_FuncDef MS_NULL_PROTOTYPE[] = {
     { "__float__", ms_NullToFloat },
     { "__int__", ms_NullToInt },
     { "__bool__", ms_NullToBool },
-    { "__add__", ms_NullAdd },
-    { "__sub__", ms_NullSubtract },
-    { "__mult__", ms_NullMultiply },
-    { "__div__", ms_NullDivide },
-    { "__idiv__", ms_NullIDivide },
-    { "__mod__", ms_NullModulo },
-    { "__exp__", ms_NullExponentiate },
-    { "__neg__", ms_NullNegate },
-    { "__lshift__", ms_NullLShift },
-    { "__rshift__", ms_NullRShift },
-    { "__band__", ms_NullBitwiseAnd },
-    { "__bxor__", ms_NullBitwiseXor },
-    { "__bor__", ms_NullBitwiseOr },
-    { "__lt__", ms_NullLessThan },
-    { "__le__", ms_NullLessEqual },
-    { "__gt__", ms_NullGreaterThan },
-    { "__ge__", ms_NullGreaterEqual },
     { "__eq__", ms_NullEqual },
     { "__ne__", ms_NullNotEqual },
     { "__and__", ms_NullAnd },
@@ -674,54 +616,6 @@ static int ms_StrAdd(ms_VM *vm) {
     return 0;
 }
 
-static int ms_StrSubtract(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrMultiply(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrDivide(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrIDivide(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrModulo(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrExponentiate(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrNegate(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrLShift(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrRShift(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrBitwiseAnd(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrBitwiseXor(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_StrBitwiseOr(ms_VM *vm) {
-    return 0;
-}
-
 static int ms_StrLessThan(ms_VM *vm) {
     return 0;
 }
@@ -863,95 +757,53 @@ static int ms_BoolOr(ms_VM *vm) {
  */
 
 static int ms_NullToStr(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushStrL(vm, "null", 4);
+    return 1;
 }
 
 static int ms_NullToFloat(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushFloat(vm, 0.0);
+    return 1;
 }
 
 static int ms_NullToInt(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushInt(vm, 0);
+    return 1;
 }
 
 static int ms_NullToBool(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullAdd(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullSubtract(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullMultiply(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullDivide(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullIDivide(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullModulo(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullExponentiate(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullNegate(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullLShift(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullRShift(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullBitwiseAnd(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullBitwiseXor(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullBitwiseOr(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullLessThan(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullLessEqual(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullGreaterThan(ms_VM *vm) {
-    return 0;
-}
-
-static int ms_NullGreaterEqual(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushBool(vm, false);
+    return 1;
 }
 
 static int ms_NullEqual(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushBool(vm, (ms_VMBool)(r.type == VMVAL_NULL));
+    return 1;
 }
 
 static int ms_NullNotEqual(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushBool(vm, (ms_VMBool)(r.type != VMVAL_NULL));
+    return 1;
 }
 
 static int ms_NullAnd(ms_VM *vm) {

@@ -214,7 +214,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
             case KW_FALSE: {
                 ms_VMPrimitive p;
                 p.b = (cur->type == KW_TRUE) ? true : false;
-                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
+                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_BOOL, p);
                 if (!newexpr) {
                     *err = ParseErrorNew("Out of memory", cur);
                     res = PARSE_ERROR;
@@ -226,7 +226,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
             case KW_NULL: {
                 ms_VMPrimitive p;
                 p.n = MS_VM_NULL_POINTER;
-                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
+                ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_NULL, p);
                 if (!newexpr) {
                     *err = ParseErrorNew("Out of memory", cur);
                     res = PARSE_ERROR;

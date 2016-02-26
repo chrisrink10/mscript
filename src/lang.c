@@ -246,6 +246,19 @@ ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type) {
         case OP_IDIVIDE:        return BINARY_IDIVIDE;
         case OP_MODULO:         return BINARY_MODULO;
         case OP_EXPONENTIATE:   return BINARY_EXPONENTIATE;
+        case OP_SHIFT_LEFT:     return BINARY_SHIFT_LEFT;
+        case OP_SHIFT_RIGHT:    return BINARY_SHIFT_RIGHT;
+        case OP_BITWISE_AND:    return BINARY_BITWISE_AND;
+        case OP_BITWISE_XOR:    return BINARY_BITWISE_XOR;
+        case OP_BITWISE_OR:     return BINARY_BITWISE_OR;
+        case OP_LE:             return BINARY_LE;
+        case OP_LT:             return BINARY_LT;
+        case OP_GE:             return BINARY_GE;
+        case OP_GT:             return BINARY_GT;
+        case OP_DOUBLE_EQ:      return BINARY_EQ;
+        case OP_NOT_EQ:         return BINARY_NOT_EQ;
+        case OP_AND:            return BINARY_AND;
+        case OP_OR:             return BINARY_OR;
         default:                return BINARY_EMPTY;
     }
 }
