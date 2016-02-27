@@ -149,7 +149,6 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
             } else {
                 outer->expr.u->expr = inner->expr.u->expr;
                 outer->expr.u->type = inner->expr.u->type;
-                inner->expr.u = NULL;
                 ms_ExprDestroy(inner);
             }
             break;
@@ -161,7 +160,6 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
             } else {
                 outer->expr.b->left = inner->expr.u->expr;
                 outer->expr.b->ltype = inner->expr.u->type;
-                inner->expr.u = NULL;
                 ms_ExprDestroy(inner);
             }
             break;
@@ -173,7 +171,6 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
             } else {
                 outer->expr.b->right = inner->expr.u->expr;
                 outer->expr.b->rtype = inner->expr.u->type;
-                inner->expr.u = NULL;
                 ms_ExprDestroy(inner);
             }
             break;
@@ -214,6 +211,7 @@ void ms_ExprDestroy(ms_Expr *expr) {
                     ms_ExprDestroy(expr->expr.u->expr.expr);
                 }
                 free(expr->expr.u);
+                expr->expr.u = NULL;
             }
             break;
         case EXPRTYPE_BINARY:
@@ -225,6 +223,7 @@ void ms_ExprDestroy(ms_Expr *expr) {
                     ms_ExprDestroy(expr->expr.b->right.expr);
                 }
                 free(expr->expr.b);
+                expr->expr.b = NULL;
             }
             break;
     }

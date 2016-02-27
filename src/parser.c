@@ -123,23 +123,29 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
     return true;
 }
 
-void ms_ParserDestroy(ms_Parser *prs) {
-    if (!prs) { return; }
-    ms_LexerDestroy(prs->lex);
-    ms_TokenDestroy(prs->cur);
-    ms_ASTDestroy(prs->ast);
-    free(prs);
-}
-
 ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, ms_ParseError **err) {
     assert(prs);
     assert(code);
     assert(err);
 
+    if (prs->ast) { ms_ASTDestroy(prs->ast); }
     *err = NULL;
     ms_ParseResult res = ParserParseExpression(prs, &prs->ast, err);
     *code = (*err) ? NULL : ms_ExprToOpCodes(prs->ast);
     return res;
+}
+
+void ms_ParserDestroy(ms_Parser *prs) {
+    if (!prs) { return; }
+    ms_LexerDestroy(prs->lex);
+    prs->lex = NULL;
+    ms_TokenDestroy(prs->cur);
+    prs->cur = NULL;
+    ms_ASTDestroy(prs->ast);
+    prs->ast = NULL;
+    dsdict_destroy(prs->opcache);
+    prs->opcache = NULL;
+    free(prs);
 }
 
 void ms_ParseErrorDestroy(ms_ParseError *err) {

@@ -154,8 +154,11 @@ bool ms_LexerInitStringL(ms_Lexer *lex, const char *str, size_t len) {
 void ms_LexerDestroy(ms_Lexer *lex) {
     if (!lex) { return; }
     ms_StreamDestroy(lex->reader);
+    lex->reader = NULL;
     dsbuf_destroy(lex->buffer);
+    lex->buffer = NULL;
     dsdict_destroy(lex->kwcache);
+    lex->kwcache = NULL;
     free(lex);
 }
 
@@ -428,6 +431,7 @@ bool ms_TokenIsOp(ms_Token *tok) {
 void ms_TokenDestroy(ms_Token *tok) {
     if (!tok) { return; }
     dsbuf_destroy(tok->value);
+    tok->value = NULL;
     free(tok);
 }
 

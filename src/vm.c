@@ -98,7 +98,7 @@ ms_VM *ms_VMNew(void) {
         return NULL;
     }
 
-    vm->err.msg = "";
+    vm->err.msg = NULL;
     return vm;
 }
 
@@ -130,7 +130,9 @@ ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMEr
     dsarray_append(vm->fstack, newf);
 
     ms_VMExecResult res = VMFrameExecute(vm, newf);
-    (void)VMPrint(vm);
+    if (res != VMEXEC_ERROR) {
+        (void) VMPrint(vm);
+    }
     *err = &vm->err;
     return res;
 }
@@ -228,11 +230,19 @@ void ms_VMClear(ms_VM *vm) {
 void ms_VMDestroy(ms_VM *vm) {
     if (!vm) { return; }
     dsdict_destroy(vm->float_);
+    vm->float_ = NULL;
     dsdict_destroy(vm->int_);
+    vm->int_ = NULL;
     dsdict_destroy(vm->str);
+    vm->str = NULL;
     dsdict_destroy(vm->bool_);
+    vm->bool_ = NULL;
     dsdict_destroy(vm->null);
+    vm->null = NULL;
     dsarray_destroy(vm->fstack);
+    vm->fstack = NULL;
+    free(vm->err.msg);
+    vm->err.msg = NULL;
     free(vm);
 }
 
@@ -294,7 +304,9 @@ ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
 void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
     if (!bc) { return; }
     free(bc->code);
+    bc->code = NULL;
     free(bc->values);
+    bc->values = NULL;
     free(bc);
 }
 

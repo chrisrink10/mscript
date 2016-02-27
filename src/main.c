@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include <readline/readline.h>
 #include "parser.h"
 #include "vm.h"
@@ -28,7 +29,13 @@ static int StartREPL(const char *prog) {
 
     char *input;
     printf("mscript v0.1\n");
-    while ((input = readline("> "))) {
+    while ((input = readline("> ")) != NULL) {
+        if (strlen(input) == 0) {
+            ms_VMClear(vm);
+            free(input);
+            break;
+        }
+
         ms_ParserInitString(prs, input);
 
         ms_ParseError *err;
