@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -141,6 +142,7 @@ ms_VMValue *ms_VMTop(ms_VM *vm) {
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
     assert(f);
+    assert((f->dp - 1) != SIZE_MAX);
     return &f->data[f->dp - 1];
 }
 
@@ -149,16 +151,27 @@ ms_VMValue ms_VMPop(ms_VM *vm) {
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
     assert(f);
+    assert((f->dp - 1) != SIZE_MAX);
     ms_VMValue val = f->data[f->dp - 1];
     f->data[f->dp] = EMPTY_STACK_VAL;
     f->dp--;
     return val;
 }
 
-void ms_VMErrorSet(ms_VM *vm, const char *msg) {
+void ms_VMErrorSet(ms_VM *vm, const char *msg, ...) {
     assert(vm);
     if (vm->err.msg) { free(vm->err.msg); }
-    vm->err.msg = strdup(msg);
+
+    va_list args, args2;
+    va_start(args, msg);
+    va_copy(args2, args);
+    int len = vsnprintf(NULL, 0, msg, args);
+    vm->err.msg = malloc((size_t)len + 1);
+    if (vm->err.msg) {
+        vsnprintf(vm->err.msg, (size_t)len + 1, msg, args2);
+    }
+    va_end(args2);
+    va_end(args);
 }
 
 void ms_VMPush(ms_VM *vm, ms_VMValue val) {
@@ -166,6 +179,7 @@ void ms_VMPush(ms_VM *vm, ms_VMValue val) {
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
     assert(f);
+    assert(f->dp < FRAME_DATA_STACK_LIMIT);
     f->data[f->dp] = val;
     f->dp++;
 }
@@ -592,6 +606,7 @@ static inline size_t VMPop(ms_VM *vm) {
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
     assert(f);
+    assert((f->dp - 1) != SIZE_MAX);
     f->data[f->dp - 1] = EMPTY_STACK_VAL;
     f->dp--;
     return 1;
@@ -611,7 +626,7 @@ static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name) {
     ms_VMValue *l = VMPeek(vm, -2);
     ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
-        ms_VMErrorSet(vm, "Method not supported for this object.");
+        ms_VMErrorSet(vm, "Method '%s' not supported for this object.", name);
         return 0;
     }
     int res = op(vm);
@@ -623,7 +638,7 @@ static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     ms_VMValue *l = VMPeek(vm, -1);
     ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
-        ms_VMErrorSet(vm, "Method not supported for this object.");
+        ms_VMErrorSet(vm, "Method '%s' not supported for this object.", name);
         return 0;
     }
     int res = op(vm);

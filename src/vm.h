@@ -175,7 +175,7 @@ ms_VMValue ms_VMPop(ms_VM *vm);
 /**
 * @brief Set the VM error message.
 */
-void ms_VMErrorSet(ms_VM *vm, const char *msg);
+void ms_VMErrorSet(ms_VM *vm, const char *msg, ...);
 
 /*
 * @brief Push a new value onto the data stack of the current VM frame.

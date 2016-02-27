@@ -52,7 +52,7 @@ static int StartREPL(const char *prog) {
 
         const ms_VMError *vmerr;
         if (ms_VMExecuteAndPrint(vm, code, &vmerr) != VMEXEC_SUCCESS) {
-            printf("%s: %s\n", prog, vmerr->msg);
+            printf("%s: \n%s\n", prog, vmerr->msg);
         }
 
         ms_VMClear(vm);
