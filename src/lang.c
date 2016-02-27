@@ -28,6 +28,8 @@ static const int EXPR_VALUE_STACK_LEN = 50;
 // Static table of operator precedence values
 static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
     { OP_UMINUS, 110, ASSOC_RIGHT },
+    { OP_NOT, 110, ASSOC_RIGHT },
+    { OP_BITWISE_NOT, 110, ASSOC_RIGHT },
     { OP_TIMES, 100, ASSOC_LEFT },
     { OP_DIVIDE, 100, ASSOC_LEFT },
     { OP_IDIVIDE, 100, ASSOC_LEFT },
@@ -262,6 +264,15 @@ ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type) {
     }
 }
 
+ms_ExprUnaryOp ms_ExprTokenToUnaryOp(ms_TokenType type) {
+    switch (type) {
+        case OP_UMINUS:         return UNARY_MINUS;
+        case OP_NOT:            return UNARY_NOT;
+        case OP_BITWISE_NOT:    return UNARY_BITWISE_NOT;
+        default:                return UNARY_NONE;
+    }
+}
+
 /*
  * PRIVATE FUNCTIONS
  */
@@ -379,12 +390,21 @@ static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes, DSArray *values) {
 
         dsarray_append(opcodes, o);
     } else {
-        if (expr->expr.u->op == UNARY_MINUS) {
-            *o = OPC_NEGATE;
-            dsarray_append(opcodes, o);
-            return;
+        switch (expr->expr.u->op) {
+            case UNARY_MINUS:
+                *o = OPC_NEGATE;
+                break;
+            case UNARY_NOT:
+                *o = OPC_NOT;
+                break;
+            case UNARY_BITWISE_NOT:
+                *o = OPC_BITWISE_NOT;
+                break;
+            default:
+                free(o);
+                return;
         }
 
-        free(o);
+        dsarray_append(opcodes, o);
     }
 }

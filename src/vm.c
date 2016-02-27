@@ -458,6 +458,9 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_BITWISE_OR:
                 inc = VMDoBinaryOp(vm, "__bor__");
                 break;
+            case OPC_BITWISE_NOT:
+                inc = VMDoUnaryOp(vm, "__bnot__");
+                break;
             case OPC_LE:
                 inc = VMDoBinaryOp(vm, "__le__");
                 break;
@@ -475,6 +478,9 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 break;
             case OPC_NOT_EQ:
                 inc = VMDoBinaryOp(vm, "__ne__");
+                break;
+            case OPC_NOT:
+                inc = VMDoUnaryOp(vm, "__not__");
                 break;
             case OPC_AND:
                 inc = VMDoBinaryOp(vm, "__and__");

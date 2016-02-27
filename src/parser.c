@@ -353,7 +353,8 @@ static ms_ParseResult ParserExprCombine(DSArray *exprstack, ms_Token *tok, ms_Pa
     assert(tok);
 
     // Handle the unary minus
-    if (tok->type == OP_UMINUS) {
+    ms_ExprUnaryOp uop = ms_ExprTokenToUnaryOp(tok->type);
+    if (uop != UNARY_NONE) {
         ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
         if (!expr) {
             *err = ParseErrorNew("Out of memory", tok);
@@ -367,7 +368,7 @@ static ms_ParseResult ParserExprCombine(DSArray *exprstack, ms_Token *tok, ms_Pa
         ms_Expr *operand = dsarray_pop(exprstack);
 
         expr = ms_ExprFlatten(expr, operand, EXPRLOC_UNARY);
-        expr->expr.u->op = UNARY_MINUS;
+        expr->expr.u->op = uop;
 
         dsarray_append(exprstack, expr);
         return PARSE_SUCCESS;

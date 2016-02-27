@@ -67,6 +67,8 @@ typedef enum {
 typedef enum {
     UNARY_NONE,
     UNARY_MINUS,
+    UNARY_NOT,
+    UNARY_BITWISE_NOT,
 } ms_ExprUnaryOp;
 
 /*
@@ -206,6 +208,11 @@ size_t ms_ExprOpPrecedenceTable(const ms_ExprOpPrecedence **tbl);
 * @brief Convert a token type into a binary operation enumeration.
 */
 ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type);
+
+/**
+* @brief Convert a token type into a unary operation enumeration.
+*/
+ms_ExprUnaryOp ms_ExprTokenToUnaryOp(ms_TokenType type);
 
 /*
 * @brief Placeholder for real AST destroy function.

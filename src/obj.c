@@ -41,6 +41,7 @@ static int ms_FloatGreaterThan(ms_VM *vm);
 static int ms_FloatGreaterEqual(ms_VM *vm);
 static int ms_FloatEqual(ms_VM *vm);
 static int ms_FloatNotEqual(ms_VM *vm);
+static int ms_FloatNot(ms_VM *vm);
 static int ms_FloatAnd(ms_VM *vm);
 static int ms_FloatOr(ms_VM *vm);
 
@@ -61,12 +62,14 @@ static int ms_IntRShift(ms_VM *vm);
 static int ms_IntBitwiseAnd(ms_VM *vm);
 static int ms_IntBitwiseXor(ms_VM *vm);
 static int ms_IntBitwiseOr(ms_VM *vm);
+static int ms_IntBitwiseNot(ms_VM *vm);
 static int ms_IntLessThan(ms_VM *vm);
 static int ms_IntLessEqual(ms_VM *vm);
 static int ms_IntGreaterThan(ms_VM *vm);
 static int ms_IntGreaterEqual(ms_VM *vm);
 static int ms_IntEqual(ms_VM *vm);
 static int ms_IntNotEqual(ms_VM *vm);
+static int ms_IntNot(ms_VM *vm);
 static int ms_IntAnd(ms_VM *vm);
 static int ms_IntOr(ms_VM *vm);
 
@@ -81,6 +84,7 @@ static int ms_StrGreaterThan(ms_VM *vm);
 static int ms_StrGreaterEqual(ms_VM *vm);
 static int ms_StrEqual(ms_VM *vm);
 static int ms_StrNotEqual(ms_VM *vm);
+static int ms_StrNot(ms_VM *vm);
 static int ms_StrAnd(ms_VM *vm);
 static int ms_StrOr(ms_VM *vm);
 
@@ -101,12 +105,14 @@ static int ms_BoolRShift(ms_VM *vm);
 static int ms_BoolBitwiseAnd(ms_VM *vm);
 static int ms_BoolBitwiseXor(ms_VM *vm);
 static int ms_BoolBitwiseOr(ms_VM *vm);
+static int ms_BoolBitwiseNot(ms_VM *vm);
 static int ms_BoolLessThan(ms_VM *vm);
 static int ms_BoolLessEqual(ms_VM *vm);
 static int ms_BoolGreaterThan(ms_VM *vm);
 static int ms_BoolGreaterEqual(ms_VM *vm);
 static int ms_BoolEqual(ms_VM *vm);
 static int ms_BoolNotEqual(ms_VM *vm);
+static int ms_BoolNot(ms_VM *vm);
 static int ms_BoolAnd(ms_VM *vm);
 static int ms_BoolOr(ms_VM *vm);
 
@@ -116,6 +122,7 @@ static int ms_NullToInt(ms_VM *vm);
 static int ms_NullToBool(ms_VM *vm);
 static int ms_NullEqual(ms_VM *vm);
 static int ms_NullNotEqual(ms_VM *vm);
+static int ms_NullNot(ms_VM *vm);
 static int ms_NullAnd(ms_VM *vm);
 static int ms_NullOr(ms_VM *vm);
 
@@ -146,6 +153,7 @@ const ms_FuncDef MS_FLOAT_PROTOTYPE[] = {
     { "__ge__", ms_FloatGreaterEqual },
     { "__eq__", ms_FloatEqual },
     { "__ne__", ms_FloatNotEqual },
+    { "__not__", ms_FloatNot },
     { "__and__", ms_FloatAnd },
     { "__or__", ms_FloatOr },
     { NULL, NULL },
@@ -169,12 +177,14 @@ const ms_FuncDef MS_INT_PROTOTYPE[] = {
     { "__band__", ms_IntBitwiseAnd },
     { "__bxor__", ms_IntBitwiseXor },
     { "__bor__", ms_IntBitwiseOr },
+    { "__bnot__", ms_IntBitwiseNot },
     { "__lt__", ms_IntLessThan },
     { "__le__", ms_IntLessEqual },
     { "__gt__", ms_IntGreaterThan },
     { "__ge__", ms_IntGreaterEqual },
     { "__eq__", ms_IntEqual },
     { "__ne__", ms_IntNotEqual },
+    { "__not__", ms_IntNot },
     { "__and__", ms_IntAnd },
     { "__or__", ms_IntOr },
     { NULL, NULL },
@@ -192,6 +202,7 @@ const ms_FuncDef MS_STR_PROTOTYPE[] = {
     { "__ge__", ms_StrGreaterEqual },
     { "__eq__", ms_StrEqual },
     { "__ne__", ms_StrNotEqual },
+    { "__not__", ms_StrNot },
     { "__and__", ms_StrAnd },
     { "__or__", ms_StrOr },
     { NULL, NULL },
@@ -215,12 +226,14 @@ const ms_FuncDef MS_BOOL_PROTOTYPE[] = {
     { "__band__", ms_BoolBitwiseAnd },
     { "__bxor__", ms_BoolBitwiseXor },
     { "__bor__", ms_BoolBitwiseOr },
+    { "__bnot__", ms_BoolBitwiseNot },
     { "__lt__", ms_BoolLessThan },
     { "__le__", ms_BoolLessEqual },
     { "__gt__", ms_BoolGreaterThan },
     { "__ge__", ms_BoolGreaterEqual },
     { "__eq__", ms_BoolEqual },
     { "__ne__", ms_BoolNotEqual },
+    { "__not__", ms_BoolNot },
     { "__and__", ms_BoolAnd },
     { "__or__", ms_BoolOr },
     { NULL, NULL },
@@ -233,6 +246,7 @@ const ms_FuncDef MS_NULL_PROTOTYPE[] = {
     { "__bool__", ms_NullToBool },
     { "__eq__", ms_NullEqual },
     { "__ne__", ms_NullNotEqual },
+    { "__not__", ms_NullNot },
     { "__and__", ms_NullAnd },
     { "__or__", ms_NullOr },
     { NULL, NULL },
@@ -540,6 +554,14 @@ static int ms_FloatNotEqual(ms_VM *vm) {
     }
 }
 
+static int ms_FloatNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_FLOAT);
+    ms_VMPushBool(vm, !(ms_VMBool)l.val.f);
+    return 1;
+}
+
 static int ms_FloatAnd(ms_VM *vm) {
     return 0;
 }
@@ -818,6 +840,14 @@ static int ms_IntBitwiseOr(ms_VM *vm) {
     }
 }
 
+static int ms_IntBitwiseNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_INT);
+    ms_VMPushInt(vm, ~l.val.i);
+    return 1;
+}
+
 static int ms_IntLessThan(ms_VM *vm) {
     assert(vm);
     ms_VMValue r = ms_VMPop(vm);
@@ -938,6 +968,14 @@ static int ms_IntNotEqual(ms_VM *vm) {
     }
 }
 
+static int ms_IntNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_INT);
+    ms_VMPushBool(vm, !(ms_VMBool)l.val.i);
+    return 1;
+}
+
 static int ms_IntAnd(ms_VM *vm) {
     return 0;
 }
@@ -991,6 +1029,10 @@ static int ms_StrEqual(ms_VM *vm) {
 }
 
 static int ms_StrNotEqual(ms_VM *vm) {
+    return 0;
+}
+
+static int ms_StrNot(ms_VM *vm) {
     return 0;
 }
 
@@ -1253,6 +1295,14 @@ static int ms_BoolBitwiseOr(ms_VM *vm) {
     }
 }
 
+static int ms_BoolBitwiseNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_BOOL);
+    ms_VMPushInt(vm, ~((ms_VMInt)l.val.b));
+    return 1;
+}
+
 static int ms_BoolLessThan(ms_VM *vm) {
     assert(vm);
     ms_VMValue r = ms_VMPop(vm);
@@ -1373,6 +1423,14 @@ static int ms_BoolNotEqual(ms_VM *vm) {
     }
 }
 
+static int ms_BoolNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_BOOL);
+    ms_VMPushBool(vm, !((ms_VMBool)l.val.b));
+    return 1;
+}
+
 static int ms_BoolAnd(ms_VM *vm) {
     return 0;
 }
@@ -1432,6 +1490,14 @@ static int ms_NullNotEqual(ms_VM *vm) {
     ms_VMValue l = ms_VMPop(vm);
     assert(l.type == VMVAL_NULL);
     ms_VMPushBool(vm, (ms_VMBool)(r.type != VMVAL_NULL));
+    return 1;
+}
+
+static int ms_NullNot(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushBool(vm, true);
     return 1;
 }
 
