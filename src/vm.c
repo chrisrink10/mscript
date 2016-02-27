@@ -491,7 +491,7 @@ static ms_VMValue *VMPeek(ms_VM *vm, int index) {
         assert(((int)f->dp + index) >= 0);
         return &f->data[f->dp + index];
     } else {
-        assert(index < f->dp);
+        assert((size_t)index < f->dp);
         return &f->data[index];
     }
 }
