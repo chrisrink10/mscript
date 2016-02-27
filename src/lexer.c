@@ -530,12 +530,6 @@ bool ms_TokenTypeIsOp(ms_TokenType type) {
         case OP_DIVIDE:
         case OP_IDIVIDE:
         case OP_MODULO:
-        case OP_PLUS_EQUALS:
-        case OP_MINUS_EQUALS:
-        case OP_TIMES_EQUALS:
-        case OP_DIVIDE_EQUALS:
-        case OP_IDIVIDE_EQUALS:
-        case OP_MODULO_EQUALS:
         case OP_AND:
         case OP_OR:
         case OP_INCREMENT:
