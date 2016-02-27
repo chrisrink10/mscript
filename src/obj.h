@@ -20,19 +20,6 @@
 #include "libds/dict.h"
 #include "vm.h"
 
-/**
-* @
-*/
-typedef int (*ms_Function)(ms_VM *vm);
-
-/**
-* @brief Prototype of all objects
-*/
-typedef struct {
-    const char *name;
-    ms_Function func;
-} ms_FuncDef;
-
 extern const ms_FuncDef MS_OBJECT_PROTOTYPE[];
 extern const ms_FuncDef MS_FLOAT_PROTOTYPE[];
 extern const ms_FuncDef MS_INT_PROTOTYPE[];

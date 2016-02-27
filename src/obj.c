@@ -261,7 +261,7 @@ static int ms_FloatToStr(ms_VM *vm) {
 }
 
 static int ms_FloatToFloat(ms_VM *vm) {
-    return 0;
+    return 1;
 }
 
 static int ms_FloatToInt(ms_VM *vm) {
@@ -275,7 +275,7 @@ static int ms_FloatToInt(ms_VM *vm) {
 static int ms_FloatToBool(ms_VM *vm) {
     assert(vm);
     ms_VMValue l = ms_VMPop(vm);
-    assert(l.type == VMVAL_INT);
+    assert(l.type == VMVAL_FLOAT);
     ms_VMPushBool(vm, (ms_VMBool)(l.val.f != 0.0));
     return 1;
 }
@@ -563,10 +563,42 @@ static int ms_FloatNot(ms_VM *vm) {
 }
 
 static int ms_FloatAnd(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_FLOAT);
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, (ms_VMBool)l.val.f && r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
 static int ms_FloatOr(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_FLOAT);
+    if ((ms_VMBool)l.val.f) {
+        ms_VMPushBool(vm, true);
+        return 1;
+    }
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
@@ -977,10 +1009,42 @@ static int ms_IntNot(ms_VM *vm) {
 }
 
 static int ms_IntAnd(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_INT);
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, (ms_VMBool)l.val.i && r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
 static int ms_IntOr(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_INT);
+    if ((ms_VMBool)l.val.i) {
+        ms_VMPushBool(vm, true);
+        return 1;
+    }
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
@@ -1432,10 +1496,42 @@ static int ms_BoolNot(ms_VM *vm) {
 }
 
 static int ms_BoolAnd(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_BOOL);
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, l.val.b && r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
 static int ms_BoolOr(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_BOOL);
+    if (l.val.b) {
+        ms_VMPushBool(vm, true);
+        return 1;
+    }
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }
 
@@ -1502,9 +1598,28 @@ static int ms_NullNot(ms_VM *vm) {
 }
 
 static int ms_NullAnd(ms_VM *vm) {
-    return 0;
+    assert(vm);
+    (void)ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+    ms_VMPushBool(vm, false);
+    return 1;
 }
 
 static int ms_NullOr(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue r = ms_VMPop(vm);
+    ms_VMValue l = ms_VMPop(vm);
+    assert(l.type == VMVAL_NULL);
+
+    ms_VMPush(vm, r);
+    ms_Function tobool = ms_VMPrototypeFuncGet(vm, r.type, "__bool__");
+    if ((tobool) && (tobool(vm) == 1)) {
+        r = ms_VMPop(vm);
+        ms_VMPushBool(vm, r.val.b);
+        return 1;
+    }
+
+    (void)ms_VMPop(vm);
     return 0;
 }

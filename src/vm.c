@@ -66,12 +66,11 @@ static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc);
 static void VMFrameDestroy(ms_VMFrame *f);
 static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
 static ms_VMValue *VMPeek(ms_VM *vm, int index);
-static inline ms_Function VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method);
 
 static inline size_t VMPrint(ms_VM *vm);
 static inline size_t VMPush(ms_VM *vm, int val);
 static inline size_t VMPop(ms_VM *vm);
-static inline size_t VMRotate(ms_VM *vm);
+static inline size_t VMSwap(ms_VM *vm);
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name);
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name);
 
@@ -219,6 +218,41 @@ void ms_VMPushNull(ms_VM *vm) {
     v.type = VMVAL_NULL;
     v.val.n = MS_VM_NULL_POINTER;
     ms_VMPush(vm, v);
+}
+
+void ms_VMSwap(ms_VM *vm) {
+    (void) VMSwap(vm);
+}
+
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method) {
+    assert(vm);
+    assert(vm->float_);
+    assert(vm->int_);
+    assert(vm->str);
+    assert(vm->bool_);
+    assert(vm->null);
+
+    ms_FuncDef *def;
+    switch (type) {
+        case VMVAL_FLOAT:
+            def = dsdict_get(vm->float_, (void *)method);
+            return (def) ? def->func : NULL;
+        case VMVAL_INT:
+            def = dsdict_get(vm->int_, (void *)method);
+            return (def) ? def->func : NULL;
+        case VMVAL_STR:
+            def = dsdict_get(vm->str, (void *)method);
+            return (def) ? def->func : NULL;
+        case VMVAL_BOOL:
+            def = dsdict_get(vm->bool_, (void *)method);
+            return (def) ? def->func : NULL;
+        case VMVAL_NULL:
+            def = dsdict_get(vm->null, (void *)method);
+            return (def) ? def->func : NULL;
+    }
+
+    assert(false && "Invalid VM type given.");
+    return NULL;
 }
 
 void ms_VMClear(ms_VM *vm) {
@@ -416,8 +450,8 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_POP:
                 inc = VMPop(vm);
                 break;
-            case OPC_ROTATE:
-                inc = VMRotate(vm);
+            case OPC_SWAP:
+                inc = VMSwap(vm);
                 break;
             case OPC_ADD:
                 inc = VMDoBinaryOp(vm, "__add__");
@@ -514,38 +548,6 @@ static ms_VMValue *VMPeek(ms_VM *vm, int index) {
     }
 }
 
-// Get the appropriate function for the given
-static inline ms_Function VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method) {
-    assert(vm);
-    assert(vm->float_);
-    assert(vm->int_);
-    assert(vm->str);
-    assert(vm->bool_);
-    assert(vm->null);
-
-    ms_FuncDef *def;
-    switch (type) {
-        case VMVAL_FLOAT:
-            def = dsdict_get(vm->float_, (void *)method);
-            return (def) ? def->func : NULL;
-        case VMVAL_INT:
-            def = dsdict_get(vm->int_, (void *)method);
-            return (def) ? def->func : NULL;
-        case VMVAL_STR:
-            def = dsdict_get(vm->str, (void *)method);
-            return (def) ? def->func : NULL;
-        case VMVAL_BOOL:
-            def = dsdict_get(vm->bool_, (void *)method);
-            return (def) ? def->func : NULL;
-        case VMVAL_NULL:
-            def = dsdict_get(vm->null, (void *)method);
-            return (def) ? def->func : NULL;
-    }
-
-    assert(false && "Invalid VM type given.");
-    return NULL;
-}
-
 /*
  * OPCODE FUNCTIONS
  */
@@ -595,7 +597,7 @@ static inline size_t VMPop(ms_VM *vm) {
     return 1;
 }
 
-static inline size_t VMRotate(ms_VM *vm) {
+static inline size_t VMSwap(ms_VM *vm) {
     assert(vm);
     ms_VMValue v2 = ms_VMPop(vm);
     ms_VMValue v1 = ms_VMPop(vm);
@@ -607,7 +609,7 @@ static inline size_t VMRotate(ms_VM *vm) {
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name) {
     assert(vm);
     ms_VMValue *l = VMPeek(vm, -2);
-    ms_Function op = VMPrototypeFuncGet(vm, l->type, name);
+    ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
         ms_VMErrorSet(vm, "Method not supported for this object.");
         return 0;
@@ -619,7 +621,7 @@ static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name) {
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     assert(vm);
     ms_VMValue *l = VMPeek(vm, -1);
-    ms_Function op = VMPrototypeFuncGet(vm, l->type, name);
+    ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
         ms_VMErrorSet(vm, "Method not supported for this object.");
         return 0;

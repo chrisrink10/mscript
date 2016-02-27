@@ -26,6 +26,19 @@
 */
 typedef struct ms_VM ms_VM;
 
+/**
+* @brief Function signature for VM C functions
+*/
+typedef int (*ms_Function)(ms_VM *vm);
+
+/**
+* @brief Prototype of all objects
+*/
+typedef struct {
+    const char *name;
+    ms_Function func;
+} ms_FuncDef;
+
 /*
 * @brief Enumeration of VM result values
 */
@@ -48,7 +61,7 @@ typedef enum {
     OPC_PRINT,
     OPC_PUSH,
     OPC_POP,
-    OPC_ROTATE,
+    OPC_SWAP,
     OPC_ADD,
     OPC_SUBTRACT,
     OPC_MULTIPLY,
@@ -198,6 +211,16 @@ void ms_VMPushBool(ms_VM *vm, ms_VMBool b);
 * @brief Push a null value onto the stack.
 */
 void ms_VMPushNull(ms_VM *vm);
+
+/**
+* @brief Swap the ordering of the top two elements on the stack.
+*/
+void ms_VMSwap(ms_VM *vm);
+
+/**
+* @brief Get a function pointer for the given primitive type and method.
+*/
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method);
 
 /**
 * @brief Clear the data stack and reset the instruction pointer.
