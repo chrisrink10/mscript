@@ -191,10 +191,21 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr, ms_P
         void (*cleanup_token)(ms_Parser *) = ParserConsumeToken;
 
         switch (cur->type) {
-            case NUMBER:        // Fall through
+            case FLOAT_NUMBER: {
+                const char *val = dsbuf_char_ptr(cur->value);
+                ms_Expr *newexpr = ms_ExprFloatFromString(val);
+                if (!newexpr) {
+                    *err = ParseErrorNew("Out of memory", cur);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                dsarray_append(exprstack, newexpr);
+                break;
+            }
+            case INT_NUMBER:        // Fall through
             case HEX_NUMBER: {
                 const char *val = dsbuf_char_ptr(cur->value);
-                ms_Expr *newexpr = ms_ExprNumberFromString(val);
+                ms_Expr *newexpr = ms_ExprIntFromString(val);
                 if (!newexpr) {
                     *err = ParseErrorNew("Out of memory", cur);
                     res = PARSE_ERROR;

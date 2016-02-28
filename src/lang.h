@@ -168,9 +168,16 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v);
 
 /**
-* @brief Create a new unary @c ms_Expr object containing from a string.
+* @brief Create a new unary @c ms_Expr object containing a floating point
+* number from a string.
 */
-ms_Expr *ms_ExprNumberFromString(const char *str);
+ms_Expr *ms_ExprFloatFromString(const char *str);
+
+/**
+* @brief Create a new unary @c ms_Expr object containing an integer
+* number from a string.
+*/
+ms_Expr *ms_ExprIntFromString(const char *str);
 
 /**
 * @brief Flatten two expressions such that the expression tree does not

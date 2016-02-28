@@ -34,9 +34,14 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len);
  * UNIT TEST FUNCTIONS
  */
 
-MunitResult lex_TestLexNumerics(const MunitParameter params[], void *user_data) {
+MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
-    return LexExpect(num, NUMBER);
+    return LexExpect(num, INT_NUMBER);
+}
+
+MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data) {
+    const char *num = munit_parameters_get(params, "num");
+    return LexExpect(num, FLOAT_NUMBER);
 }
 
 MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data) {

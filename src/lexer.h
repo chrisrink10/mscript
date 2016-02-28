@@ -92,7 +92,8 @@ static const char *const TOK_KW_IS = "KW_IS";
 static const char *const TOK_KW_AS = "KW_AS";
 static const char *const TOK_KW_IN = "KW_IN";
 static const char *const TOK_STRING = "STRING";
-static const char *const TOK_NUMBER = "NUMBER";
+static const char *const TOK_INT_NUMBER = "INT_NUMBER";
+static const char *const TOK_FLOAT_NUMBER = "FLOAT_NUMBER";
 static const char *const TOK_HEX_NUMBER = "HEX_NUMBER";
 
 /**
@@ -104,7 +105,8 @@ typedef enum ms_TokenType {
     IDENTIFIER,
     BUILTIN_FUNC,
     GLOBAL,
-    NUMBER,
+    FLOAT_NUMBER,
+    INT_NUMBER,
     HEX_NUMBER,
     STRING,
     KW_FUNC,

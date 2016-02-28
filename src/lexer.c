@@ -447,7 +447,8 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case IDENTIFIER:        return TOK_IDENTIFIER;
         case BUILTIN_FUNC:      return TOK_BUILTIN_FUNC;
         case GLOBAL:            return TOK_GLOBAL;
-        case NUMBER:            return TOK_NUMBER;
+        case FLOAT_NUMBER:      return TOK_FLOAT_NUMBER;
+        case INT_NUMBER:        return TOK_INT_NUMBER;
         case HEX_NUMBER:        return TOK_HEX_NUMBER;
         case STRING:            return TOK_STRING;
         case KW_FUNC:           return TOK_KW_FUNC;
@@ -616,19 +617,22 @@ static ms_Token *LexerLexNumber(ms_Lexer *lex, int prev) {
     }
 
     // Accept basic digits
+    ms_TokenType type = INT_NUMBER;
     LexerAcceptRun(lex, BASE_10_DIGITS);
 
     // Accept standard decimal digits
     if ((prev != '.') && (LexerAcceptOne(lex, "."))) {
         LexerAcceptRun(lex, BASE_10_DIGITS);
+        type = FLOAT_NUMBER;
     }
 
     // Accept exponential notation
     if (LexerAcceptOne(lex, "eE")) {
         LexerAcceptRun(lex, BASE_10_DIGITS);
+        type = FLOAT_NUMBER;
     }
 
-    return LexerTokenFromBuffer(lex, NUMBER);
+    return LexerTokenFromBuffer(lex, type);
 }
 
 // Starting at the character prev, attempt to lex an entire

@@ -107,7 +107,7 @@ ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v) {
     return expr;
 }
 
-ms_Expr *ms_ExprNumberFromString(const char *str) {
+ms_Expr *ms_ExprFloatFromString(const char *str) {
     assert(str);
 
     ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
@@ -122,15 +122,30 @@ ms_Expr *ms_ExprNumberFromString(const char *str) {
         return NULL;
     }
 
-    ms_VMInt i;
-    if (ms_VMFloatIsInt(f, &i)) {
-        expr->expr.u->expr.val.type = VMVAL_INT;
-        expr->expr.u->expr.val.val.i = i;
-    } else {
-        expr->expr.u->expr.val.type = VMVAL_FLOAT;
-        expr->expr.u->expr.val.val.f = f;
+    expr->expr.u->expr.val.type = VMVAL_FLOAT;
+    expr->expr.u->expr.val.val.f = f;
+    expr->expr.u->type = EXPRATOM_VALUE;
+    expr->expr.u->op = UNARY_NONE;
+    return expr;
+}
+
+ms_Expr *ms_ExprIntFromString(const char *str) {
+    assert(str);
+
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        return NULL;
     }
 
+    errno = 0;
+    ms_VMInt i = strtoll(str, NULL, 10);
+    if (errno != 0) {
+        ms_ExprDestroy(expr);
+        return NULL;
+    }
+
+    expr->expr.u->expr.val.type = VMVAL_INT;
+    expr->expr.u->expr.val.val.i = i;
     expr->expr.u->type = EXPRATOM_VALUE;
     expr->expr.u->op = UNARY_NONE;
     return expr;
