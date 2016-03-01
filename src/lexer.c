@@ -146,7 +146,7 @@ bool ms_LexerInitStringL(ms_Lexer *lex, const char *str, size_t len) {
     }
 
     lex->line = 1;
-    lex->col = 0;
+    lex->col = 1;
     lex->buffer = NULL;
     return LexerResetBuffer(lex);
 }
@@ -762,7 +762,7 @@ static int LexerAcceptExcept(ms_Lexer *lex, const char *invalid) {
 static inline void LexerIncrementLine(ms_Lexer *lex) {
     assert(lex);
     lex->line++;
-    lex->col = 0;
+    lex->col = 1;
 }
 
 // Backup from the previous character.
