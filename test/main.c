@@ -17,6 +17,7 @@
 #include "munit/munit.h"
 #include "streamreader.h"
 #include "lexer.h"
+#include "parser.h"
 
 static MunitSuite suites[] = {
         {
@@ -29,6 +30,13 @@ static MunitSuite suites[] = {
         {
             "/lexer",
             lexer_tests,
+            NULL,
+            1,
+            MUNIT_SUITE_OPTION_NONE
+        },
+        {
+            "/parser",
+            parser_tests,
             NULL,
             1,
             MUNIT_SUITE_OPTION_NONE
