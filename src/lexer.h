@@ -51,8 +51,6 @@ static const char *const TOK_OP_LT = "OP_LT";
 static const char *const TOK_OP_GT = "OP_GT";
 static const char *const TOK_OP_DOUBLE_EQ = "OP_DOUBLE_EQ";
 static const char *const TOK_OP_EXPONENTIATE = "OP_EXPONENTIATE";
-static const char *const TOK_OP_DECREMENT = "OP_DECREMENT";
-static const char *const TOK_OP_INCREMENT = "OP_INCREMENT";
 static const char *const TOK_OP_OR = "OP_OR";
 static const char *const TOK_OP_AND = "OP_AND";
 static const char *const TOK_OP_MODULO_EQUALS = "OP_MODULO_EQUALS";
@@ -147,8 +145,6 @@ typedef enum ms_TokenType {
     OP_MODULO_EQUALS,
     OP_AND,
     OP_OR,
-    OP_INCREMENT,
-    OP_DECREMENT,
     OP_EXPONENTIATE,
     OP_DOUBLE_EQ,
     OP_GT,

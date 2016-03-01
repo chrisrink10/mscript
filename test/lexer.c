@@ -134,8 +134,6 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { ">=", OP_GE },
         { "<", OP_LT },
         { "<=", OP_LE },
-        { "++", OP_INCREMENT },
-        { "--", OP_DECREMENT },
         { "=", OP_EQ },
         { "&", OP_BITWISE_AND },
         { "|", OP_BITWISE_OR },

@@ -221,8 +221,6 @@ begin_lex:              // Jump label for ignored input
             n = LexerNextChar(lex);
             if (n == '=') {
                 return LexerTokenNew(lex, OP_PLUS_EQUALS, "+=", 2);
-            } else if (n == '+') {
-                return LexerTokenNew(lex, OP_INCREMENT, "++", 2);
             }
             LexerBackup(lex);
             return LexerTokenNew(lex, OP_PLUS, "+", 1);
@@ -232,8 +230,6 @@ begin_lex:              // Jump label for ignored input
             n = LexerNextChar(lex);
             if (n == '=') {
                 return LexerTokenNew(lex, OP_MINUS_EQUALS, "-=", 2);
-            } else if (n == '-') {
-                return LexerTokenNew(lex, OP_DECREMENT, "--", 2);
             }
             LexerBackup(lex);
             return LexerTokenNew(lex, OP_MINUS, "-", 1);
@@ -489,8 +485,6 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case OP_MODULO_EQUALS:  return TOK_OP_MODULO_EQUALS;
         case OP_AND:            return TOK_OP_AND;
         case OP_OR:             return TOK_OP_OR;
-        case OP_INCREMENT:      return TOK_OP_INCREMENT;
-        case OP_DECREMENT:      return TOK_OP_DECREMENT;
         case OP_EXPONENTIATE:   return TOK_OP_EXPONENTIATE;
         case OP_DOUBLE_EQ:      return TOK_OP_DOUBLE_EQ;
         case OP_GT:             return TOK_OP_GT;
@@ -533,8 +527,6 @@ bool ms_TokenTypeIsOp(ms_TokenType type) {
         case OP_MODULO:
         case OP_AND:
         case OP_OR:
-        case OP_INCREMENT:
-        case OP_DECREMENT:
         case OP_EXPONENTIATE:
         case OP_DOUBLE_EQ:
         case OP_GT:
