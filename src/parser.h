@@ -64,11 +64,6 @@ bool ms_ParserInitString(ms_Parser *prs, const char *str);
 bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 
 /**
-* @brief Destroy a @c ms_Parser object.
-*/
-void ms_ParserDestroy(ms_Parser *prs);
-
-/**
 * @brief Parse the mscript string or file associated with this @c ms_Parser .
 *
 * @param prs a @c ms_Parser object
@@ -80,11 +75,11 @@ void ms_ParserDestroy(ms_Parser *prs);
 *          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
 *          examine the value of @c to determine what went wrong
 */
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, ms_ParseError **err);
+ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_ParseError **err);
 
 /**
-* @brief Destroy a @c ms_ParseError object.
+* @brief Destroy a @c ms_Parser object.
 */
-void ms_ParseErrorDestroy(ms_ParseError *err);
+void ms_ParserDestroy(ms_Parser *prs);
 
 #endif //MSCRIPT_PARSER_H
