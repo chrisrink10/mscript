@@ -330,6 +330,202 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
                 .nops = 3, .nvals = 2,
             }
         },
+        {
+            .val = "5 << 2",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(5),
+                    VM_INT_LITERAL(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SHIFT_LEFT, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "183822 >> 4",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(183822),
+                    VM_INT_LITERAL(4),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SHIFT_RIGHT, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "13 & 97",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(13),
+                    VM_INT_LITERAL(97),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "3 | 15",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(3),
+                    VM_INT_LITERAL(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "53 @ 7",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(53),
+                    VM_INT_LITERAL(7),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_XOR, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "46.12 <= 73",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_FLOAT_LITERAL(46.12),
+                    VM_INT_LITERAL(73),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_LE, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "true < 14",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL_LITERAL(true),
+                    VM_INT_LITERAL(14),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_LT, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "33 != 1988",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(33),
+                    VM_INT_LITERAL(1988),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_NOT_EQ, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "71 == 0.33",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(71),
+                    VM_FLOAT_LITERAL(0.33),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_EQ, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "81.3 > 90",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_FLOAT_LITERAL(81.3),
+                    VM_INT_LITERAL(90),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GT, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "1000 >= 10000",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(1000),
+                    VM_INT_LITERAL(10000),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GE, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+
+        {
+            .val = "true && false",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL_LITERAL(true),
+                    VM_BOOL_LITERAL(false),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_AND, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "1 || null",
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT_LITERAL(1),
+                    VM_NULL_LITERAL(),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_OR, 0),
+                },
+                .nops = 3, .nvals = 2,
+            }
+        },
     };
 
     size_t len = sizeof(exprs) / sizeof(exprs[0]);
