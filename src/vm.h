@@ -139,7 +139,12 @@ typedef int ms_VMOpCode;
 /**
 * @brief Container for a full mscript bytecode script
 */
-typedef struct ms_VMByteCode ms_VMByteCode;
+typedef struct {
+    ms_VMOpCode *code;                              /* array of opcodes */
+    ms_VMValue *values;                             /* array of VM values */
+    size_t nops;                                    /* number of opcodes */
+    size_t nvals;                                   /* number of values */
+} ms_VMByteCode;
 
 /**
 * @brief Create a new mscript VM.

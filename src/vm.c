@@ -55,13 +55,6 @@ struct ms_VM {
     DSDict *obj;                                    /* object primitive prototype */
 };
 
-struct ms_VMByteCode{
-    ms_VMOpCode *code;                              /* array of opcodes */
-    ms_VMValue *values;                             /* array of VM values */
-    size_t nops;                                    /* number of opcodes */
-    size_t nvals;                                   /* number of values */
-};
-
 static bool VMGeneratePrototypes(ms_VM *vm);
 static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc);
 static void VMFrameDestroy(ms_VMFrame *f);
