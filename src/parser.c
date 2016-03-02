@@ -304,6 +304,15 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 }
                 break;
             }
+            case OP_BITWISE_NOT:
+            case OP_NOT: {    // Unary operators
+                if ((prev) && (!ms_TokenTypeIsOp(prevtype)) && (prevtype != LPAREN)) {
+                    ParserErrorSet(prs, ERR_EXPECTED_OPERAND, cur, cur->line, cur->col);
+                    res = PARSE_ERROR;
+                    goto parse_expr_cleanup;
+                }
+                goto parse_expr_evaluate_op;
+            }
             case OP_MINUS: {    // Unary minus case
                 if ((!prev) || (ms_TokenTypeIsOp(prevtype)) || (prevtype == LPAREN)) {
                     cur->type = OP_UMINUS;
@@ -312,6 +321,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                     break;
                 }
             }
+parse_expr_evaluate_op:
             default: {
                 ms_Token *top = dsarray_top(opstack);
                 if ((dsarray_len(opstack) > 0) && ParserExprShouldCombine(prs, top, cur)) {
