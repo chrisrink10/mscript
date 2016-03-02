@@ -52,6 +52,8 @@ static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
 static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *next);
 static ms_ParseResult ParserExprCombine(ms_Parser *prs, DSArray *exprstack, ms_Token *tok);
+static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprUnaryOp op);
+static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprBinaryOp op);
 static inline ms_Token *ParserCurrentToken(ms_Parser *prs);
 static inline ms_Token *ParserNextToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
@@ -189,7 +191,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
     assert(prs);
     assert(expr);
 
-    // Data structure for defining parse tree
+    /* stack for staging intermediate expressions */
     DSArray *exprstack = dsarray_new_cap(EXPRESSION_STACK_DEFAULT_LEN,
                                          NULL, (dsarray_free_fn)ms_ExprDestroy);
     if (!exprstack) {
@@ -197,7 +199,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
         return PARSE_ERROR;
     }
 
-    // Operator stack
+    /* stack for staging operators */
     DSArray *opstack = dsarray_new_cap(OPERATOR_STACK_DEFAULT_LEN,
                                        NULL, (dsarray_free_fn)ms_TokenDestroy);
     if (!opstack) {
@@ -206,12 +208,14 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
         return PARSE_ERROR;
     }
 
-    // Iterate on every token in the stream performing Shunting Yard
+    /* perform the Shunting Yard algorithm to create the AST */
     ms_TokenType prevtype = ERROR;
     ms_ParseResult res = PARSE_SUCCESS;
     for (ms_Token *cur = ParserCurrentToken(prs), *prev = NULL; cur;
             prev = cur, cur = ParserCurrentToken(prs)) {
-        // By default, consume (destroy) the current token and advance the pointer
+        /* by default, consume (destroy) the current token and advance the
+         * pointer; individual cases override this if the token should not
+         * be destroyed immediately */
         void (*cleanup_token)(ms_Parser *) = ParserConsumeToken;
 
         switch (cur->type) {
@@ -376,6 +380,9 @@ parse_expr_evaluate_op:
                 cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                 break;
             }
+                /* newlines outside of parens, braces, and brackets indicate EOL */
+            case NEWLINE:
+                goto parse_expr_end_of_expr;
 
                 /* handle erroneous tokens in the input */
             default:
@@ -389,10 +396,12 @@ parse_expr_evaluate_op:
         cleanup_token(prs);
     }
 
+    /* goto label for a newline in an expression */
+parse_expr_end_of_expr:
+
+    /* drain the rest of the operators on the stack */
     while (dsarray_len(opstack) > 0) {
-        /* intentionally always pop this so it sticks around in case
-         * of error (isn't cleaned up by dsarray_destroy calls below) */
-        ms_Token *tok = dsarray_pop(opstack);
+        ms_Token *tok = dsarray_top(opstack);
         if ((tok->type == RPAREN) || (tok->type == LPAREN)) {
             ParserErrorSet(prs, ERR_MISMATCHED_PARENS, tok, tok->line, tok->col);
             res = PARSE_ERROR;
@@ -401,11 +410,20 @@ parse_expr_evaluate_op:
         if ((res = ParserExprCombine(prs, exprstack, tok)) == PARSE_ERROR) {
             goto parse_expr_cleanup;
         }
+        tok = dsarray_pop(opstack);     /* should be the same as before, but good to be careful */
         ms_TokenDestroy(tok);
+    }
+
+    /* we should have fully reduced the stack to one parent expression by now */
+    if (dsarray_len(exprstack) > 1) {
+        ParserErrorSet(prs, ERR_EXPECTED_BINARY_OP, NULL, 0, 0);
+        res = PARSE_ERROR;
+        goto parse_expr_cleanup;
     }
 
     *expr = dsarray_pop(exprstack);
 
+    /* clean up stacks (and consequently any remaining tokens or expressions) */
 parse_expr_cleanup:
     dsarray_destroy(opstack);
     dsarray_destroy(exprstack);
@@ -445,34 +463,52 @@ static ms_ParseResult ParserExprCombine(ms_Parser *prs, DSArray *exprstack, ms_T
     assert(exprstack);
     assert(tok);
 
-    // Handle the unary minus
     ms_ExprUnaryOp uop = ms_ExprTokenToUnaryOp(tok->type);
     if (uop != UNARY_NONE) {
-        ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
-        if (!expr) {
-            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, tok);
-            return PARSE_ERROR;
-        }
-
-        if(dsarray_len(exprstack) < 1) {
-            ParserErrorSet(prs, ERR_EXPECTED_OPERAND, tok, tok->line, tok->col);
-            return PARSE_ERROR;
-        }
-        ms_Expr *operand = dsarray_pop(exprstack);
-
-        expr = ms_ExprFlatten(expr, operand, EXPRLOC_UNARY);
-        expr->expr.u->op = uop;
-
-        dsarray_append(exprstack, expr);
-        return PARSE_SUCCESS;
+        return ParserExprCombineUnary(prs, exprstack, tok, uop);
     }
 
-    // Binary operations
     ms_ExprBinaryOp op = ms_ExprTokenToBinaryOp(tok->type);
     if (op == BINARY_EMPTY) {
         ParserErrorSet(prs, ERR_EXPECTED_BINARY_OP, tok, tok->line, tok->col);
         return PARSE_ERROR;
     }
+
+    return ParserExprCombineBinary(prs, exprstack, tok, op);
+}
+
+// Combine a unary operator and an expression to form a new expression
+static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprUnaryOp op) {
+    assert(prs);
+    assert(exprstack);
+    assert(tok);
+    assert(op != UNARY_NONE);
+
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, tok);
+        return PARSE_ERROR;
+    }
+
+    if(dsarray_len(exprstack) < 1) {
+        ParserErrorSet(prs, ERR_EXPECTED_OPERAND, tok, tok->line, tok->col);
+        return PARSE_ERROR;
+    }
+    ms_Expr *operand = dsarray_pop(exprstack);
+
+    expr = ms_ExprFlatten(expr, operand, EXPRLOC_UNARY);
+    expr->expr.u->op = op;
+
+    dsarray_append(exprstack, expr);
+    return PARSE_SUCCESS;
+}
+
+// Combine a binary operator and two expressions to form a new expression
+static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprBinaryOp op) {
+    assert(prs);
+    assert(exprstack);
+    assert(tok);
+    assert(op != BINARY_EMPTY);
 
     ms_Expr *expr = ms_ExprNew(EXPRTYPE_BINARY);
     if (!expr) {
@@ -583,8 +619,10 @@ static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok,
         vsnprintf(prs->err->msg, len + 1, msg, args2);
     }
 
-    prs->err->tok = ms_TokenNew(tok->type, dsbuf_char_ptr(tok->value),
-                                dsbuf_len(tok->value), tok->line, tok->col);
+    prs->err->tok = (tok) ?
+                    ms_TokenNew(tok->type, dsbuf_char_ptr(tok->value),
+                                dsbuf_len(tok->value), tok->line, tok->col) :
+                    NULL;
     va_end(args);
     va_end(args2);
     return;

@@ -88,6 +88,7 @@ MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) 
         "-3-",
         "~3~",
         "!3!",
+        "3 5",
     };
 
     size_t len = sizeof(exprs) / sizeof(exprs[0]);
