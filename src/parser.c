@@ -47,6 +47,7 @@ static const char *const ERR_EXPECTED_OPERAND = "Expected operand (ln: %d, col: 
 static const char *const ERR_EXPECTED_BINARY_OP = "Expected binary operator (ln: %d, col: %d)";
 static const char *const ERR_EXPECTING_TOK = "Expecting '%s'";
 static const char *const ERR_EXPECTING_TOK_GOT_TOK = "Expecting '%s', got '%s' (ln: %d, col: %d)";
+static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
 static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *next);
@@ -214,6 +215,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
         void (*cleanup_token)(ms_Parser *) = ParserConsumeToken;
 
         switch (cur->type) {
+                /* floating point number literals */
             case FLOAT_NUMBER: {
                 const char *val = dsbuf_char_ptr(cur->value);
                 ms_Expr *newexpr = ms_ExprFloatFromString(val);
@@ -225,7 +227,9 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 dsarray_append(exprstack, newexpr);
                 break;
             }
-            case INT_NUMBER:        // Fall through
+
+                /* integer literals */
+            case INT_NUMBER:
             case HEX_NUMBER: {
                 const char *val = dsbuf_char_ptr(cur->value);
                 ms_Expr *newexpr = ms_ExprIntFromString(val);
@@ -237,6 +241,8 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 dsarray_append(exprstack, newexpr);
                 break;
             }
+
+                /* string literals */
             case STRING: {
                 ms_VMPrimitive p;
                 p.s = cur->value;
@@ -250,7 +256,9 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 dsarray_append(exprstack, newexpr);
                 break;
             }
-            case KW_TRUE:       // Fall through
+
+                /* boolean literals */
+            case KW_TRUE:
             case KW_FALSE: {
                 ms_VMPrimitive p;
                 p.b = (cur->type == KW_TRUE) ? true : false;
@@ -263,6 +271,8 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 dsarray_append(exprstack, newexpr);
                 break;
             }
+
+                /* null literal */
             case KW_NULL: {
                 ms_VMPrimitive p;
                 p.n = MS_VM_NULL_POINTER;
@@ -275,11 +285,15 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 dsarray_append(exprstack, newexpr);
                 break;
             }
+
+                /* begin parenthesized expression */
             case LPAREN: {
                 dsarray_append(opstack, cur);
                 cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                 break;
             }
+
+                /* attempt to complete the parenthesized expression */
             case RPAREN: {
                 bool found = false;
                 while (dsarray_len(opstack) > 0) {
@@ -304,8 +318,10 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 }
                 break;
             }
+
+                /* determine if these unary operators are to the LEFT of their operand */
             case OP_BITWISE_NOT:
-            case OP_NOT: {    // Unary operators
+            case OP_NOT: {
                 if ((prev) && (!ms_TokenTypeIsOp(prevtype)) && (prevtype != LPAREN)) {
                     ParserErrorSet(prs, ERR_EXPECTED_OPERAND, cur, cur->line, cur->col);
                     res = PARSE_ERROR;
@@ -313,16 +329,41 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 }
                 goto parse_expr_evaluate_op;
             }
-            case OP_MINUS: {    // Unary minus case
+                /* determine if this is a unary or binary minus sign */
+            case OP_MINUS: {
                 if ((!prev) || (ms_TokenTypeIsOp(prevtype)) || (prevtype == LPAREN)) {
                     cur->type = OP_UMINUS;
                     dsarray_append(opstack, cur);
                     cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                     break;
                 }
+                goto parse_expr_evaluate_op;    /* in case this case gets separated from below */
             }
+
+            /* goto label for unary minus, logical not, bitwise not operators */
 parse_expr_evaluate_op:
-            default: {
+
+                /* evaluate standard binary operators */
+            case OP_PLUS:
+            case OP_TIMES:
+            case OP_DIVIDE:
+            case OP_IDIVIDE:
+            case OP_MODULO:
+            case OP_EXPONENTIATE:
+            case OP_SHIFT_LEFT:
+            case OP_SHIFT_RIGHT:
+            case OP_BITWISE_AND:
+            case OP_BITWISE_OR:
+            case OP_BITWISE_XOR:
+            case OP_LE:
+            case OP_LT:
+            case OP_GE:
+            case OP_GT:
+            case OP_DOUBLE_EQ:
+            case OP_EQ:
+            case OP_NOT_EQ:
+            case OP_AND:
+            case OP_OR: {
                 ms_Token *top = dsarray_top(opstack);
                 if ((dsarray_len(opstack) > 0) && ParserExprShouldCombine(prs, top, cur)) {
                     top = dsarray_pop(opstack);
@@ -335,6 +376,13 @@ parse_expr_evaluate_op:
                 cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
                 break;
             }
+
+                /* handle erroneous tokens in the input */
+            default:
+                ParserErrorSet(prs, ERR_INVALID_SYNTAX_GOT_TOK, cur,
+                               dsbuf_char_ptr(cur->value), cur->line, cur->col);
+                res = PARSE_ERROR;
+                goto parse_expr_cleanup;
         }
 
         prevtype = cur->type;
