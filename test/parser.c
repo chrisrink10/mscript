@@ -15,11 +15,13 @@
  *----------------------------------------------------------------------------*/
 
 #include "parser.h"
+#include "../src/lang.h"
 #include "../src/parser.h"
 #include "../src/vm.h"
 
 typedef struct ParseResultTuple {
     const char *val;        /** Value of the input token */
+    ms_AST ast;             /** Abstract syntax tree produced from parsing val */
     ms_VMByteCode bc;       /** Type of token value should be lexed into */
 } ParseResultTuple;
 
@@ -27,26 +29,51 @@ typedef struct ParseResultTuple {
  * FORWARD DECLARATIONS
  */
 
-MunitResult CompareByteCode(ms_VMByteCode *bc1, ms_VMByteCode *bc2);
+MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2);
+MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
+MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
+MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
+MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2);
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
 /*
  * UNIT TEST FUNCTIONS
  */
 
+// "Private" expression composition macros
+#define AST(expr) (expr)
+#define AST_EXPR(arity, component) ((ms_Expr){ .type = arity, .expr = component })
+#define AST_EXPRCOMPONENT(field, memb) ((ms_ExprComponent){ .field = &(memb) })
+#define AST_EXPRCOMPONENT_UNARY(atomtype, opname, atom) AST_EXPRCOMPONENT(u, ((ms_ExprUnary){ .type = atomtype, .op = opname, .expr = atom }))
+#define AST_EXPRCOMPONENT_BINARY(latom, latomtype, opname, ratom, ratomtype) AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .left = latom, .ltype = latomtype, .op = opname, .right = ratom, .rtype = ratomtype}))
+#define AST_EXPRATOM_EXPR(eatom) ((ms_ExprAtom){ .expr = &eatom })
+#define AST_EXPRATOM_VAL(vatom) ((ms_ExprAtom){ .val = vatom })
+#define AST_UNARY(atp, uop, v) AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
+#define AST_BINARY(latp, lv, op, ratp, rv) AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
+
+// Expression macros
+#define AST_UEXPR_V(uop, v) AST_UNARY(EXPRATOM_VALUE, uop, AST_EXPRATOM_VAL(v))
+#define AST_UEXPR_E(uop, v) AST_UNARY(EXPRATOM_EXPRESSION, uop, AST_EXPRATOM_EXPR(v))
+#define AST_BEXPR_VV(lv, bop, rv) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
+#define AST_BEXPR_VE(lv, bop, re) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
+#define AST_BEXPR_EV(le, bop, rv) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
+#define AST_BEXPR_EE(le, bop, re) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
+
+// VM type and bytecode macros
 #define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
-#define VM_FLOAT_LITERAL(v) ((ms_VMValue){ .type = VMVAL_FLOAT, .val = (ms_VMPrimitive){ .f = v } })
-#define VM_INT_LITERAL(v) ((ms_VMValue){ .type = VMVAL_INT, .val = (ms_VMPrimitive){ .i = v } })
-#define VM_BOOL_LITERAL(v) ((ms_VMValue){ .type = VMVAL_BOOL, .val = (ms_VMPrimitive){ .b = v } })
-#define VM_NULL_LITERAL() ((ms_VMValue){ .type = VMVAL_NULL, .val = (ms_VMPrimitive){ .n = MS_VM_NULL_POINTER } })
+#define VM_FLOAT(v) ((ms_VMValue){ .type = VMVAL_FLOAT, .val = (ms_VMPrimitive){ .f = v } })
+#define VM_INT(v) ((ms_VMValue){ .type = VMVAL_INT, .val = (ms_VMPrimitive){ .i = v } })
+#define VM_BOOL(v) ((ms_VMValue){ .type = VMVAL_BOOL, .val = (ms_VMPrimitive){ .b = v } })
+#define VM_NULL() ((ms_VMValue){ .type = VMVAL_NULL, .val = (ms_VMPrimitive){ .n = MS_VM_NULL_POINTER } })
 
 MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "0",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_INT(0))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(0),
+                    VM_INT(0),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -56,9 +83,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "3",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_INT(3))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(3),
+                    VM_INT(3),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -68,9 +96,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "0.0",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_FLOAT(0.0))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(0.0),
+                    VM_FLOAT(0.0),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -80,9 +109,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "3.14",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_FLOAT(3.14))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(3.14),
+                    VM_FLOAT(3.14),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -92,9 +122,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "true",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_BOOL(true))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(true),
+                    VM_BOOL(true),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -104,9 +135,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "false",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_BOOL(false))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(false),
+                    VM_BOOL(false),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -116,9 +148,10 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
         },
         {
             .val = "null",
+            .ast = AST(AST_UEXPR_V(UNARY_NONE, VM_NULL())),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_NULL_LITERAL(),
+                    VM_NULL(),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -137,9 +170,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
     ParseResultTuple exprs[] = {
         {
             .val = "-3",
+            .ast = AST(AST_UEXPR_V(UNARY_MINUS, VM_INT(3))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(3)
+                    VM_INT(3)
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -150,9 +184,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
         },
         {
             .val = "--2.72",
+            .ast = AST(AST_UEXPR_E(UNARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_FLOAT(2.72)))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(2.72),
+                    VM_FLOAT(2.72),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -164,9 +199,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
         },
         {
             .val = "!true",
+            .ast = AST(AST_UEXPR_V(UNARY_NOT, VM_BOOL(true))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(true),
+                    VM_BOOL(true),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -177,9 +213,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
         },
         {
             .val = "!!false",
+            .ast = AST(AST_UEXPR_E(UNARY_NOT, AST_UEXPR_V(UNARY_NOT, VM_BOOL(false)))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(false),
+                    VM_BOOL(false),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -191,9 +228,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
         },
         {
             .val = "~792",
+            .ast = AST(AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(792))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(792),
+                    VM_INT(792),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -204,9 +242,10 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
         },
         {
             .val = "~~42",
+            .ast = AST(AST_UEXPR_E(UNARY_BITWISE_NOT, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(42)))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(42),
+                    VM_INT(42),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -227,10 +266,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
     ParseResultTuple exprs[] = {
         {
             .val = "7 + 3.6",
+            .ast = AST(AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(7),
-                    VM_FLOAT_LITERAL(3.6),
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -242,10 +282,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "16 - false",
+            .ast = AST(AST_BEXPR_VV(VM_INT(16), BINARY_MINUS, VM_BOOL(false))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(16),
-                    VM_BOOL_LITERAL(false),
+                    VM_INT(16),
+                    VM_BOOL(false),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -257,10 +298,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "2 * 3.14",
+            .ast = AST(AST_BEXPR_VV(VM_INT(2), BINARY_TIMES, VM_FLOAT(3.14))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(2),
-                    VM_FLOAT_LITERAL(3.14),
+                    VM_INT(2),
+                    VM_FLOAT(3.14),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -272,10 +314,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "17 / 8.25",
+            .ast = AST(AST_BEXPR_VV(VM_INT(17), BINARY_DIVIDE, VM_FLOAT(8.25))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(17),
-                    VM_FLOAT_LITERAL(8.25),
+                    VM_INT(17),
+                    VM_FLOAT(8.25),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -287,10 +330,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "8.888 \\ 6",
+            .ast = AST(AST_BEXPR_VV(VM_FLOAT(8.888), BINARY_IDIVIDE, VM_INT(6))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(8.888),
-                    VM_INT_LITERAL(6),
+                    VM_FLOAT(8.888),
+                    VM_INT(6),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -302,10 +346,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "42 % 8",
+            .ast = AST(AST_BEXPR_VV(VM_INT(42), BINARY_MODULO, VM_INT(8))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(42),
-                    VM_INT_LITERAL(8),
+                    VM_INT(42),
+                    VM_INT(8),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -317,10 +362,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "5.25 ** 2",
+            .ast = AST(AST_BEXPR_VV(VM_FLOAT(5.25), BINARY_EXPONENTIATE, VM_INT(2))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(5.25),
-                    VM_INT_LITERAL(2),
+                    VM_FLOAT(5.25),
+                    VM_INT(2),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -332,10 +378,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "5 << 2",
+            .ast = AST(AST_BEXPR_VV(VM_INT(5), BINARY_SHIFT_LEFT, VM_INT(2))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(5),
-                    VM_INT_LITERAL(2),
+                    VM_INT(5),
+                    VM_INT(2),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -347,10 +394,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "183822 >> 4",
+            .ast = AST(AST_BEXPR_VV(VM_INT(183822), BINARY_SHIFT_RIGHT, VM_INT(4))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(183822),
-                    VM_INT_LITERAL(4),
+                    VM_INT(183822),
+                    VM_INT(4),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -362,10 +410,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "13 & 97",
+            .ast = AST(AST_BEXPR_VV(VM_INT(13), BINARY_BITWISE_AND, VM_INT(97))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(13),
-                    VM_INT_LITERAL(97),
+                    VM_INT(13),
+                    VM_INT(97),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -377,10 +426,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "3 | 15",
+            .ast = AST(AST_BEXPR_VV(VM_INT(3), BINARY_BITWISE_OR, VM_INT(15))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(3),
-                    VM_INT_LITERAL(15),
+                    VM_INT(3),
+                    VM_INT(15),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -392,10 +442,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "53 @ 7",
+            .ast = AST(AST_BEXPR_VV(VM_INT(53), BINARY_BITWISE_XOR, VM_INT(7))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(53),
-                    VM_INT_LITERAL(7),
+                    VM_INT(53),
+                    VM_INT(7),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -407,10 +458,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "46.12 <= 73",
+            .ast = AST(AST_BEXPR_VV(VM_FLOAT(46.12), BINARY_LE, VM_INT(73))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(46.12),
-                    VM_INT_LITERAL(73),
+                    VM_FLOAT(46.12),
+                    VM_INT(73),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -422,10 +474,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "true < 14",
+            .ast = AST(AST_BEXPR_VV(VM_BOOL(true), BINARY_LT, VM_INT(14))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(true),
-                    VM_INT_LITERAL(14),
+                    VM_BOOL(true),
+                    VM_INT(14),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -437,10 +490,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "33 != 1988",
+            .ast = AST(AST_BEXPR_VV(VM_INT(33), BINARY_NOT_EQ, VM_INT(1988))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(33),
-                    VM_INT_LITERAL(1988),
+                    VM_INT(33),
+                    VM_INT(1988),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -452,10 +506,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "71 == 0.33",
+            .ast = AST(AST_BEXPR_VV(VM_INT(71), BINARY_EQ, VM_FLOAT(0.33))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(71),
-                    VM_FLOAT_LITERAL(0.33),
+                    VM_INT(71),
+                    VM_FLOAT(0.33),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -467,10 +522,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "81.3 > 90",
+            .ast = AST(AST_BEXPR_VV(VM_FLOAT(81.3), BINARY_GT, VM_INT(90))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_FLOAT_LITERAL(81.3),
-                    VM_INT_LITERAL(90),
+                    VM_FLOAT(81.3),
+                    VM_INT(90),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -482,10 +538,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "1000 >= 10000",
+            .ast = AST(AST_BEXPR_VV(VM_INT(1000), BINARY_GE, VM_INT(10000))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(1000),
-                    VM_INT_LITERAL(10000),
+                    VM_INT(1000),
+                    VM_INT(10000),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -498,10 +555,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
 
         {
             .val = "true && false",
+            .ast = AST(AST_BEXPR_VV(VM_BOOL(true), BINARY_AND, VM_BOOL(false))),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_BOOL_LITERAL(true),
-                    VM_BOOL_LITERAL(false),
+                    VM_BOOL(true),
+                    VM_BOOL(false),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -513,10 +571,11 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
         },
         {
             .val = "1 || null",
+            .ast = AST(AST_BEXPR_VV(VM_INT(1), BINARY_OR, VM_NULL())),
             .bc = {
                 .values = (ms_VMValue[]){
-                    VM_INT_LITERAL(1),
-                    VM_NULL_LITERAL(),
+                    VM_INT(1),
+                    VM_NULL(),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -537,8 +596,61 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
  * PRIVATE FUNCTIONS
  */
 
+// Compare ASTs to make make sure that they are equal.
+MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2) {
+    munit_assert_non_null(ast1);
+    munit_assert_non_null(ast2);
+    return CompareExpressions(ast1, ast2);
+}
+
+// Compare Expressions to make make sure that they are equal.
+MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2) {
+    munit_assert_non_null(expr1);
+    munit_assert_non_null(expr2);
+
+    munit_assert_cmp_int(expr1->type, ==, expr2->type);
+    switch(expr1->type) {
+        case EXPRTYPE_UNARY:
+            munit_assert_cmp_int(expr1->expr.u->type, ==, expr2->expr.u->type);
+            munit_assert_cmp_int(expr1->expr.u->op, ==, expr1->expr.u->op);
+            CompareExpressionAtoms(expr1->expr.u->type, &expr1->expr.u->expr, &expr2->expr.u->expr);
+            break;
+        case EXPRTYPE_BINARY:
+            munit_assert_cmp_int(expr1->expr.b->ltype, ==, expr2->expr.b->ltype);
+            CompareExpressionAtoms(expr1->expr.b->ltype, &expr1->expr.b->left, &expr2->expr.b->left);
+            munit_assert_cmp_int(expr1->expr.b->op, ==, expr1->expr.b->op);
+            munit_assert_cmp_int(expr1->expr.b->rtype, ==, expr2->expr.b->rtype);
+            CompareExpressionAtoms(expr1->expr.b->rtype, &expr1->expr.b->right, &expr2->expr.b->right);
+            break;
+    }
+
+    return MUNIT_OK;
+}
+
+// Compare Expression Atoms to make make sure that they are equal.
+MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2) {
+    munit_assert_non_null(atom1);
+    munit_assert_non_null(atom2);
+
+    switch(type) {
+        case EXPRATOM_EXPRESSION:
+            CompareExpressions(atom1->expr, atom2->expr);
+            break;
+        case EXPRATOM_VALUE:
+            CompareVMValues(&atom1->val, &atom2->val);
+            break;
+        case EXPRATOM_EMPTY:
+            munit_assert(false);
+            break;
+    }
+
+    return MUNIT_OK;
+}
+
 // Compare byte-code to make sure that two byte-code objects are equal.
-MunitResult CompareByteCode(ms_VMByteCode *bc1, ms_VMByteCode *bc2) {
+MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) {
+    munit_assert_non_null(bc1);
+    munit_assert_non_null(bc2);
     munit_assert_cmp_int(bc1->nops, ==, bc2->nops);
     munit_assert_cmp_int(bc1->nvals, ==, bc2->nvals);
 
@@ -547,24 +659,34 @@ MunitResult CompareByteCode(ms_VMByteCode *bc1, ms_VMByteCode *bc2) {
     }
 
     for (size_t i = 0; i < bc1->nvals; i++) {
-        munit_assert_cmp_int(bc1->values[i].type, ==, bc2->values[i].type);
-        switch (bc1->values[i].type) {
-            case VMVAL_FLOAT:
-                munit_assert_cmp_double(bc1->values[i].val.f, ==, bc2->values[i].val.f);
-                break;
-            case VMVAL_INT:
-                munit_assert_cmp_int(bc1->values[i].val.i, ==, bc2->values[i].val.i);
-                break;
-            case VMVAL_STR:
-                munit_assert_true(dsbuf_equals(bc1->values[i].val.s, bc2->values[i].val.s));
-                break;
-            case VMVAL_BOOL:
-                munit_assert(bc1->values[i].val.b == bc2->values[i].val.b);
-                break;
-            case VMVAL_NULL:
-                munit_assert(bc1->values[i].val.n == bc2->values[i].val.n);
-                break;
-        }
+        CompareVMValues(&bc1->values[i], &bc2->values[i]);
+    }
+
+    return MUNIT_OK;
+}
+
+// Compare VM values to make sure that two VM value objects are equal.
+MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2) {
+    munit_assert_non_null(val1);
+    munit_assert_non_null(val2);
+
+    munit_assert_cmp_int(val1->type, ==, val2->type);
+    switch (val1->type) {
+        case VMVAL_FLOAT:
+            munit_assert_cmp_double(val1->val.f, ==, val2->val.f);
+            break;
+        case VMVAL_INT:
+            munit_assert_cmp_int(val1->val.i, ==, val2->val.i);
+            break;
+        case VMVAL_STR:
+            munit_assert_true(dsbuf_equals(val1->val.s, val2->val.s));
+            break;
+        case VMVAL_BOOL:
+            munit_assert(val1->val.b == val2->val.b);
+            break;
+        case VMVAL_NULL:
+            munit_assert(val1->val.n == val2->val.n);
+            break;
     }
 
     return MUNIT_OK;
@@ -579,15 +701,20 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
         ParseResultTuple *tuple = &tuples[i];
         ms_ParserInitString(prs, tuple->val);
 
+        const ms_AST *ast;
         ms_VMByteCode *code;    /* freed by the VM */
         const ms_ParseError *err;
-        ms_ParseResult pres = ms_ParserParse(prs, &code, &err);
+        ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
 
         munit_assert_cmp_int(pres, !=, PARSE_ERROR);
         munit_assert_non_null(code);
+        munit_assert_non_null(ast);
         munit_assert_null(err);
 
         CompareByteCode(code, &tuple->bc);
+        CompareAST(ast, &tuple->ast);
+
+        ms_VMByteCodeDestroy(code);
     }
 
     ms_ParserDestroy(prs);
