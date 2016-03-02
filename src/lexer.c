@@ -209,76 +209,77 @@ begin_lex:              // Jump label for ignored input
 
             // Equals (set) and Equals (check)
         case '=':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_DOUBLE_EQ, "==", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_EQ, "=", 1);
 
             // Addition and increment
         case '+':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_PLUS_EQUALS, "+=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_PLUS, "+", 1);
 
             // Subtract and decrement
         case '-':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_MINUS_EQUALS, "-=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_MINUS, "-", 1);
 
             // Multiplication and exponentiation
         case '*':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_TIMES_EQUALS, "*=", 2);
             } else if (n == '*') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_EXPONENTIATE, "**", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_TIMES, "*", 1);
 
             // Integer division
         case '\\':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_IDIVIDE_EQUALS, "\\=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_IDIVIDE, "\\", 1);
 
             // Modulo
         case '%':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_MODULO_EQUALS, "%=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_MODULO, "%", 1);
 
             // Logical and bitwise AND
         case '&':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '&') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_AND, "&&", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_BITWISE_AND, "&", 1);
 
             // Logical and bitwise OR
         case '|':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '|') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_OR, "||", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_BITWISE_OR, "|", 1);
 
             // Bitwise NOT
@@ -291,33 +292,35 @@ begin_lex:              // Jump label for ignored input
 
             // Less than and less equal
         case '<':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_LE, "<=", 2);
             } else if (n == '<') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_SHIFT_LEFT, "<<", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_LT, "<", 1);
 
             // Greater than and greater equal
         case '>':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_GE, ">=", 2);
             } else if (n == '>') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_SHIFT_RIGHT, ">>", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_GT, ">", 1);
 
             // Logical NOT and not equals
         case '!':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_NOT_EQ, "!=", 1);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_NOT, "!", 1);
 
             // Various unambiguous symbols
@@ -590,7 +593,7 @@ static inline int LexerNextChar(ms_Lexer *lex) {
 static inline int LexerPeek(ms_Lexer *lex) {
     assert(lex);
     int n = LexerNextChar(lex);
-    LexerBackup(lex);
+    if (n != EOF) { LexerBackup(lex); }
     return n;
 }
 
