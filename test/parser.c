@@ -66,6 +66,52 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define VM_BOOL(v) ((ms_VMValue){ .type = VMVAL_BOOL, .val = (ms_VMPrimitive){ .b = v } })
 #define VM_NULL() ((ms_VMValue){ .type = VMVAL_NULL, .val = (ms_VMPrimitive){ .n = MS_VM_NULL_POINTER } })
 
+MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
+    char *exprs[] = {
+        "(",
+        "(3 ",
+        "(3 + ",
+        "(3 + 3",
+        "3 +",
+        "3 + 3)",
+        "+ 3",
+        "+ 3)",
+        "(+ 3",
+        "+3",
+        "3 ++ 3",
+        "3!",
+        "3!!",
+        "3-",
+        "3--",
+        "3~",
+        "3~~",
+        "-3-",
+        "~3~",
+        "!3!",
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    ms_Parser *prs = ms_ParserNew();
+    munit_assert_non_null(prs);
+
+    for (size_t i = 0; i < len; i++) {
+        char *expr = exprs[i];
+        ms_ParserInitString(prs, expr);
+
+        ms_VMByteCode *code;
+        const ms_ParseError *err;
+        ms_ParseResult pres = ms_ParserParse(prs, &code, NULL, &err);
+
+        munit_assert_cmp_int(pres, ==, PARSE_ERROR);
+        munit_assert_non_null(err);
+        munit_assert_null(code);
+    }
+
+    ms_ParserDestroy(prs);
+
+    return MUNIT_OK;
+}
+
 MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
@@ -281,6 +327,23 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
             }
         },
         {
+            .val = "3 + ~3",
+            .ast = AST(AST_BEXPR_VE(VM_INT(3), BINARY_PLUS, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(3)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(3),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_NOT, 0),
+                    VM_OPC(OPC_ADD, 0),
+                },
+                .nops = 4, .nvals = 2,
+            }
+        },
+        {
             .val = "16 - false",
             .ast = AST(AST_BEXPR_VV(VM_INT(16), BINARY_MINUS, VM_BOOL(false))),
             .bc = {
@@ -294,6 +357,23 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
                     VM_OPC(OPC_SUBTRACT, 0),
                 },
                 .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "3 - -3",
+            .ast = AST(AST_BEXPR_VE(VM_INT(3), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(3)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(3),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_SUBTRACT, 0),
+                },
+                .nops = 4, .nvals = 2,
             }
         },
         {
@@ -567,6 +647,23 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
                     VM_OPC(OPC_AND, 0),
                 },
                 .nops = 3, .nvals = 2,
+            }
+        },
+        {
+            .val = "true && !true",
+            .ast = AST(AST_BEXPR_VE(VM_BOOL(true), BINARY_AND, AST_UEXPR_V(UNARY_NOT, VM_BOOL(true)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(true),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_NOT, 0),
+                    VM_OPC(OPC_AND, 0),
+                },
+                .nops = 4, .nvals = 2,
             }
         },
         {

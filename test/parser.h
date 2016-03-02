@@ -23,6 +23,7 @@
  * FUNCTION DECLARATIONS
  */
 
+MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
@@ -32,6 +33,14 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
  */
 
 static MunitTest parser_tests[] = {
+    {
+        "/ParseErrors",
+        prs_TestParseErrors,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
     {
         "/Literals",
         prs_TestParseLiterals,
