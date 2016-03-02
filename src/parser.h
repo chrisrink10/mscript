@@ -69,13 +69,16 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 * @param prs a @c ms_Parser object
 * @param code a pointer to a pointer to hold the resultant byte-code; set to
 *        @c NULL if the return from this function is not @c PARSE_SUCCESS
+* @param ast if not @c NULL, the pointer will be set to the internal AST
+*        address; note that if another call is made to @c ms_ParserParse
+*        any previous pointer filled into this parameter will become invalid
 * @param err a pointer to a pointer to hold any errors resulting from parsing;
 *        set to @c NULL if no error occurs
 * @returns a result value indicating if the parsing completed successfully;
 *          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
 *          examine the value of @c to determine what went wrong
 */
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_ParseError **err);
+ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_ParseError **err);
 
 /**
 * @brief Destroy a @c ms_Parser object.

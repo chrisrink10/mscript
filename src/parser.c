@@ -130,16 +130,27 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
     return true;
 }
 
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_ParseError **err) {
+ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_ParseError **err) {
     assert(prs);
     assert(code);
     assert(err);
 
-    if (prs->ast) { ms_ASTDestroy(prs->ast); }
+    if (prs->ast) {
+        ms_ASTDestroy(prs->ast);
+    }
+
     *err = NULL;
     ms_ParseResult res = ParserParseExpression(prs, &prs->ast);
-    *err = prs->err;
-    *code = (*err) ? NULL : ms_ExprToOpCodes(prs->ast);
+
+    if (prs->err) {
+        *err = prs->err;
+        *code = NULL;
+    } else {
+        *code = ms_ExprToOpCodes(prs->ast);
+        if (ast) {
+            *ast = prs->ast;
+        }
+    }
     return res;
 }
 

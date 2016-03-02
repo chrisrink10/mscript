@@ -40,7 +40,7 @@ static int StartREPL(const char *prog) {
 
         ms_VMByteCode *code;    /* freed by the VM */
         const ms_ParseError *err;
-        if (ms_ParserParse(prs, &code, &err) == PARSE_ERROR) {
+        if (ms_ParserParse(prs, &code, NULL, &err) == PARSE_ERROR) {
             printf("%s: \n%s\n", prog, err->msg);
             free(input);
             continue;
