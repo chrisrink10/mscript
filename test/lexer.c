@@ -209,5 +209,7 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
         LexResultTuple *tuple = &tokens[0];
         (void)LexExpect(tuple->val, tuple->type);
     }
+
+    ms_LexerDestroy(lex);
     return MUNIT_OK;
 }
