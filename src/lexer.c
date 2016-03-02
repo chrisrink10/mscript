@@ -178,7 +178,7 @@ begin_lex:              // Jump label for ignored input
             LexerIncrementLine(lex);
             LexerAddToBuffer(lex, n);
             if (!LexerAcceptOne(lex, "\n")) {
-                return LexerTokenError(lex, "Expected \\n");
+                return LexerTokenError(lex, "\\r");
             }
             return LexerTokenFromBuffer(lex, NEWLINE);
 
@@ -374,10 +374,13 @@ begin_lex:              // Jump label for ignored input
 
             // Unused (but invalid) symbols
         case ';':
+            return LexerTokenError(lex, ";");
         case '?':
+            return LexerTokenError(lex, "?");
         case '`':
+            return LexerTokenError(lex, "`");
         case '#':
-            return LexerTokenError(lex, "Invalid symbol encountered.");
+            return LexerTokenError(lex, "#");
 
             // Word
         default:
@@ -606,7 +609,7 @@ static ms_Token *LexerLexNumber(ms_Lexer *lex, int prev) {
     // Accept hexadecimal numbers
     if ((prev == '0') && (LexerAcceptOne(lex, "xX"))) {
         if (LexerAcceptRun(lex, BASE_16_DIGITS) <= 0) {
-            return LexerTokenError(lex, "Incomplete hexadecimal number");
+            return LexerTokenFromBuffer(lex, ERROR);
         }
         return LexerTokenFromBuffer(lex, HEX_NUMBER);
     }
@@ -655,7 +658,7 @@ static ms_Token *LexerLexWord(ms_Lexer *lex, int prev) {
     }
 
     if (type == ERROR) {
-        return LexerTokenError(lex, "Zero length identifier found.");
+        return LexerTokenFromBuffer(lex, ERROR);
     }
     return LexerTokenFromBuffer(lex, type);
 }
@@ -679,14 +682,14 @@ static ms_Token *LexerLexString(ms_Lexer *lex, int first) {
         }
         if ((n == '\n') || (n == '\r')) {
             LexerIncrementLine(lex);
-            return LexerTokenError(lex, "String not closed before newline character");
+            return LexerTokenFromBuffer(lex, ERROR);
         }
         LexerAddToBuffer(lex, n);
         prev = n;
     }
 
     if ((n == EOF) && (prev != first)) {
-        return LexerTokenError(lex, "String not closed before EOF.");
+        return LexerTokenFromBuffer(lex, ERROR);
     }
     return LexerTokenFromBuffer(lex, STRING);
 }
