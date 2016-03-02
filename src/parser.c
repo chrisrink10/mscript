@@ -103,6 +103,11 @@ bool ms_ParserInitFile(ms_Parser *prs, const char *fname) {
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
+
+    if (prs->err) {
+        ParseErrorDestroy(prs->err);
+        prs->err = NULL;
+    }
     return true;
 }
 
@@ -127,6 +132,11 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
+
+    if (prs->err) {
+        ParseErrorDestroy(prs->err);
+        prs->err = NULL;
+    }
     return true;
 }
 
