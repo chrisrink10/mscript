@@ -56,7 +56,7 @@ static inline ms_Token *ParserNextToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
 static bool ParserConstructOpCache(ms_Parser *prs);
-static void ParserErrorSet(ms_Parser *prs, const char* msg, ms_Token *tok, ...);
+static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParseErrorDestroy(ms_ParseError *err);
 
 /*
@@ -492,7 +492,7 @@ static bool ParserConstructOpCache(ms_Parser *prs) {
 }
 
 // Generate a new ParseError object.
-static void ParserErrorSet(ms_Parser *prs, const char* msg, ms_Token *tok, ...) {
+static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...) {
     assert(prs);
 
     if (prs->err) {
@@ -515,7 +515,8 @@ static void ParserErrorSet(ms_Parser *prs, const char* msg, ms_Token *tok, ...) 
         vsnprintf(prs->err->msg, len + 1, msg, args2);
     }
 
-    prs->err->tok = tok;
+    prs->err->tok = ms_TokenNew(tok->type, dsbuf_char_ptr(tok->value),
+                                dsbuf_len(tok->value), tok->line, tok->col);
     va_end(args);
     va_end(args2);
     return;
@@ -525,6 +526,8 @@ static void ParserErrorSet(ms_Parser *prs, const char* msg, ms_Token *tok, ...) 
 static void ParseErrorDestroy(ms_ParseError *err) {
     if (!err) { return; }
     ms_TokenDestroy(err->tok);
+    err->tok = NULL;
     free(err->msg);
+    err->msg = NULL;
     free(err);
 }
