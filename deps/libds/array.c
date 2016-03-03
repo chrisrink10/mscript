@@ -76,6 +76,12 @@ void* dsarray_get(DSArray *array, size_t index) {
     return array->data[index];
 }
 
+void* dsarray_top(DSArray *array) {
+    if (!array) { return NULL; }
+    if (array->len == 0) { return NULL; }
+    return array->data[array->len-1];
+}
+
 void dsarray_foreach(DSArray *array, void (*func)(void*)) {
     if ((!array) || (!func)) { return; }
 

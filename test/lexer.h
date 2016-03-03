@@ -23,7 +23,8 @@
  * FUNCTION DECLARATIONS
  */
 
-MunitResult lex_TestLexNumerics(const MunitParameter params[], void *user_data);
+MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data);
+MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data);
 MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data);
 MunitResult lex_TestLexBadNumerics(const MunitParameter params[], void *user_data);
 MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data);
@@ -42,15 +43,24 @@ MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_
  * TEST DATA AND PARAMETERS
  */
 
-static char* num_vals[] = {
-        "0", "1", "15", "382932", "791933922", "32223.53",
-        "3.14", "2.7182818284", "1.6180339", "1.414", "2.", "2402.", "1332.",
-        "10e4", "1e10", "2.3e8", "8.e4", "7e33",
+static char* int_num_vals[] = {
+        "0", "1", "15", "382932", "791933922",
         NULL
 };
 
-static MunitParameterEnum num_params[] = {
-        { "num", num_vals },
+static MunitParameterEnum int_num_params[] = {
+        { "num", int_num_vals },
+        { NULL, NULL }
+};
+
+static char* float_num_vals[] = {
+        "32223.53", "3.14", "2.7182818284", "1.6180339", "1.414", "2.",
+        "2402.", "1332.", "10e4", "1e10", "2.3e8", "8.e4", "7e33",
+        NULL
+};
+
+static MunitParameterEnum float_num_params[] = {
+        { "num", float_num_vals },
         { NULL, NULL }
 };
 
@@ -168,12 +178,20 @@ static MunitParameterEnum invalid_string_params[] = {
 
 static MunitTest lexer_tests[] = {
     {
-        "/Numeric",
-        lex_TestLexNumerics,
+        "/IntNumeric",
+        lex_TestLexIntNumerics,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
-        num_params
+        int_num_params
+    },
+    {
+        "/FloatNumeric",
+        lex_TestLexFloatNumerics,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        float_num_params
     },
     {
         "/HexNumeric",

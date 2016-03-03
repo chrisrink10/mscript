@@ -34,9 +34,14 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len);
  * UNIT TEST FUNCTIONS
  */
 
-MunitResult lex_TestLexNumerics(const MunitParameter params[], void *user_data) {
+MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
-    return LexExpect(num, NUMBER);
+    return LexExpect(num, INT_NUMBER);
+}
+
+MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data) {
+    const char *num = munit_parameters_get(params, "num");
+    return LexExpect(num, FLOAT_NUMBER);
 }
 
 MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data) {
@@ -129,8 +134,6 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { ">=", OP_GE },
         { "<", OP_LT },
         { "<=", OP_LE },
-        { "++", OP_INCREMENT },
-        { "--", OP_DECREMENT },
         { "=", OP_EQ },
         { "&", OP_BITWISE_AND },
         { "|", OP_BITWISE_OR },
@@ -206,5 +209,7 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
         LexResultTuple *tuple = &tokens[0];
         (void)LexExpect(tuple->val, tuple->type);
     }
+
+    ms_LexerDestroy(lex);
     return MUNIT_OK;
 }

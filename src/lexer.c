@@ -146,7 +146,7 @@ bool ms_LexerInitStringL(ms_Lexer *lex, const char *str, size_t len) {
     }
 
     lex->line = 1;
-    lex->col = 0;
+    lex->col = 1;
     lex->buffer = NULL;
     return LexerResetBuffer(lex);
 }
@@ -154,8 +154,11 @@ bool ms_LexerInitStringL(ms_Lexer *lex, const char *str, size_t len) {
 void ms_LexerDestroy(ms_Lexer *lex) {
     if (!lex) { return; }
     ms_StreamDestroy(lex->reader);
+    lex->reader = NULL;
     dsbuf_destroy(lex->buffer);
+    lex->buffer = NULL;
     dsdict_destroy(lex->kwcache);
+    lex->kwcache = NULL;
     free(lex);
 }
 
@@ -175,7 +178,7 @@ begin_lex:              // Jump label for ignored input
             LexerIncrementLine(lex);
             LexerAddToBuffer(lex, n);
             if (!LexerAcceptOne(lex, "\n")) {
-                return LexerTokenError(lex, "Expected \\n");
+                return LexerTokenError(lex, "\\r");
             }
             return LexerTokenFromBuffer(lex, NEWLINE);
 
@@ -206,78 +209,77 @@ begin_lex:              // Jump label for ignored input
 
             // Equals (set) and Equals (check)
         case '=':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_DOUBLE_EQ, "==", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_EQ, "=", 1);
 
             // Addition and increment
         case '+':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_PLUS_EQUALS, "+=", 2);
-            } else if (n == '+') {
-                return LexerTokenNew(lex, OP_INCREMENT, "++", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_PLUS, "+", 1);
 
             // Subtract and decrement
         case '-':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_MINUS_EQUALS, "-=", 2);
-            } else if (n == '-') {
-                return LexerTokenNew(lex, OP_DECREMENT, "--", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_MINUS, "-", 1);
 
             // Multiplication and exponentiation
         case '*':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_TIMES_EQUALS, "*=", 2);
+            } else if (n == '*') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_EXPONENTIATE, "**", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_TIMES, "*", 1);
 
             // Integer division
         case '\\':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_IDIVIDE_EQUALS, "\\=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_IDIVIDE, "\\", 1);
 
             // Modulo
         case '%':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_MODULO_EQUALS, "%=", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_MODULO, "%", 1);
 
             // Logical and bitwise AND
         case '&':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '&') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_AND, "&&", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_BITWISE_AND, "&", 1);
 
             // Logical and bitwise OR
         case '|':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '|') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_OR, "||", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_BITWISE_OR, "|", 1);
 
             // Bitwise NOT
@@ -290,33 +292,35 @@ begin_lex:              // Jump label for ignored input
 
             // Less than and less equal
         case '<':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_LE, "<=", 2);
             } else if (n == '<') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_SHIFT_LEFT, "<<", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_LT, "<", 1);
 
             // Greater than and greater equal
         case '>':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_GE, ">=", 2);
             } else if (n == '>') {
+                (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_SHIFT_RIGHT, ">>", 2);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_GT, ">", 1);
 
             // Logical NOT and not equals
         case '!':
-            n = LexerNextChar(lex);
+            n = LexerPeek(lex);
             if (n == '=') {
+                LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_NOT_EQ, "!=", 1);
             }
-            LexerBackup(lex);
             return LexerTokenNew(lex, OP_NOT, "!", 1);
 
             // Various unambiguous symbols
@@ -370,10 +374,13 @@ begin_lex:              // Jump label for ignored input
 
             // Unused (but invalid) symbols
         case ';':
+            return LexerTokenError(lex, ";");
         case '?':
+            return LexerTokenError(lex, "?");
         case '`':
+            return LexerTokenError(lex, "`");
         case '#':
-            return LexerTokenError(lex, "Invalid symbol encountered.");
+            return LexerTokenError(lex, "#");
 
             // Word
         default:
@@ -418,9 +425,15 @@ char *ms_TokenToString(ms_Token *tok) {
     return str;
 }
 
+bool ms_TokenIsOp(ms_Token *tok) {
+    assert(tok);
+    return ms_TokenTypeIsOp(tok->type);
+}
+
 void ms_TokenDestroy(ms_Token *tok) {
     if (!tok) { return; }
     dsbuf_destroy(tok->value);
+    tok->value = NULL;
     free(tok);
 }
 
@@ -436,7 +449,8 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case IDENTIFIER:        return TOK_IDENTIFIER;
         case BUILTIN_FUNC:      return TOK_BUILTIN_FUNC;
         case GLOBAL:            return TOK_GLOBAL;
-        case NUMBER:            return TOK_NUMBER;
+        case FLOAT_NUMBER:      return TOK_FLOAT_NUMBER;
+        case INT_NUMBER:        return TOK_INT_NUMBER;
         case HEX_NUMBER:        return TOK_HEX_NUMBER;
         case STRING:            return TOK_STRING;
         case KW_FUNC:           return TOK_KW_FUNC;
@@ -462,6 +476,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case KW_IS:             return TOK_KW_IS;
         case KW_AS:             return TOK_KW_AS;
         case KW_IN:             return TOK_KW_IN;
+        case OP_UMINUS:         return TOK_OP_UMINUS;
         case OP_PLUS:           return TOK_OP_PLUS;
         case OP_MINUS:          return TOK_OP_MINUS;
         case OP_TIMES:          return TOK_OP_TIMES;
@@ -476,8 +491,6 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case OP_MODULO_EQUALS:  return TOK_OP_MODULO_EQUALS;
         case OP_AND:            return TOK_OP_AND;
         case OP_OR:             return TOK_OP_OR;
-        case OP_INCREMENT:      return TOK_OP_INCREMENT;
-        case OP_DECREMENT:      return TOK_OP_DECREMENT;
         case OP_EXPONENTIATE:   return TOK_OP_EXPONENTIATE;
         case OP_DOUBLE_EQ:      return TOK_OP_DOUBLE_EQ;
         case OP_GT:             return TOK_OP_GT;
@@ -507,6 +520,38 @@ const char *ms_TokenTypeName(ms_TokenType type) {
 
     assert(false);
     return NULL;
+}
+
+bool ms_TokenTypeIsOp(ms_TokenType type) {
+    switch(type) {
+        case OP_UMINUS:
+        case OP_PLUS:
+        case OP_MINUS:
+        case OP_TIMES:
+        case OP_DIVIDE:
+        case OP_IDIVIDE:
+        case OP_MODULO:
+        case OP_AND:
+        case OP_OR:
+        case OP_EXPONENTIATE:
+        case OP_DOUBLE_EQ:
+        case OP_GT:
+        case OP_LT:
+        case OP_EQ:
+        case OP_NOT:
+        case OP_NOT_EQ:
+        case OP_GE:
+        case OP_LE:
+        case OP_BITWISE_AND:
+        case OP_BITWISE_OR:
+        case OP_BITWISE_XOR:
+        case OP_BITWISE_NOT:
+        case OP_SHIFT_LEFT:
+        case OP_SHIFT_RIGHT:
+            return true;
+        default:
+            return false;
+    }
 }
 
 /*
@@ -551,7 +596,7 @@ static inline int LexerNextChar(ms_Lexer *lex) {
 static inline int LexerPeek(ms_Lexer *lex) {
     assert(lex);
     int n = LexerNextChar(lex);
-    LexerBackup(lex);
+    if (n != EOF) { LexerBackup(lex); }
     return n;
 }
 
@@ -564,25 +609,28 @@ static ms_Token *LexerLexNumber(ms_Lexer *lex, int prev) {
     // Accept hexadecimal numbers
     if ((prev == '0') && (LexerAcceptOne(lex, "xX"))) {
         if (LexerAcceptRun(lex, BASE_16_DIGITS) <= 0) {
-            return LexerTokenError(lex, "Incomplete hexadecimal number");
+            return LexerTokenFromBuffer(lex, ERROR);
         }
         return LexerTokenFromBuffer(lex, HEX_NUMBER);
     }
 
     // Accept basic digits
+    ms_TokenType type = INT_NUMBER;
     LexerAcceptRun(lex, BASE_10_DIGITS);
 
     // Accept standard decimal digits
     if ((prev != '.') && (LexerAcceptOne(lex, "."))) {
         LexerAcceptRun(lex, BASE_10_DIGITS);
+        type = FLOAT_NUMBER;
     }
 
     // Accept exponential notation
     if (LexerAcceptOne(lex, "eE")) {
         LexerAcceptRun(lex, BASE_10_DIGITS);
+        type = FLOAT_NUMBER;
     }
 
-    return LexerTokenFromBuffer(lex, NUMBER);
+    return LexerTokenFromBuffer(lex, type);
 }
 
 // Starting at the character prev, attempt to lex an entire
@@ -610,7 +658,7 @@ static ms_Token *LexerLexWord(ms_Lexer *lex, int prev) {
     }
 
     if (type == ERROR) {
-        return LexerTokenError(lex, "Zero length identifier found.");
+        return LexerTokenFromBuffer(lex, ERROR);
     }
     return LexerTokenFromBuffer(lex, type);
 }
@@ -634,14 +682,14 @@ static ms_Token *LexerLexString(ms_Lexer *lex, int first) {
         }
         if ((n == '\n') || (n == '\r')) {
             LexerIncrementLine(lex);
-            return LexerTokenError(lex, "String not closed before newline character");
+            return LexerTokenFromBuffer(lex, ERROR);
         }
         LexerAddToBuffer(lex, n);
         prev = n;
     }
 
     if ((n == EOF) && (prev != first)) {
-        return LexerTokenError(lex, "String not closed before EOF.");
+        return LexerTokenFromBuffer(lex, ERROR);
     }
     return LexerTokenFromBuffer(lex, STRING);
 }
@@ -712,7 +760,7 @@ static int LexerAcceptExcept(ms_Lexer *lex, const char *invalid) {
 static inline void LexerIncrementLine(ms_Lexer *lex) {
     assert(lex);
     lex->line++;
-    lex->col = 0;
+    lex->col = 1;
 }
 
 // Backup from the previous character.

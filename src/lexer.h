@@ -51,8 +51,6 @@ static const char *const TOK_OP_LT = "OP_LT";
 static const char *const TOK_OP_GT = "OP_GT";
 static const char *const TOK_OP_DOUBLE_EQ = "OP_DOUBLE_EQ";
 static const char *const TOK_OP_EXPONENTIATE = "OP_EXPONENTIATE";
-static const char *const TOK_OP_DECREMENT = "OP_DECREMENT";
-static const char *const TOK_OP_INCREMENT = "OP_INCREMENT";
 static const char *const TOK_OP_OR = "OP_OR";
 static const char *const TOK_OP_AND = "OP_AND";
 static const char *const TOK_OP_MODULO_EQUALS = "OP_MODULO_EQUALS";
@@ -67,6 +65,7 @@ static const char *const TOK_OP_DIVIDE = "OP_DIVIDE";
 static const char *const TOK_OP_TIMES = "OP_TIMES";
 static const char *const TOK_OP_MINUS = "OP_MINUS";
 static const char *const TOK_OP_PLUS = "OP_PLUS";
+static const char *const TOK_OP_UMINUS = "OP_UMINUS";
 static const char *const TOK_KW_MERGE = "KW_MERGE";
 static const char *const TOK_KW_NULL = "KW_NULL";
 static const char *const TOK_KW_FALSE = "KW_FALSE";
@@ -91,7 +90,8 @@ static const char *const TOK_KW_IS = "KW_IS";
 static const char *const TOK_KW_AS = "KW_AS";
 static const char *const TOK_KW_IN = "KW_IN";
 static const char *const TOK_STRING = "STRING";
-static const char *const TOK_NUMBER = "NUMBER";
+static const char *const TOK_INT_NUMBER = "INT_NUMBER";
+static const char *const TOK_FLOAT_NUMBER = "FLOAT_NUMBER";
 static const char *const TOK_HEX_NUMBER = "HEX_NUMBER";
 
 /**
@@ -103,7 +103,8 @@ typedef enum ms_TokenType {
     IDENTIFIER,
     BUILTIN_FUNC,
     GLOBAL,
-    NUMBER,
+    FLOAT_NUMBER,
+    INT_NUMBER,
     HEX_NUMBER,
     STRING,
     KW_FUNC,
@@ -129,6 +130,7 @@ typedef enum ms_TokenType {
     KW_IS,
     KW_AS,
     KW_IN,
+    OP_UMINUS,
     OP_PLUS,
     OP_MINUS,
     OP_TIMES,
@@ -143,8 +145,6 @@ typedef enum ms_TokenType {
     OP_MODULO_EQUALS,
     OP_AND,
     OP_OR,
-    OP_INCREMENT,
-    OP_DECREMENT,
     OP_EXPONENTIATE,
     OP_DOUBLE_EQ,
     OP_GT,
@@ -278,6 +278,14 @@ ms_Token *ms_TokenNew(ms_TokenType type, const char *value, size_t len, size_t l
 char *ms_TokenToString(ms_Token *tok);
 
 /**
+* @brief Indicate if the given token qualifies as an operator.
+*
+* @param tok a token object
+* @returns true if the given token is an operator; false otherwise
+*/
+bool ms_TokenIsOp(ms_Token *tok);
+
+/**
 * @brief Destroy a token.
 *
 * @param tok a token object
@@ -299,5 +307,13 @@ const char *ms_TokenName(ms_Token *tok);
 * @returns the string name of the given token type
 */
 const char *ms_TokenTypeName(ms_TokenType type);
+
+/**
+* @brief Indicate if the given type of token qualifies as an operator.
+*
+* @param type a type of token
+* @returns true if the given token type is an operator; false otherwise
+*/
+bool ms_TokenTypeIsOp(ms_TokenType type);
 
 #endif //MSCRIPT_LEXER_H
