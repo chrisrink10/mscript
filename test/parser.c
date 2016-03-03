@@ -61,10 +61,10 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
 // VM type and bytecode macros
 #define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
-#define VM_FLOAT(v) ((ms_VMValue){ .type = VMVAL_FLOAT, .val = (ms_VMPrimitive){ .f = v } })
-#define VM_INT(v) ((ms_VMValue){ .type = VMVAL_INT, .val = (ms_VMPrimitive){ .i = v } })
-#define VM_BOOL(v) ((ms_VMValue){ .type = VMVAL_BOOL, .val = (ms_VMPrimitive){ .b = v } })
-#define VM_NULL() ((ms_VMValue){ .type = VMVAL_NULL, .val = (ms_VMPrimitive){ .n = MS_VM_NULL_POINTER } })
+#define VM_FLOAT(v) ((ms_VMValue){ .type = VMVAL_FLOAT, .val = (ms_VMData){ .f = v } })
+#define VM_INT(v) ((ms_VMValue){ .type = VMVAL_INT, .val = (ms_VMData){ .i = v } })
+#define VM_BOOL(v) ((ms_VMValue){ .type = VMVAL_BOOL, .val = (ms_VMData){ .b = v } })
+#define VM_NULL() ((ms_VMValue){ .type = VMVAL_NULL, .val = (ms_VMData){ .n = MS_VM_NULL_POINTER } })
 
 MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
     char *exprs[] = {

@@ -248,7 +248,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
 
                 /* string literals */
             case STRING: {
-                ms_VMPrimitive p;
+                ms_VMData p;
                 p.s = cur->value;
                 ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_STR, p);
                 if (!newexpr) {
@@ -264,7 +264,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 /* boolean literals */
             case KW_TRUE:
             case KW_FALSE: {
-                ms_VMPrimitive p;
+                ms_VMData p;
                 p.b = (cur->type == KW_TRUE) ? true : false;
                 ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_BOOL, p);
                 if (!newexpr) {
@@ -278,7 +278,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
 
                 /* null literal */
             case KW_NULL: {
-                ms_VMPrimitive p;
+                ms_VMData p;
                 p.n = MS_VM_NULL_POINTER;
                 ms_Expr *newexpr = ms_ExprNewWithVal(VMVAL_NULL, p);
                 if (!newexpr) {

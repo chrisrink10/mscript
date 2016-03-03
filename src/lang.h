@@ -165,7 +165,7 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 /**
 * @brief Create a new @c ms_Expr object with a primitive value.
 */
-ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v);
+ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v);
 
 /**
 * @brief Create a new unary @c ms_Expr object containing a floating point

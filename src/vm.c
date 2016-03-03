@@ -231,7 +231,7 @@ void ms_VMSwap(ms_VM *vm) {
     (void) VMSwap(vm);
 }
 
-ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method) {
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMDataType type, const char *method) {
     assert(vm);
     assert(vm->float_);
     assert(vm->int_);

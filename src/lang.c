@@ -94,7 +94,7 @@ ms_Expr *ms_ExprNew(ms_ExprType type) {
     return expr;
 }
 
-ms_Expr *ms_ExprNewWithVal(ms_VMPrimitiveType type, ms_VMPrimitive v) {
+ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v) {
     ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
     if (!expr) {
         return NULL;

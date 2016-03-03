@@ -102,7 +102,7 @@ typedef bool ms_VMBool;
 typedef const void ms_VMNull;
 
 /**
-* @brief Enumeration of primitive value types in the mscript VM
+* @brief Enumeration of data value types in the mscript VM
 */
 typedef enum {
     VMVAL_FLOAT,
@@ -110,10 +110,10 @@ typedef enum {
     VMVAL_STR,
     VMVAL_BOOL,
     VMVAL_NULL,
-} ms_VMPrimitiveType;
+} ms_VMDataType;
 
 /**
-* @brief Union of primitive types in the mscript VM
+* @brief Union of data types in the mscript VM
 */
 typedef union {
     ms_VMFloat f;
@@ -121,14 +121,14 @@ typedef union {
     ms_VMStr *s;
     ms_VMBool b;
     ms_VMNull *n;
-} ms_VMPrimitive;
+} ms_VMData;
 
 /**
 * @brief Placeholder for a more sophisticated object-value in the mscript VM
 */
 typedef struct {
-    ms_VMPrimitiveType type;
-    ms_VMPrimitive val;
+    ms_VMDataType type;
+    ms_VMData val;
 } ms_VMValue;
 
 /**
@@ -225,7 +225,7 @@ void ms_VMSwap(ms_VM *vm);
 /**
 * @brief Get a function pointer for the given primitive type and method.
 */
-ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMPrimitiveType type, const char *method);
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMDataType type, const char *method);
 
 /**
 * @brief Clear the data stack and reset the instruction pointer.
