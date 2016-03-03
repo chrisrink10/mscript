@@ -36,6 +36,7 @@ static const int OPERATOR_STACK_DEFAULT_LEN = 10;
 struct ms_Parser {
     ms_Lexer *lex;
     ms_Token *cur;
+    ms_Token *nxt;
     ms_AST *ast;
     DSDict *opcache;
     ms_ParseError *err;
@@ -56,6 +57,7 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, DSArray *exprstack,
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprBinaryOp op);
 static inline ms_Token *ParserCurrentToken(ms_Parser *prs);
 static inline ms_Token *ParserNextToken(ms_Parser *prs);
+static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
 static bool ParserConstructOpCache(ms_Parser *prs);
@@ -84,6 +86,7 @@ ms_Parser *ms_ParserNew(void) {
     }
 
     prs->cur = NULL;
+    prs->nxt = NULL;
     prs->ast = NULL;
     prs->err = NULL;
     return prs;
@@ -103,6 +106,9 @@ bool ms_ParserInitFile(ms_Parser *prs, const char *fname) {
     if (!prs->cur) {
         return false;
     }
+
+    ms_TokenDestroy(prs->nxt);
+    prs->nxt = ms_LexerNextToken(prs->lex);
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
@@ -132,6 +138,9 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
     if (!prs->cur) {
         return false;
     }
+
+    ms_TokenDestroy(prs->nxt);
+    prs->nxt = ms_LexerNextToken(prs->lex);
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
@@ -293,7 +302,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 /* begin parenthesized expression */
             case LPAREN: {
                 dsarray_append(opstack, cur);
-                cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
+                cleanup_token = (void (*)(ms_Parser *)) ParserAdvanceToken;       /* leave reference to token */
                 break;
             }
 
@@ -338,7 +347,7 @@ static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
                 if ((!prev) || (ms_TokenTypeIsOp(prevtype)) || (prevtype == LPAREN)) {
                     cur->type = OP_UMINUS;
                     dsarray_append(opstack, cur);
-                    cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
+                    cleanup_token = (void (*)(ms_Parser *)) ParserAdvanceToken;       /* leave reference to token */
                     break;
                 }
                 goto parse_expr_evaluate_op;    /* in case this case gets separated from below */
@@ -377,7 +386,7 @@ parse_expr_evaluate_op:
                     ms_TokenDestroy(top);
                 }
                 dsarray_append(opstack, cur);
-                cleanup_token = (void (*)(ms_Parser *))ParserNextToken;       /* leave reference to token */
+                cleanup_token = (void (*)(ms_Parser *)) ParserAdvanceToken;       /* leave reference to token */
                 break;
             }
                 /* newlines outside of parens, braces, and brackets indicate EOL */
@@ -532,10 +541,16 @@ static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack
     return PARSE_SUCCESS;
 }
 
-// Peek at the next token in the stream.
+// Look at the current token in the stream.
 static inline ms_Token *ParserCurrentToken(ms_Parser *prs) {
     assert(prs);
     return prs->cur;
+}
+
+// Peek at the next token in the stream.
+static inline ms_Token *ParserNextToken(ms_Parser *prs) {
+    assert(prs);
+    return prs->nxt;
 }
 
 // Move the pointer to the next token in the lexer stream without
@@ -543,21 +558,18 @@ static inline ms_Token *ParserCurrentToken(ms_Parser *prs) {
 //
 // BE CAREFUL WITH THIS FUNCTION. Abusing this function will cause memory
 // leaks since token objects are not freed by this function.
-static inline ms_Token *ParserNextToken(ms_Parser *prs) {
+static inline ms_Token *ParserAdvanceToken(ms_Parser *prs) {
     assert(prs);
     assert(prs->lex);
     ms_Token *old = prs->cur;
-    prs->cur = ms_LexerNextToken(prs->lex);
+    prs->cur = prs->nxt;
+    prs->nxt = (prs->nxt) ? (ms_LexerNextToken(prs->lex)) : (NULL);
     return old;
 }
 
 // Consume the next token in the stream.
 static inline void ParserConsumeToken(ms_Parser *prs) {
-    assert(prs);
-    assert(prs->lex);
-    ms_TokenDestroy(prs->cur);
-    prs->cur = ms_LexerNextToken(prs->lex);
-    return;
+    ms_TokenDestroy(ParserAdvanceToken(prs));
 }
 
 // Check if the next token to see if it matches our expected next token.
