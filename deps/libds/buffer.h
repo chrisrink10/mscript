@@ -93,6 +93,15 @@ DSBuffer *dsbuf_new_buffer(size_t cap);
 void dsbuf_destroy(DSBuffer *str);
 
 /**
+* @brief Duplicate a @c DSBuffer object
+*
+* @param str a @c DSBuffer object to copy
+* @returns a copy of the given @c DSBuffer object or NULL if a copy could
+*          not be made for some reason (e.g. memory allocation issues)
+*/
+DSBuffer *dsbuf_dup(const DSBuffer *str);
+
+/**
 * @brief Return the length in number of bytes in the @c DSBuffer.
 *
 * Note that this is not the UTF-8 length.

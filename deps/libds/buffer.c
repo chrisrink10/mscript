@@ -42,23 +42,21 @@ DSBuffer * dsbuf_new_l(const char *value, size_t len) {
 
     DSBuffer *s = malloc(sizeof(DSBuffer));
     if (!s) {
-        goto cleanup_gbuf;
+        return NULL;
     }
 
     s->len = len;
     s->cap = len * DSBUFFER_CAPACITY_FACTOR;
     s->str = malloc(s->cap);
     if (!s->str) {
-        goto cleanup_dsbuf_str;
+        goto cleanup_dsbuf;
     }
 
     memcpy(s->str, value, len);
     memset(&s->str[len], '\0', (s->cap - len));
     return s;
 
-cleanup_dsbuf_str:
-    free(s->str);
-cleanup_gbuf:
+cleanup_dsbuf:
     free(s);
     return NULL;
 }
@@ -68,19 +66,17 @@ DSBuffer * dsbuf_new_buffer(size_t cap) {
 
     DSBuffer *s = malloc(sizeof(DSBuffer));
     if (!s) {
-        goto cleanup_dsbuf_buffer;
+        return NULL;
     }
 
     s->len = 0;
     s->cap = cap;
     s->str = calloc(s->cap, sizeof(char*));
     if (!s->str) {
-        goto cleanup_dsbuf_buffer_str;
+        goto cleanup_dsbuf_buffer;
     }
     return s;
 
-cleanup_dsbuf_buffer_str:
-    free(s->str);
 cleanup_dsbuf_buffer:
     free(s);
     return NULL;
@@ -91,6 +87,29 @@ void dsbuf_destroy(DSBuffer *str) {
     free(str->str);
     str->str = NULL;
     free(str);
+}
+
+DSBuffer *dsbuf_dup(const DSBuffer *str) {
+    if (!str) { return NULL; }
+
+    DSBuffer *s = malloc(sizeof(DSBuffer));
+    if (!s) {
+        return NULL;
+    }
+
+    s->len = str->len;
+    s->cap = str->cap;
+    s->str = malloc(s->cap);
+    if (!s->str) {
+        goto cleanup_dsbuf_dup;
+    }
+
+    memcpy(s->str, &str->str[0], s->len);
+    return s;
+
+cleanup_dsbuf_dup:
+    free(s);
+    return NULL;
 }
 
 size_t dsbuf_len(DSBuffer *str) {
