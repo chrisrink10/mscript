@@ -45,11 +45,29 @@ typedef struct ms_ExprOpPrecedence {
 typedef struct ms_Expr ms_Expr;
 
 /**
+* @brief Type of function
+*/
+typedef enum {
+    FUNCTYPE_BUILTIN,
+    FUNCTYPE_USER,
+} ms_FuncType;
+
+/**
+* @brief Function call object
+*/
+typedef struct ms_FuncCall {
+    DSBuffer *name;
+    ms_FuncType type;
+    DSArray *params;
+} ms_FuncCall;
+
+/**
 * @brief Expression atom union
 */
 typedef union {
     ms_Expr *expr;
     ms_VMValue val;
+    ms_FuncCall fc;
 } ms_ExprAtom;
 
 /**
@@ -59,6 +77,7 @@ typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
     EXPRATOM_VALUE,
+    EXPRATOM_FUNCCALL,
 } ms_ExprAtomType;
 
 /**
@@ -166,6 +185,11 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 * @brief Create a new @c ms_Expr object with a primitive value.
 */
 ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v);
+
+/**
+* @brief Create a new @c ms_Expr object for a function call.
+*/
+ms_Expr *ms_ExprNewWithFuncCall(const char *name, ms_FuncType type);
 
 /**
 * @brief Create a new unary @c ms_Expr object containing a floating point

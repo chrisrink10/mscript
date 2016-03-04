@@ -107,6 +107,31 @@ ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v) {
     return expr;
 }
 
+ms_Expr *ms_ExprNewWithFuncCall(const char *name, ms_FuncType type) {
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->expr.u->expr.fc.params = dsarray_new(NULL, NULL);
+    if (!expr->expr.u->expr.fc.params) {
+        free(expr);
+        return NULL;
+    }
+
+    expr->expr.u->expr.fc.name = dsbuf_new(name);
+    if (!expr->expr.u->expr.fc.name) {
+        free(expr->expr.u->expr.fc.params);
+        free(expr);
+        return NULL;
+    }
+
+    expr->expr.u->expr.fc.type = type;
+    expr->expr.u->type = EXPRATOM_FUNCCALL;
+    expr->expr.u->op = UNARY_NONE;
+    return expr;
+}
+
 ms_Expr *ms_ExprFloatFromString(const char *str) {
     assert(str);
 
@@ -226,6 +251,11 @@ void ms_ExprDestroy(ms_Expr *expr) {
             if (expr->expr.u) {
                 if (expr->expr.u->type == EXPRATOM_EXPRESSION) {
                     ms_ExprDestroy(expr->expr.u->expr.expr);
+                } else if (expr->expr.u->type == EXPRATOM_FUNCCALL) {
+                    dsbuf_destroy(expr->expr.u->expr.fc.name);
+                    expr->expr.u->expr.fc.name = NULL;
+                    dsarray_destroy(expr->expr.u->expr.fc.params);
+                    expr->expr.u->expr.fc.params = NULL;
                 }
                 free(expr->expr.u);
                 expr->expr.u = NULL;
@@ -235,9 +265,19 @@ void ms_ExprDestroy(ms_Expr *expr) {
             if (expr->expr.b) {
                 if (expr->expr.b->ltype == EXPRATOM_EXPRESSION) {
                     ms_ExprDestroy(expr->expr.b->left.expr);
+                } else if (expr->expr.b->ltype == EXPRATOM_FUNCCALL) {
+                    dsbuf_destroy(expr->expr.b->left.fc.name);
+                    expr->expr.b->left.fc.name = NULL;
+                    dsarray_destroy(expr->expr.b->left.fc.params);
+                    expr->expr.b->left.fc.params = NULL;
                 }
                 if (expr->expr.b->rtype == EXPRATOM_EXPRESSION) {
                     ms_ExprDestroy(expr->expr.b->right.expr);
+                } else if (expr->expr.b->rtype == EXPRATOM_FUNCCALL) {
+                    dsbuf_destroy(expr->expr.b->right.fc.name);
+                    expr->expr.b->right.fc.name = NULL;
+                    dsarray_destroy(expr->expr.b->right.fc.params);
+                    expr->expr.b->right.fc.params = NULL;
                 }
                 free(expr->expr.b);
                 expr->expr.b = NULL;
