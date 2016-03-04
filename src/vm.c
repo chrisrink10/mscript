@@ -67,6 +67,8 @@ static inline size_t VMPop(ms_VM *vm);
 static inline size_t VMSwap(ms_VM *vm);
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name);
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name);
+static inline size_t VMCallFunction(ms_VM *vm);
+static inline size_t VMLoadName(ms_VM *vm, int arg);
 
 /*
  * PUBLIC FUNCTIONS
@@ -308,7 +310,7 @@ ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c) {
     return (ms_VMOpCodeType)(c & ((1 << 16) - 1));
 }
 
-ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
+ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents) {
     if (!opcodes) { return NULL; }
 
     ms_VMByteCode *bc = malloc(sizeof(ms_VMByteCode));
@@ -331,12 +333,25 @@ ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
         return NULL;
     }
 
+    bc->nidents = dsarray_len((DSArray *)idents);
+    bc->idents = malloc(sizeof(ms_VMIdent *) * (bc->nidents));
+    if (!bc->idents) {
+        free(bc->values);
+        free(bc->code);
+        free(bc);
+        return NULL;
+    }
+
     for (size_t i = 0; i < bc->nops; i++) {
         bc->code[i] = *(ms_VMOpCode *)dsarray_get((DSArray *)opcodes, i);
     }
 
     for (size_t i = 0; i < bc->nvals; i++) {
         bc->values[i] = *(ms_VMValue *)dsarray_get((DSArray *)values, i);
+    }
+
+    for (size_t i = 0; i < bc->nidents; i++) {
+        bc->idents[i] = dsarray_get((DSArray *)idents, i);
     }
 
     return bc;
@@ -348,6 +363,12 @@ void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
     bc->code = NULL;
     free(bc->values);
     bc->values = NULL;
+    for (size_t i = 0; i < bc->nidents; i++) {
+        dsbuf_destroy(bc->idents[i]);
+        bc->idents[i] = NULL;
+    }
+    free(bc->idents);
+    bc->idents = NULL;
     free(bc);
 }
 
@@ -529,6 +550,12 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_OR:
                 inc = VMDoBinaryOp(vm, "__or__");
                 break;
+            case OPC_CALL:
+                inc = VMCallFunction(vm);
+                break;
+            case OPC_LOAD_NAME:
+                inc = VMLoadName(vm, arg);
+                break;
         }
         if (inc == 0) { return VMEXEC_ERROR; }
         f->ip += inc;
@@ -636,4 +663,26 @@ static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     }
     int res = op(vm);
     return (size_t)res;
+}
+
+static inline size_t VMCallFunction(ms_VM *vm) {
+    assert(vm);
+    ms_VMValue *l = VMPeek(vm, -1);
+    ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, "__call__");
+    if (!op) {
+        ms_VMErrorSet(vm, "Object is not callable.");
+        return 0;
+    }
+    int res = op(vm);
+    return (size_t)res;
+}
+
+static inline size_t VMLoadName(ms_VM *vm, int arg) {
+    assert(vm);
+    assert(vm->fstack);
+    ms_VMFrame *f = dsarray_top(vm->fstack);
+    assert(f->code);
+    ms_VMIdent *id = f->code->idents[arg];
+    assert(id);
+    return 1;
 }

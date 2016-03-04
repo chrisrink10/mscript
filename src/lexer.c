@@ -425,11 +425,6 @@ char *ms_TokenToString(ms_Token *tok) {
     return str;
 }
 
-bool ms_TokenIsOp(ms_Token *tok) {
-    assert(tok);
-    return ms_TokenTypeIsOp(tok->type);
-}
-
 void ms_TokenDestroy(ms_Token *tok) {
     if (!tok) { return; }
     dsbuf_destroy(tok->value);
@@ -520,38 +515,6 @@ const char *ms_TokenTypeName(ms_TokenType type) {
 
     assert(false);
     return NULL;
-}
-
-bool ms_TokenTypeIsOp(ms_TokenType type) {
-    switch(type) {
-        case OP_UMINUS:
-        case OP_PLUS:
-        case OP_MINUS:
-        case OP_TIMES:
-        case OP_DIVIDE:
-        case OP_IDIVIDE:
-        case OP_MODULO:
-        case OP_AND:
-        case OP_OR:
-        case OP_EXPONENTIATE:
-        case OP_DOUBLE_EQ:
-        case OP_GT:
-        case OP_LT:
-        case OP_EQ:
-        case OP_NOT:
-        case OP_NOT_EQ:
-        case OP_GE:
-        case OP_LE:
-        case OP_BITWISE_AND:
-        case OP_BITWISE_OR:
-        case OP_BITWISE_XOR:
-        case OP_BITWISE_NOT:
-        case OP_SHIFT_LEFT:
-        case OP_SHIFT_RIGHT:
-            return true;
-        default:
-            return false;
-    }
 }
 
 /*

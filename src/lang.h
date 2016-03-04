@@ -18,6 +18,7 @@
 #define MSCRIPT_LANG_H
 
 #include "libds/array.h"
+#include "libds/buffer.h"
 #include "lexer.h"
 #include "vm.h"
 
@@ -45,21 +46,9 @@ typedef struct ms_ExprOpPrecedence {
 typedef struct ms_Expr ms_Expr;
 
 /**
-* @brief Type of function
+* @brief Expression list object
 */
-typedef enum {
-    FUNCTYPE_BUILTIN,
-    FUNCTYPE_USER,
-} ms_FuncType;
-
-/**
-* @brief Function call object
-*/
-typedef struct ms_FuncCall {
-    DSBuffer *name;
-    ms_FuncType type;
-    DSArray *params;
-} ms_FuncCall;
+typedef DSArray ms_ExprList;
 
 /**
 * @brief Expression atom union
@@ -67,7 +56,8 @@ typedef struct ms_FuncCall {
 typedef union {
     ms_Expr *expr;
     ms_VMValue val;
-    ms_FuncCall fc;
+    ms_VMIdent *ident;
+    ms_ExprList *list;
 } ms_ExprAtom;
 
 /**
@@ -77,7 +67,8 @@ typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
     EXPRATOM_VALUE,
-    EXPRATOM_FUNCCALL,
+    EXPRATOM_IDENT,
+    EXPRATOM_EXPRLIST,
 } ms_ExprAtomType;
 
 /**
@@ -124,6 +115,7 @@ typedef enum {
     BINARY_NOT_EQ,
     BINARY_AND,
     BINARY_OR,
+    BINARY_CALL,
 } ms_ExprBinaryOp;
 
 /**
@@ -187,9 +179,14 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v);
 
 /**
-* @brief Create a new @c ms_Expr object for a function call.
+* @brief Create a new @c ms_Expr object for an identifier.
 */
-ms_Expr *ms_ExprNewWithFuncCall(const char *name, ms_FuncType type);
+ms_Expr *ms_ExprNewWithIdent(const char *name);
+
+/**
+* @brief Create a new @c ms_Expr object for containing a list of expressions.
+*/
+ms_Expr *ms_ExprNewWithList(ms_ExprList *list);
 
 /**
 * @brief Create a new unary @c ms_Expr object containing a floating point

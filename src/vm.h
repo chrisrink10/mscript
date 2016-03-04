@@ -85,12 +85,19 @@ typedef enum {
     OPC_NOT,
     OPC_AND,
     OPC_OR,
+    OPC_CALL,
+    OPC_LOAD_NAME,
 } ms_VMOpCodeType;
 
 /**
 * @brief The explicit NULL pointer for the mscript VM.
 */
 extern const void *MS_VM_NULL_POINTER;
+
+/**
+* @brief Identifier
+*/
+typedef DSBuffer ms_VMIdent;
 
 /*
 * @brief Typedefs of VM values
@@ -142,8 +149,10 @@ typedef int ms_VMOpCode;
 typedef struct {
     ms_VMOpCode *code;                              /* array of opcodes */
     ms_VMValue *values;                             /* array of VM values */
+    ms_VMIdent **idents;                            /* array of identifiers */
     size_t nops;                                    /* number of opcodes */
     size_t nvals;                                   /* number of values */
+    size_t nidents;                                 /* number of idents */
 } ms_VMByteCode;
 
 /**
@@ -269,10 +278,12 @@ ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c);
 * @brief Convert a stack consisting of ms_VMOpCodes into a single
 * @c ms_VMByteCode container.
 *
-* @param stack a @c DSArray with all @c ms_VMOpCode objects
+* @param opcodes a @c DSArray with all @c ms_VMOpCode objects
+* @param values a @c DSArray with all @c ms_VMValues
+* @param idents a @c DSArray with all @c ms_VMIdent
 * @returns an @c ms_VMByteCode container suitable for execution by the VM
 */
-ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values);
+ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents);
 
 /**
 * @brief Destroy the memory held by byte code.

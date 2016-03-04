@@ -32,6 +32,7 @@
 
 static const int EXPRESSION_STACK_DEFAULT_LEN = 10;
 static const int OPERATOR_STACK_DEFAULT_LEN = 10;
+static const int EXPRESSION_LIST_DEFAULT_LEN = 10;
 
 struct ms_Parser {
     ms_Lexer *lex;
@@ -56,13 +57,15 @@ static bool ParserExprShouldCombine(ms_Parser *prs, ms_Token *top, ms_Token *nex
 static ms_ParseResult ParserExprCombine(ms_Parser *prs, DSArray *exprstack, ms_Token *tok);
 static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprUnaryOp op);
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprBinaryOp op);
-static ms_ParseResult ParserParseFunctionCall(ms_Parser *prs, ms_Expr **fcall);
+static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list);
 static inline ms_Token *ParserCurrentToken(ms_Parser *prs);
 static inline ms_Token *ParserNextToken(ms_Parser *prs);
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
 static bool ParserConstructOpCache(ms_Parser *prs);
+bool TokenTypeIsOp(ms_TokenType type);
+bool TokenMayBeCallable(ms_TokenType type);
 static ms_ParseError *ParseErrorNew(const char *msg, const ms_Token *tok, ...);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParseErrorDestroy(ms_ParseError *err);
@@ -349,24 +352,45 @@ static ms_ParseResult ParserParseExprRecursive(ms_Parser *prs, ms_Token *prev, D
             /* reference an identifier (either builtin or other identifier) */
         case IDENTIFIER:
         case BUILTIN_FUNC: {
-            ms_Token *nxt = ParserNextToken(prs);
-            if (nxt) {
-                /* function call */
-                if (nxt->type == LPAREN) {
-                    ms_Expr *fcall;
-                    if ((res = ParserParseFunctionCall(prs, &fcall)) == PARSE_ERROR) {
-                        goto parse_expr_end_of_expr;
-                    }
-                    dsarray_append(exprstack, fcall);
-                }
+            ms_Expr *newexpr = ms_ExprNewWithIdent(dsbuf_char_ptr(cur->value));
+            if (!newexpr) {
+                ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);
+                res = PARSE_ERROR;
+                goto parse_expr_end_of_expr;
             }
+            dsarray_append(exprstack, newexpr);
             break;
         }
 
-            /* begin parenthesized expression */
+            /* begin parenthesized expression OR
+             * attempt to call previous expr as function */
         case LPAREN: {
             dsarray_append(opstack, cur);
             ParserAdvanceToken(prs);
+
+            /* is this an attempt to call the previous object? */
+            if ((prev) && (TokenMayBeCallable(prev->type))) {
+                ms_Expr *params;
+                if ((res = ParserParseExprList(prs, &params)) == PARSE_ERROR) {
+                    goto parse_expr_end_of_expr;
+                }
+                assert(params);
+                dsarray_append(exprstack, params);
+
+                if (!ParserExpectToken(prs, RPAREN)) {
+                    res = PARSE_ERROR;
+                    goto parse_expr_end_of_expr;
+                }
+
+                if ((res = ParserExprCombineBinary(prs, exprstack, cur, BINARY_CALL)) == PARSE_ERROR) {
+                    goto parse_expr_end_of_expr;
+                }
+
+                /* remove the paren from the operator stack so it does not
+                 * cause mismatched parentheses errors later */
+                (void)dsarray_pop(opstack);
+                break;
+            }
 
             /* recursively parse the inner expression */
             if ((res = ParserParseExprRecursive(prs, cur, exprstack, opstack)) == PARSE_ERROR) {
@@ -375,7 +399,6 @@ static ms_ParseResult ParserParseExprRecursive(ms_Parser *prs, ms_Token *prev, D
 
             /* expect the closing paren */
             if (!ParserExpectToken(prs, RPAREN)) {
-                ParserErrorSet(prs, ERR_MISMATCHED_PARENS, cur, cur->line, cur->col);
                 res = PARSE_ERROR;
                 goto parse_expr_end_of_expr;
             }
@@ -415,7 +438,7 @@ static ms_ParseResult ParserParseExprRecursive(ms_Parser *prs, ms_Token *prev, D
             /* determine if these unary operators are to the LEFT of their operand */
         case OP_BITWISE_NOT:
         case OP_NOT: {
-            if ((prev) && (!ms_TokenTypeIsOp(prev->type)) && (prev->type != LPAREN)) {
+            if ((prev) && (!TokenTypeIsOp(prev->type)) && (prev->type != LPAREN)) {
                 ParserErrorSet(prs, ERR_EXPECTED_OPERAND, cur, cur->line, cur->col);
                 res = PARSE_ERROR;
                 goto parse_expr_end_of_expr;
@@ -424,7 +447,7 @@ static ms_ParseResult ParserParseExprRecursive(ms_Parser *prs, ms_Token *prev, D
         }
             /* determine if this is a unary or binary minus sign */
         case OP_MINUS: {
-            if ((!prev) || (ms_TokenTypeIsOp(prev->type)) || (prev->type == LPAREN)) {
+            if ((!prev) || (TokenTypeIsOp(prev->type)) || (prev->type == LPAREN)) {
                 cur->type = OP_UMINUS;
                 dsarray_append(opstack, cur);
                 cleanup_token = false;              /* leave reference to token */
@@ -599,47 +622,48 @@ static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack
     return PARSE_SUCCESS;
 }
 
-// Parse a function call in an expression.
-static ms_ParseResult ParserParseFunctionCall(ms_Parser *prs, ms_Expr **fcall) {
+// Parse an expression list
+static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list) {
     assert(prs);
-    assert(fcall);
+    assert(list);
 
-    ms_FuncType type = (prs->cur->type == BUILTIN_FUNC) ? FUNCTYPE_BUILTIN : FUNCTYPE_USER;
-    *fcall = ms_ExprNewWithFuncCall(dsbuf_char_ptr(prs->cur->value), type);
-    ParserAdvanceToken(prs); /* no need to destroy since it will be destroyed by caller */
-
-    /* opening paren */
-    if (!ParserExpectToken(prs, LPAREN)) {
-        ms_ExprDestroy(*fcall);
-        *fcall = NULL;
+    DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_LEN, NULL,
+                                      (dsarray_free_fn)ms_ExprDestroy);
+    if (!params) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, ParserCurrentToken(prs));
         return PARSE_ERROR;
     }
 
-    /* no parameters, close and return immediately */
-    if (prs->cur->type == RPAREN) {
+    *list = ms_ExprNewWithList(params);
+    if (!(*list)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, ParserCurrentToken(prs));
+        dsarray_destroy(params);
+        return PARSE_ERROR;
+    }
+
+    /* no parameters, close and return */
+    if (ParserCurrentToken(prs) && (ParserCurrentToken(prs)->type == RPAREN)) {
         return PARSE_SUCCESS;
     }
 
-    /* opening paren */
+    /* produce the set of parameters */
     while(ParserCurrentToken(prs)) {
         ms_Expr *param;
         if (ParserParseExpression(prs, &param) == PARSE_ERROR) {
-            ms_ExprDestroy(*fcall);
-            *fcall = NULL;
+            dsarray_destroy(params);
             return PARSE_ERROR;
         }
-        dsarray_append((*fcall)->expr.u->expr.fc.params, param);
-        if (ParserCurrentToken(prs) && ParserCurrentToken(prs)->type == RPAREN) {
-            break;
+        dsarray_append(params, param);
+        if (ParserCurrentToken(prs)) {
+            if (ParserCurrentToken(prs)->type == RPAREN) {
+                break;
+            } else if (!ParserExpectToken(prs, COMMA)) {
+                ms_ExprDestroy(*list);
+                return PARSE_ERROR;
+            }
         }
     }
 
-    /* closing paren */
-    if (!ParserExpectToken(prs, RPAREN)) {
-        ms_ExprDestroy(*fcall);
-        *fcall = NULL;
-        return PARSE_ERROR;
-    }
     return PARSE_SUCCESS;
 }
 
@@ -708,6 +732,55 @@ static bool ParserConstructOpCache(ms_Parser *prs) {
     }
 
     return true;
+}
+
+// Indicate if the given type of token qualifies as an operator.
+bool TokenTypeIsOp(ms_TokenType type) {
+    switch(type) {
+        case OP_UMINUS:
+        case OP_PLUS:
+        case OP_MINUS:
+        case OP_TIMES:
+        case OP_DIVIDE:
+        case OP_IDIVIDE:
+        case OP_MODULO:
+        case OP_AND:
+        case OP_OR:
+        case OP_EXPONENTIATE:
+        case OP_DOUBLE_EQ:
+        case OP_GT:
+        case OP_LT:
+        case OP_EQ:
+        case OP_NOT:
+        case OP_NOT_EQ:
+        case OP_GE:
+        case OP_LE:
+        case OP_BITWISE_AND:
+        case OP_BITWISE_OR:
+        case OP_BITWISE_XOR:
+        case OP_BITWISE_NOT:
+        case OP_SHIFT_LEFT:
+        case OP_SHIFT_RIGHT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// Indicate if the given type of token MAY be callable.
+bool TokenMayBeCallable(ms_TokenType type) {
+    switch(type) {
+        case IDENTIFIER:
+        case BUILTIN_FUNC:
+        case GLOBAL:
+        case FLOAT_NUMBER:
+        case INT_NUMBER:
+        case HEX_NUMBER:
+        case STRING:
+            return true;
+        default:
+            return false;
+    }
 }
 
 // Create a new ParseError object.
