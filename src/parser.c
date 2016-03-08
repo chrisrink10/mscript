@@ -35,12 +35,12 @@ static const int OPERATOR_STACK_DEFAULT_LEN = 10;
 static const int EXPRESSION_LIST_DEFAULT_LEN = 10;
 
 struct ms_Parser {
-    ms_Lexer *lex;
-    ms_Token *cur;
-    ms_Token *nxt;
-    ms_AST *ast;
-    DSDict *opcache;
-    ms_ParseError *err;
+    ms_Lexer *lex;                          /** lexer object */
+    ms_Token *cur;                          /** current token */
+    ms_Token *nxt;                          /** "lookahead" token */
+    ms_AST *ast;                            /** current abstract syntax tree */
+    DSDict *opcache;                        /** hash table of operators for quick lookup */
+    ms_ParseError *err;                     /** current parser error */
 };
 
 static const char *const ERR_OUT_OF_MEMORY = "Out of memory";
@@ -58,8 +58,6 @@ static ms_ParseResult ParserExprCombine(ms_Parser *prs, DSArray *exprstack, ms_T
 static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprUnaryOp op);
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, DSArray *exprstack, ms_Token *tok, ms_ExprBinaryOp op);
 static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list);
-static inline ms_Token *ParserCurrentToken(ms_Parser *prs);
-static inline ms_Token *ParserNextToken(ms_Parser *prs);
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
@@ -269,7 +267,7 @@ static ms_ParseResult ParserParseExprRecursive(ms_Parser *prs, ms_Token *prev, D
     assert(opstack);
 
     ms_ParseResult res = PARSE_SUCCESS;
-    ms_Token *cur = ParserCurrentToken(prs);
+    ms_Token *cur = prs->cur;
     if (!cur) { return PARSE_SUCCESS; }
 
     /* by default, consume (destroy) the current token and advance the
@@ -630,32 +628,32 @@ static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list) {
     DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_LEN, NULL,
                                       (dsarray_free_fn)ms_ExprDestroy);
     if (!params) {
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, ParserCurrentToken(prs));
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
     }
 
     *list = ms_ExprNewWithList(params);
     if (!(*list)) {
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, ParserCurrentToken(prs));
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         dsarray_destroy(params);
         return PARSE_ERROR;
     }
 
     /* no parameters, close and return */
-    if (ParserCurrentToken(prs) && (ParserCurrentToken(prs)->type == RPAREN)) {
+    if ((prs->cur) && (prs->cur->type == RPAREN)) {
         return PARSE_SUCCESS;
     }
 
     /* produce the set of parameters */
-    while(ParserCurrentToken(prs)) {
+    while(prs->cur) {
         ms_Expr *param;
         if (ParserParseExpression(prs, &param) == PARSE_ERROR) {
             dsarray_destroy(params);
             return PARSE_ERROR;
         }
         dsarray_append(params, param);
-        if (ParserCurrentToken(prs)) {
-            if (ParserCurrentToken(prs)->type == RPAREN) {
+        if (prs->cur) {
+            if (prs->cur->type == RPAREN) {
                 break;
             } else if (!ParserExpectToken(prs, COMMA)) {
                 ms_ExprDestroy(*list);
@@ -665,18 +663,6 @@ static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list) {
     }
 
     return PARSE_SUCCESS;
-}
-
-// Look at the current token in the stream.
-static inline ms_Token *ParserCurrentToken(ms_Parser *prs) {
-    assert(prs);
-    return prs->cur;
-}
-
-// Peek at the next token in the stream.
-static inline ms_Token *ParserNextToken(ms_Parser *prs) {
-    assert(prs);
-    return prs->nxt;
 }
 
 // Move the pointer to the next token in the lexer stream without
