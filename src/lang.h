@@ -23,24 +23,6 @@
 #include "vm.h"
 
 /**
-* @brief Operator associativity enumeration
-*/
-typedef enum ms_ExprOpAssociativity {
-    ASSOC_LEFT,
-    ASSOC_RIGHT
-} ms_ExprOpAssociativity;
-
-/**
-* @brief Tuple structure representing the type and associativity of
-* mscript operators
-*/
-typedef struct ms_ExprOpPrecedence {
-    ms_TokenType type;
-    int precedence;
-    ms_ExprOpAssociativity assoc;
-} ms_ExprOpPrecedence;
-
-/**
 * @brief Expression syntax tree object
 */
 typedef struct ms_Expr ms_Expr;
@@ -226,11 +208,6 @@ ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
 * @brief Destroy the given @c ms_Expr and any nested expressions.
 */
 void ms_ExprDestroy(ms_Expr *expr);
-
-/**
-* @brief Fill a pointer to the operator precedence table for callers.
-*/
-size_t ms_ExprOpPrecedenceTable(const ms_ExprOpPrecedence **tbl);
 
 /*
 * @brief Convert a token type into a binary operation enumeration.

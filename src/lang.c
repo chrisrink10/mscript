@@ -26,33 +26,6 @@ static const int EXPR_OPCODE_STACK_LEN = 50;
 static const int EXPR_VALUE_STACK_LEN = 50;
 static const int EXPR_IDENT_STACK_LEN = 50;
 
-// Static table of operator precedence values
-static const ms_ExprOpPrecedence OP_PRECEDENCE[] = {
-    { OP_UMINUS, 110, ASSOC_RIGHT },
-    { OP_NOT, 110, ASSOC_RIGHT },
-    { OP_BITWISE_NOT, 110, ASSOC_RIGHT },
-    { OP_TIMES, 100, ASSOC_LEFT },
-    { OP_DIVIDE, 100, ASSOC_LEFT },
-    { OP_IDIVIDE, 100, ASSOC_LEFT },
-    { OP_EXPONENTIATE, 100, ASSOC_LEFT },
-    { OP_MODULO, 100, ASSOC_LEFT },
-    { OP_PLUS, 90, ASSOC_LEFT },
-    { OP_MINUS, 90, ASSOC_LEFT },
-    { OP_SHIFT_LEFT, 80, ASSOC_LEFT },
-    { OP_SHIFT_RIGHT, 80, ASSOC_LEFT },
-    { OP_BITWISE_AND, 75, ASSOC_LEFT },
-    { OP_BITWISE_XOR, 70, ASSOC_LEFT },
-    { OP_BITWISE_OR, 65, ASSOC_LEFT },
-    { OP_LE, 60, ASSOC_LEFT },
-    { OP_LT, 60, ASSOC_LEFT },
-    { OP_GE, 60, ASSOC_LEFT },
-    { OP_GT, 60, ASSOC_LEFT },
-    { OP_EQ, 50, ASSOC_LEFT },
-    { OP_NOT_EQ, 50, ASSOC_LEFT },
-    { OP_AND, 40, ASSOC_LEFT },
-    { OP_OR, 30, ASSOC_LEFT }
-};
-
 static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes);
@@ -340,12 +313,6 @@ void ms_ExprDestroy(ms_Expr *expr) {
             break;
     }
     free(expr);
-}
-
-size_t ms_ExprOpPrecedenceTable(const ms_ExprOpPrecedence **tbl) {
-    size_t len = sizeof(OP_PRECEDENCE) / sizeof(OP_PRECEDENCE[0]);
-    *tbl = OP_PRECEDENCE;
-    return len;
 }
 
 ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type) {
