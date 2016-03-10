@@ -210,16 +210,6 @@ ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
 void ms_ExprDestroy(ms_Expr *expr);
 
 /*
-* @brief Convert a token type into a binary operation enumeration.
-*/
-ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type);
-
-/**
-* @brief Convert a token type into a unary operation enumeration.
-*/
-ms_ExprUnaryOp ms_ExprTokenToUnaryOp(ms_TokenType type);
-
-/*
 * @brief Placeholder for real AST destroy function.
 */
 #define ms_ASTDestroy(ast) ms_ExprDestroy(ast)
