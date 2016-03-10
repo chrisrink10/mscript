@@ -59,11 +59,12 @@ static ms_ParseResult ParserParseBitShiftExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseArithmeticExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr);
-static ms_ParseResult ParserParseExprAtom(ms_Parser *prs, ms_Expr **expr);
+static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr);
+static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr);
+static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list);
+static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_ExprUnaryOp op, ms_Expr **newexpr);
-
-static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list);
 
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
@@ -218,8 +219,14 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * band_expr:       shift_expr (('<<'|'>>') shift_expr)*
  * shift_expr:      arith_expr (('+'|'-') arith_expr)*
  * arith_expr:      term_expr (('*'|'/'|'\'|'%'|'**') term_expr)*
- * term_expr:       ('-'|'!'|'~') atom | term_expr
- * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL | expr | '(' expr ')'
+ * term_expr:       ('-'|'!'|'~') atom_expr | term_expr
+ * atom_expr:       atom [accessor]*
+ * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL |
+ *                  IDENTIFIER | BUILTIN_FUNC | expr | '(' expr ')'
+ *
+ * accessor:        arg_list
+ * expr_list:       expr [',' expr]*
+ * arg_list:        '(' expr_list ')'
  */
 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
@@ -624,7 +631,7 @@ static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr) {
             case OP_MINUS:              // fallthrough
             case OP_UMINUS:             op = UNARY_MINUS;           break;
             default:
-                if ((res = ParserParseExprAtom(prs, expr)) == PARSE_ERROR) {
+                if ((res = ParserParseAtomExpr(prs, expr)) == PARSE_ERROR) {
                     return res;
                 }
                 goto parse_unary_expr_end_loop;
@@ -649,7 +656,100 @@ parse_unary_expr_end_loop:
     return res;
 }
 
-static ms_ParseResult ParserParseExprAtom(ms_Parser *prs, ms_Expr **expr) {
+static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    ms_ParseResult res;
+    ms_Expr *left;
+    if ((res = ParserParseAtom(prs, &left)) == PARSE_ERROR) {
+        return res;
+    }
+
+    if (!ParserExpectToken(prs, LPAREN)) {
+        *expr = left;
+        return res;
+    }
+
+    while (prs->cur) {
+        ms_Expr *right;
+        if ((res = ParserParseAccessor(prs, &right)) == PARSE_ERROR) {
+            return res;
+        }
+
+        ms_Expr *combined;
+        if ((res = ParserExprCombineBinary(prs, left, BINARY_CALL, right, &combined)) == PARSE_ERROR) {
+            return res;
+        }
+        left = combined;
+    }
+
+    *expr = left;
+    return res;
+}
+
+static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    if (prs->cur->type == LPAREN) {
+        ParserConsumeToken(prs);
+        return ParserParseExprList(prs, expr);
+    }
+
+    return PARSE_SUCCESS;
+}
+
+static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list) {
+    assert(prs);
+    assert(list);
+
+    DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_LEN, NULL,
+                                      (dsarray_free_fn)ms_ExprDestroy);
+    if (!params) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    *list = ms_ExprNewWithList(params);
+    if (!(*list)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        dsarray_destroy(params);
+        return PARSE_ERROR;
+    }
+
+    /* no parameters, close and return */
+    if ((prs->cur) && (prs->cur->type == RPAREN)) {
+        ParserConsumeToken(prs);
+        return PARSE_SUCCESS;
+    }
+
+    /* produce the set of parameters */
+    while(prs->cur) {
+        ms_Expr *param;
+        if (ParserParseExpression(prs, &param) == PARSE_ERROR) {
+            dsarray_destroy(params);
+            return PARSE_ERROR;
+        }
+        dsarray_append(params, param);
+        if (prs->cur) {
+            if (prs->cur->type == RPAREN) {
+                ParserConsumeToken(prs);
+                break;
+            }
+
+            if (!ParserExpectToken(prs, COMMA)) {
+                ms_ExprDestroy(*list);
+                return PARSE_ERROR;
+            }
+            ParserConsumeToken(prs);
+        }
+    }
+
+    return PARSE_SUCCESS;
+}
+
+static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
     assert(prs);
     assert(expr);
 
@@ -790,51 +890,6 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_
 
     *newexpr = ms_ExprFlatten(*newexpr, inner, EXPRLOC_UNARY);
     (*newexpr)->expr.u->op = op;
-
-    return PARSE_SUCCESS;
-}
-
-// Parse an expression list
-static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list) {
-    assert(prs);
-    assert(list);
-
-    DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_LEN, NULL,
-                                      (dsarray_free_fn)ms_ExprDestroy);
-    if (!params) {
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
-        return PARSE_ERROR;
-    }
-
-    *list = ms_ExprNewWithList(params);
-    if (!(*list)) {
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
-        dsarray_destroy(params);
-        return PARSE_ERROR;
-    }
-
-    /* no parameters, close and return */
-    if ((prs->cur) && (prs->cur->type == RPAREN)) {
-        return PARSE_SUCCESS;
-    }
-
-    /* produce the set of parameters */
-    while(prs->cur) {
-        ms_Expr *param;
-        if (ParserParseExpression(prs, &param) == PARSE_ERROR) {
-            dsarray_destroy(params);
-            return PARSE_ERROR;
-        }
-        dsarray_append(params, param);
-        if (prs->cur) {
-            if (prs->cur->type == RPAREN) {
-                break;
-            } else if (!ParserExpectToken(prs, COMMA)) {
-                ms_ExprDestroy(*list);
-                return PARSE_ERROR;
-            }
-        }
-    }
 
     return PARSE_SUCCESS;
 }
