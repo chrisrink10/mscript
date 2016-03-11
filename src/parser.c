@@ -622,7 +622,7 @@ static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr) {
     ms_ParseResult res = PARSE_ERROR;
     *expr = NULL;
 
-    while (prs->cur) {
+    if (prs->cur) {
         ms_Token *cur = prs->cur;
         ms_ExprUnaryOp op;
         switch (cur->type) {
