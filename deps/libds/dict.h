@@ -58,7 +58,7 @@ typedef void (*dsdict_foreach_fn)(const void*, void*);
 * @returns a new @c DSDict object or @c NULL if no hash function is
 *          specified or memory could not be allocated
 */
-DSDict* dsdict_new(dsdict_hash_fn hash, dsdict_compare_fn cmpfn, dsdict_free_fn keyfree, dsdict_free_fn valfree);
+DSDict *dsdict_new(dsdict_hash_fn hash, dsdict_compare_fn cmpfn, dsdict_free_fn keyfree, dsdict_free_fn valfree);
 
 /**
 * @brief Destroy a @c DSDict object.
@@ -77,7 +77,7 @@ void dsdict_destroy(DSDict *dict);
 * @param dict a @c DSDict object
 * @returns the number of elements in @c dict
 */
-size_t dsdict_count(DSDict *dict);
+size_t dsdict_count(const DSDict *dict);
 
 /**
 * @brief Return the capacity of this collection.
@@ -90,7 +90,7 @@ size_t dsdict_count(DSDict *dict);
 * @param dict a @c DSDict object
 * @returns the number of elements that @c dict can hold
 */
-size_t dsdict_cap(DSDict *dict);
+size_t dsdict_cap(const DSDict *dict);
 
 /**
 * @brief Perform the given function on each object in the dictionary.
@@ -109,7 +109,7 @@ void dsdict_foreach(DSDict *dict, dsdict_foreach_fn func);
 /**
  * @brief Create a new @c DSIter object for this dictionary.
  */
-DSIter* dsdict_iter(DSDict *dict);
+DSIter *dsdict_iter(DSDict *dict);
 
 /**
 * @brief Put the given element in the dictionary by key.
@@ -137,7 +137,7 @@ void dsdict_put(DSDict *dict, void *key, void *val);
 * @returns @c NULL if the element does not exist in the dictionary;
 *          the element otherwise
 */
-void* dsdict_get(DSDict *dict, void *key);
+void *dsdict_get(const DSDict *dict, void *key);
 
 /**
 * @brief Remove the element from the dictionary and return it to the caller.
@@ -149,6 +149,6 @@ void* dsdict_get(DSDict *dict, void *key);
 * @returns @c NULL if the element does not exist in the dictionary;
 *          the element otherwise
 */
-void* dsdict_del(DSDict *dict, void *key);
+void *dsdict_del(DSDict *dict, void *key);
 
 #endif //LIBDS_DICT_H

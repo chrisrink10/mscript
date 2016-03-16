@@ -59,7 +59,7 @@ bool dsiter_has_next(DSIter *iter);
 * @returns the current key if @c dsiter_next returned @c true; @c false
 *          otherwise
 */
-void* dsiter_key(DSIter *iter);
+void *dsiter_key(DSIter *iter);
 
 /**
 * @brief Return the current value.
@@ -72,7 +72,7 @@ void* dsiter_key(DSIter *iter);
 * @param iter a @c DSIter object
 * @returns the value associated with the current element pointer
 */
-void* dsiter_value(DSIter *iter);
+void *dsiter_value(DSIter *iter);
 
 /**
 * @brief Return the current enumerated index for the current element.
@@ -85,7 +85,7 @@ void* dsiter_value(DSIter *iter);
 * @param iter a @c DSIter object
 * @returns the enumerated index of the current iteration
 */
-size_t dsiter_index(DSIter *iter);
+size_t dsiter_index(const DSIter *iter);
 
 /**
 * @brief Reset a @c DSIter object to a new state.

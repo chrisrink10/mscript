@@ -30,12 +30,12 @@ static int utf8_validate_char(const char *s, const char *e);
  * BUFFER PUBLIC FUNCTIONS
  */
 
-DSBuffer * dsbuf_new(const char *value) {
+DSBuffer *dsbuf_new(const char *value) {
     size_t len = strlen(value);
     return dsbuf_new_l(value, len);
 }
 
-DSBuffer * dsbuf_new_l(const char *value, size_t len) {
+DSBuffer *dsbuf_new_l(const char *value, size_t len) {
     if (len < 1) {
         return NULL;
     }
@@ -61,7 +61,7 @@ cleanup_dsbuf:
     return NULL;
 }
 
-DSBuffer * dsbuf_new_buffer(size_t cap) {
+DSBuffer *dsbuf_new_buffer(size_t cap) {
     cap = (cap < DSBUFFER_MINIMUM_CAPACITY) ? DSBUFFER_MINIMUM_CAPACITY : cap;
 
     DSBuffer *s = malloc(sizeof(DSBuffer));
@@ -71,7 +71,7 @@ DSBuffer * dsbuf_new_buffer(size_t cap) {
 
     s->len = 0;
     s->cap = cap;
-    s->str = calloc(s->cap, sizeof(char*));
+    s->str = malloc(s->cap);
     if (!s->str) {
         goto cleanup_dsbuf_buffer;
     }
@@ -112,12 +112,12 @@ cleanup_dsbuf_dup:
     return NULL;
 }
 
-size_t dsbuf_len(DSBuffer *str) {
+size_t dsbuf_len(const DSBuffer *str) {
     assert(str);
     return str->len;
 }
 
-size_t dsbuf_cap(DSBuffer *str) {
+size_t dsbuf_cap(const DSBuffer *str) {
     assert(str);
     return str->cap;
 }
@@ -175,7 +175,7 @@ bool dsbuf_append_str(DSBuffer *str, const char *newstr) {
     return true;
 }
 
-int dsbuf_char_at(DSBuffer *str, size_t pos) {
+int dsbuf_char_at(const DSBuffer *str, size_t pos) {
     if ((!str) || (pos >= str->len)) {
         return DSBUFFER_CHAR_NOT_FOUND;
     }
@@ -183,7 +183,7 @@ int dsbuf_char_at(DSBuffer *str, size_t pos) {
     return str->str[pos];
 }
 
-DSBuffer * dsbuf_substr(DSBuffer *str, size_t start, size_t len) {
+DSBuffer *dsbuf_substr(const DSBuffer *str, size_t start, size_t len) {
     if ((!str) || (start > str->len) || (len > (str->len - start))) {
         return NULL;
     }
@@ -198,7 +198,7 @@ DSBuffer * dsbuf_substr(DSBuffer *str, size_t start, size_t len) {
     return sub;
 }
 
-bool dsbuf_equals(DSBuffer *str, DSBuffer *other) {
+bool dsbuf_equals(const DSBuffer *str, const DSBuffer *other) {
     if ((!str) || (!other)) {
         return false;
     }
@@ -215,13 +215,13 @@ bool dsbuf_equals(DSBuffer *str, DSBuffer *other) {
     return (res == 0);
 }
 
-bool dsbuf_equals_char(DSBuffer *str, const char *other) {
+bool dsbuf_equals_char(const DSBuffer *str, const char *other) {
     if (!str) { return false; }
     int res = strcmp(str->str, other);
     return (res == 0);
 }
 
-const char* dsbuf_char_ptr(DSBuffer *str) {
+const char *dsbuf_char_ptr(const DSBuffer *str) {
     if (!str) {
         return NULL;
     }
@@ -229,29 +229,28 @@ const char* dsbuf_char_ptr(DSBuffer *str) {
     return str->str;
 }
 
-char* dsbuf_to_char_array(DSBuffer *str) {
+char *dsbuf_to_char_array(const DSBuffer *str) {
     if (!str) {
         return NULL;
     }
 
     size_t m = (str->len) + 1;
-    char* cpy = calloc(m, m);
+    char* cpy = malloc(m);
     if (!cpy) {
         return NULL;
     }
 
-    /* Use strncpy here since we can only return a C-string (NUL terminated),
-     * rather than memcpy like the rest of the gbuf functions */
-    strncpy(cpy, str->str, str->len);
+    memcpy(cpy, str->str, str->len);
+    str->str[str->len] = '\0';
     return cpy;
 }
 
-unsigned int dsbuf_hash(DSBuffer *str) {
+unsigned int dsbuf_hash(const DSBuffer *str) {
     if (!str) { return 0; }
     return (unsigned int) hash_fnv1(str->str);
 }
 
-int dsbuf_compare(DSBuffer *left, DSBuffer *right) {
+int dsbuf_compare(const DSBuffer *left, const DSBuffer *right) {
     if (!left) { return INT_MIN; }
     if (!right) { return INT_MAX; }
     if (left->len < right->len) { return -1; }
@@ -259,7 +258,7 @@ int dsbuf_compare(DSBuffer *left, DSBuffer *right) {
     return memcmp(left->str, right->str, left->len);
 }
 
-bool dsbuf_utf8_validate(DSBuffer *buf, size_t *l) {
+bool dsbuf_utf8_validate(const DSBuffer *buf, size_t *l) {
     if (!buf) { return false; }
 
     bool count = (l != NULL) ? true : false;
@@ -277,7 +276,7 @@ bool dsbuf_utf8_validate(DSBuffer *buf, size_t *l) {
     return true;
 }
 
-size_t dsbuf_utf8_len(DSBuffer *buf) {
+size_t dsbuf_utf8_len(const DSBuffer *buf) {
     if (!buf) { return 0; }
 
     const char *s = buf->str;

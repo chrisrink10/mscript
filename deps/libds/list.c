@@ -50,12 +50,12 @@ void dslist_destroy(DSList *list) {
     free(list);
 }
 
-size_t dslist_len(DSList *list) {
+size_t dslist_len(const DSList *list) {
     assert(list);
     return list->len;
 }
 
-void* dslist_get(DSList *list, size_t index) {
+void *dslist_get(const DSList *list, size_t index) {
     if ((!list) || (index >= list->len)) {
         return NULL;
     }
@@ -158,7 +158,7 @@ bool dslist_insert(DSList *list, void *elem, size_t index){
     return false;
 }
 
-void* dslist_remove(DSList *list, void *elem){
+void *dslist_remove(DSList *list, void *elem){
     if ((!list) || (!elem)) { return NULL; }
     if (!list->cmp) { return NULL; }
 
@@ -173,7 +173,7 @@ void* dslist_remove(DSList *list, void *elem){
     return NULL;
 }
 
-void* dslist_remove_index(DSList *list, size_t index){
+void *dslist_remove_index(DSList *list, size_t index){
     if (!list) { return NULL; }
     if (index >= list->len) { return NULL; }
 
@@ -194,7 +194,7 @@ bool dslist_enqueue(DSList *list, void *elem){
     return (list) ? dslist_insert(list, elem, list->len) : false;
 }
 
-void* dslist_dequeue(DSList *list){
+void *dslist_dequeue(DSList *list){
     if ((!list) || (list->len < 1)) { return NULL; }
 
     // Point the list header to the next node
@@ -214,7 +214,7 @@ void* dslist_dequeue(DSList *list){
     return data;
 }
 
-void* dslist_pop(DSList *list){
+void *dslist_pop(DSList *list){
     if ((!list) || (list->len < 1)) { return NULL; }
 
     // Point the list footer to the previous node

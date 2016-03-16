@@ -69,7 +69,7 @@ void dslist_destroy(DSList *list);
 * @param list a @c DSList object
 * @returns the number of elements in @c list
 */
-size_t dslist_len(DSList *list);
+size_t dslist_len(const DSList *list);
 
 /**
 * @brief Return the object stored at the given index.
@@ -79,7 +79,7 @@ size_t dslist_len(DSList *list);
 * @returns @c NULL if the index has no element or is invalid; the
 *          object otherwise
 */
-void* dslist_get(DSList *list, size_t index);
+void *dslist_get(const DSList *list, size_t index);
 
 /**
 * @brief Perform the given function on each object in the list.
@@ -141,7 +141,7 @@ bool dslist_insert(DSList *list, void *elem, size_t index);
 * @returns a pointer to the element or @c NULL if the element cannot be
 *          found or no comparator function was specified
 */
-void* dslist_remove(DSList *list, void *elem);
+void *dslist_remove(DSList *list, void *elem);
 
 /**
 * @brief Remove the element at the given index and return it.
@@ -154,7 +154,7 @@ void* dslist_remove(DSList *list, void *elem);
 *          found or no comparator function was specified or the index was
 *          invalid
 */
-void* dslist_remove_index(DSList *list, size_t index);
+void *dslist_remove_index(DSList *list, size_t index);
 
 /**
 * @brief Enqueue the given element in the list.
@@ -175,7 +175,7 @@ bool dslist_enqueue(DSList *list, void *elem);
 * @returns @c NULL if the list is empty; a pointer to the head element
 *          otherwise
 */
-void* dslist_dequeue(DSList *list);
+void *dslist_dequeue(DSList *list);
 
 /**
 * @brief Pop the top (foot) element from the list.
@@ -185,7 +185,7 @@ void* dslist_dequeue(DSList *list);
 * @param list a @c DSList object
 * @returns a pointer to the top element or @c NULL if the list is empty
 */
-void* dslist_pop(DSList *list);
+void *dslist_pop(DSList *list);
 
 /**
 * @brief Clear the entire list, freeing elements as they are removed.

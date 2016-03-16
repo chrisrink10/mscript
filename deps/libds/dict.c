@@ -56,7 +56,7 @@ static inline size_t compute_index(uint32_t hash, size_t cap);
  * DICTIONARY PUBLIC FUNCTIONS
  */
 
-DSDict * dsdict_new(dsdict_hash_fn hash, dsdict_compare_fn cmpfn, dsdict_free_fn keyfree, dsdict_free_fn valfree) {
+DSDict *dsdict_new(dsdict_hash_fn hash, dsdict_compare_fn cmpfn, dsdict_free_fn keyfree, dsdict_free_fn valfree) {
     if ((!hash) || (!cmpfn)) { return NULL; }
 
     DSDict *dict = malloc(sizeof(DSDict));
@@ -64,8 +64,8 @@ DSDict * dsdict_new(dsdict_hash_fn hash, dsdict_compare_fn cmpfn, dsdict_free_fn
         return NULL;
     }
 
-    size_t cap = sizeof(struct bucket *) * DSDICT_DEFAULT_CAP;
-    dict->vals = calloc(cap, sizeof(struct bucket *));
+    size_t cap = DSDICT_DEFAULT_CAP;
+    dict->vals = calloc(cap, sizeof(struct bucket));
     if (!dict->vals) {
         free(dict);
         return NULL;
@@ -87,12 +87,12 @@ void dsdict_destroy(DSDict *dict) {
     free(dict);
 }
 
-size_t dsdict_count(DSDict *dict) {
+size_t dsdict_count(const DSDict *dict) {
     assert(dict);
     return dict->cnt;
 }
 
-size_t dsdict_cap(DSDict *dict) {
+size_t dsdict_cap(const DSDict *dict) {
     assert(dict);
     return dict->cap;
 }
@@ -174,7 +174,7 @@ cleanup_dsdict_put: {
     return;
 }
 
-void* dsdict_get(DSDict *dict, void *key) {
+void *dsdict_get(const DSDict *dict, void *key) {
     if ((!dict) || (!key)) { return NULL; }
 
     unsigned int hash = dict->hash(key);
@@ -197,7 +197,7 @@ void* dsdict_get(DSDict *dict, void *key) {
     return NULL;
 }
 
-void* dsdict_del(DSDict *dict, void *key) {
+void *dsdict_del(DSDict *dict, void *key) {
     if ((!dict) || (!key)) { return NULL; }
 
     unsigned int hash = dict->hash(key);

@@ -40,7 +40,7 @@ DSArray* dsarray_new_cap(size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn f
         return NULL;
     }
 
-    array->data = calloc(cap, sizeof(void*) * cap);
+    array->data = calloc(cap, sizeof(void *));
     if (!array->data) {
         free(array);
         return NULL;
@@ -60,23 +60,23 @@ void dsarray_destroy(DSArray *array) {
     free(array);
 }
 
-size_t dsarray_len(DSArray *array) {
+size_t dsarray_len(const DSArray *array) {
     assert(array);
     return array->len;
 }
 
-size_t dsarray_cap(DSArray *array) {
+size_t dsarray_cap(const DSArray *array) {
     assert(array);
     return array->cap;
 }
 
-void* dsarray_get(DSArray *array, size_t index) {
+void* dsarray_get(const DSArray *array, size_t index) {
     if (!array) { return NULL; }
     if (index > array->len) { return NULL; }
     return array->data[index];
 }
 
-void* dsarray_top(DSArray *array) {
+void* dsarray_top(const DSArray *array) {
     if (!array) { return NULL; }
     if (array->len == 0) { return NULL; }
     return array->data[array->len-1];
@@ -171,7 +171,7 @@ void dsarray_clear(DSArray *array) {
     array->len = 0;
 }
 
-int dsarray_index(DSArray *array, void *elem) {
+int dsarray_index(const DSArray *array, void *elem) {
     if ((!array) || (!elem)) {
         return DSARRAY_NULL_POINTER;
     }
@@ -237,7 +237,7 @@ static bool dsarray_resize(DSArray *array, size_t cap) {
     }
 
     void **cache = array->data;
-    array->data = malloc(sizeof(void*) * cap);
+    array->data = calloc(cap, sizeof(void *));
     if (!array->data) {
         array->data = cache;
         return false;
