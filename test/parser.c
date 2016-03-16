@@ -690,6 +690,574 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "false || false && true",
+            .ast = AST(AST_BEXPR_VE(VM_BOOL(false), BINARY_OR, AST_BEXPR_VV(VM_BOOL(false), BINARY_AND, VM_BOOL(true)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(false),
+                    VM_BOOL(false),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_AND, 0),
+                    VM_OPC(OPC_OR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(false || false) && true",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_BOOL(false), BINARY_OR, VM_BOOL(false)), BINARY_AND, VM_BOOL(true))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(false),
+                    VM_BOOL(false),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_OR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_AND, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(false || !false) && true",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VE(VM_BOOL(false), BINARY_OR, AST_UEXPR_V(UNARY_NOT, VM_BOOL(false))), BINARY_AND, VM_BOOL(true))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(false),
+                    VM_BOOL(false),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_NOT, 0),
+                    VM_OPC(OPC_OR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_AND, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "false == false != true",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_BOOL(false), BINARY_EQ, VM_BOOL(false)), BINARY_NOT_EQ, VM_BOOL(true))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(false),
+                    VM_BOOL(false),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NOT_EQ, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "false == (false != true)",
+            .ast = AST(AST_BEXPR_VE(VM_BOOL(false), BINARY_EQ, AST_BEXPR_VV(VM_BOOL(false), BINARY_NOT_EQ, VM_BOOL(true)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_BOOL(false),
+                    VM_BOOL(false),
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NOT_EQ, 0),
+                    VM_OPC(OPC_EQ, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 > 3.6 < 8",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_GT, VM_FLOAT(3.6)), BINARY_LT, VM_INT(8))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GT, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_LT, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 > (3.6 < 8)",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_GT, AST_BEXPR_VV(VM_FLOAT(3.6), BINARY_GT, VM_INT(8)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_LT, 0),
+                    VM_OPC(OPC_GT, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 > 3.6 >= 8",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_GT, VM_FLOAT(3.6)), BINARY_GE, VM_INT(8))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GT, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_GE, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 | 2 & 15",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_OR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_AND, VM_INT(15)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 @ 2 & 15",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_AND, VM_INT(15)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                    VM_OPC(OPC_BITWISE_XOR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 @ 2 | 15",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_XOR, VM_INT(2)), BINARY_BITWISE_OR, VM_INT(15))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_XOR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 @ (2 | 15)",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_OR, VM_INT(15)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                    VM_OPC(OPC_BITWISE_XOR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(7 | 2) & 15",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2)), BINARY_BITWISE_AND, VM_INT(15))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(7 | 2) & ~15",
+            .ast = AST(AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2)), BINARY_BITWISE_AND, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(15)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_NOT, 0),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "~(7 | 2) & 15",
+            .ast = AST(AST_BEXPR_EV(AST_UEXPR_E(UNARY_BITWISE_NOT, AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2))), BINARY_BITWISE_AND, VM_INT(15))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(2),
+                    VM_INT(15),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                    VM_OPC(OPC_BITWISE_NOT, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_BITWISE_AND, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "15 | 1 << 2",
+            .ast = AST(AST_BEXPR_VE(VM_INT(15), BINARY_BITWISE_OR, AST_BEXPR_VV(VM_INT(1), BINARY_SHIFT_LEFT, VM_INT(2)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(15),
+                    VM_INT(1),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SHIFT_LEFT, 0),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(15 | 1) << 2",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(15), BINARY_BITWISE_OR, VM_INT(1)), BINARY_SHIFT_LEFT, VM_INT(2))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(15),
+                    VM_INT(1),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_BITWISE_OR, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SHIFT_LEFT, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 + 3.6 - 8",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6)), BINARY_MINUS, VM_INT(8))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SUBTRACT, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 + (3.6 - 8)",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VV(VM_FLOAT(3.6), BINARY_MINUS, VM_INT(8)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SUBTRACT, 0),
+                    VM_OPC(OPC_ADD, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 + (3.6 - -8)",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VE(VM_FLOAT(3.6), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(8))))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_SUBTRACT, 0),
+                    VM_OPC(OPC_ADD, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "(7 + 3.6) - -8",
+            .ast = AST(AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6)), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(8)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_SUBTRACT, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 + 3.6 * -8",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VE(VM_FLOAT(3.6), BINARY_TIMES, AST_UEXPR_V(UNARY_MINUS, VM_INT(8))))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_MULTIPLY, 0),
+                    VM_OPC(OPC_ADD, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 / 3.6 * -8",
+            .ast = AST(AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_DIVIDE, VM_FLOAT(3.6)), BINARY_TIMES, AST_UEXPR_V(UNARY_MINUS, VM_INT(8)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DIVIDE, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_MULTIPLY, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 \\ 3.6 % -8",
+            .ast = AST(AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_IDIVIDE, VM_FLOAT(3.6)), BINARY_MODULO, AST_UEXPR_V(UNARY_MINUS, VM_INT(8)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_FLOAT(3.6),
+                    VM_INT(8),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_IDIVIDE, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_NEGATE, 0),
+                    VM_OPC(OPC_MODULO, 0),
+                },
+                .nops = 6, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 ** 4 ** 2",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_EXPONENTIATE, VM_INT(2)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(4),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "(7 ** 4) ** 2",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_EXPONENTIATE, VM_INT(4)), BINARY_EXPONENTIATE, VM_INT(2))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(4),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 ** 4 * 2",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_TIMES, VM_INT(2)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(4),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_MULTIPLY, 0),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 ** 4 + 2",
+            .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_EXPONENTIATE, VM_INT(4)), BINARY_PLUS, VM_INT(2))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(4),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+        {
+            .val = "7 ** (4 + 2)",
+            .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_PLUS, VM_INT(2)))),
+            .bc = {
+                .values = (ms_VMValue[]){
+                    VM_INT(7),
+                    VM_INT(4),
+                    VM_INT(2),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_EXPONENTIATE, 0),
+                },
+                .nops = 5, .nvals = 3,
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 /*
  * PRIVATE FUNCTIONS
  */
@@ -737,6 +1305,8 @@ MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom
         case EXPRATOM_VALUE:
             CompareVMValues(&atom1->val, &atom2->val);
             break;
+        case EXPRATOM_IDENT:
+        case EXPRATOM_EXPRLIST:
         case EXPRATOM_EMPTY:
             munit_assert(false);
             break;
@@ -798,9 +1368,10 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
     for (size_t i = 0; i < len; i++) {
         ParseResultTuple *tuple = &tuples[i];
         ms_ParserInitString(prs, tuple->val);
+        munit_logf(MUNIT_LOG_INFO, "  code='%s'", tuple->val);
 
         const ms_AST *ast;
-        ms_VMByteCode *code;    /* freed by the VM */
+        ms_VMByteCode *code;
         const ms_ParseError *err;
         ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
 
