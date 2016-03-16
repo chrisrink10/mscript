@@ -33,6 +33,8 @@ MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2);
 MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
 MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
+MunitResult CompareExpressionList(ms_ExprList *el1, ms_ExprList *el2);
+MunitResult CompareVMIdent(ms_VMIdent *id1, ms_VMIdent *id2);
 MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2);
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
@@ -1262,14 +1264,12 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
  * PRIVATE FUNCTIONS
  */
 
-// Compare ASTs to make make sure that they are equal.
 MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2) {
     munit_assert_non_null(ast1);
     munit_assert_non_null(ast2);
     return CompareExpressions(ast1, ast2);
 }
 
-// Compare Expressions to make make sure that they are equal.
 MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2) {
     munit_assert_non_null(expr1);
     munit_assert_non_null(expr2);
@@ -1293,7 +1293,6 @@ MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2) {
     return MUNIT_OK;
 }
 
-// Compare Expression Atoms to make make sure that they are equal.
 MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2) {
     munit_assert_non_null(atom1);
     munit_assert_non_null(atom2);
@@ -1306,7 +1305,11 @@ MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom
             CompareVMValues(&atom1->val, &atom2->val);
             break;
         case EXPRATOM_IDENT:
+            CompareVMIdent(atom1->ident, atom2->ident);
+            break;
         case EXPRATOM_EXPRLIST:
+            CompareExpressionList(atom1->list, atom2->list);
+            break;
         case EXPRATOM_EMPTY:
             munit_assert(false);
             break;
@@ -1315,7 +1318,6 @@ MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom
     return MUNIT_OK;
 }
 
-// Compare byte-code to make sure that two byte-code objects are equal.
 MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) {
     munit_assert_non_null(bc1);
     munit_assert_non_null(bc2);
@@ -1333,7 +1335,34 @@ MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) 
     return MUNIT_OK;
 }
 
-// Compare VM values to make sure that two VM value objects are equal.
+MunitResult CompareExpressionList(ms_ExprList *el1, ms_ExprList *el2) {
+    munit_assert_non_null(el1);
+    munit_assert_non_null(el2);
+
+    munit_assert_cmp_int(dsarray_len(el1), ==, dsarray_len(el2));
+    size_t len = dsarray_len(el1);
+    for (size_t i = 0; i < len; i++) {
+        const ms_Expr *expr1 = dsarray_get(el1, i);
+        const ms_Expr *expr2 = dsarray_get(el2, i);
+        CompareExpressions(expr1, expr2);
+    }
+
+    return MUNIT_OK;
+}
+
+MunitResult CompareVMIdent(ms_VMIdent *id1, ms_VMIdent *id2) {
+    munit_assert_non_null(id1);
+    munit_assert_non_null(id1);
+
+    const char *s1 = dsbuf_char_ptr(id1);
+    const char *s2 = dsbuf_char_ptr(id2);
+    munit_logf(MUNIT_LOG_INFO, "  ident1='%s'", s1);
+    munit_logf(MUNIT_LOG_INFO, "  ident2='%s'", s2);
+    munit_assert(dsbuf_equals(id1, id2));
+
+    return MUNIT_OK;
+}
+
 MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2) {
     munit_assert_non_null(val1);
     munit_assert_non_null(val2);
@@ -1360,7 +1389,6 @@ MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2) {
     return MUNIT_OK;
 }
 
-// Test a tuple of expected parsing results
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
     ms_Parser *prs = ms_ParserNew();
     munit_assert_non_null(prs);
