@@ -58,6 +58,7 @@ static ms_ParseResult ParserParseBitwiseAndExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseBitShiftExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseArithmeticExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr);
+static ms_ParseResult ParserParsePowerExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr);
@@ -218,8 +219,9 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * bxor_expr:       band_expr ('&' band_expr)*
  * band_expr:       shift_expr (('<<'|'>>') shift_expr)*
  * shift_expr:      arith_expr (('+'|'-') arith_expr)*
- * arith_expr:      term_expr (('*'|'/'|'\'|'%'|'**') term_expr)*
- * term_expr:       ('-'|'!'|'~') atom_expr | term_expr
+ * arith_expr:      term_expr (('*'|'/'|'\'|'%') term_expr)*
+ * power_expr:      atom_expr ('**' arith_expr)*
+ * term_expr:       ('-'|'!'|'~') atom_expr | power_expr
  * atom_expr:       atom [accessor]*
  * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL |
  *                  IDENTIFIER | BUILTIN_FUNC | expr | '(' expr ')'
@@ -580,7 +582,7 @@ static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr) {
 
     ms_ParseResult res;
     ms_Expr *left;
-    if ((res = ParserParseUnaryExpr(prs, &left)) == PARSE_ERROR) {
+    if ((res = ParserParsePowerExpr(prs, &left)) == PARSE_ERROR) {
         return res;
     }
 
@@ -591,7 +593,6 @@ static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr) {
             case OP_TIMES:          op = BINARY_TIMES;          break;
             case OP_DIVIDE:         op = BINARY_DIVIDE;         break;
             case OP_IDIVIDE:        op = BINARY_IDIVIDE;        break;
-            case OP_EXPONENTIATE:   op = BINARY_EXPONENTIATE;   break;
             case OP_MODULO:         op = BINARY_MODULO;         break;
             default:
                 *expr = left;
@@ -600,7 +601,44 @@ static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr) {
 
         ParserConsumeToken(prs);
         ms_Expr *right;
-        if ((res = ParserParseUnaryExpr(prs, &right)) == PARSE_ERROR) {
+        if ((res = ParserParsePowerExpr(prs, &right)) == PARSE_ERROR) {
+            return res;
+        }
+
+        ms_Expr *combined;
+        if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            return res;
+        }
+        left = combined;
+    }
+
+    *expr = left;
+    return res;
+}
+
+static ms_ParseResult ParserParsePowerExpr(ms_Parser *prs, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    ms_ParseResult res;
+    ms_Expr *left;
+    if ((res = ParserParseUnaryExpr(prs, &left)) == PARSE_ERROR) {
+        return res;
+    }
+
+    while (prs->cur) {
+        ms_Token *cur = prs->cur;
+        ms_ExprBinaryOp op;
+        switch (cur->type) {
+            case OP_EXPONENTIATE:   op = BINARY_EXPONENTIATE;   break;
+            default:
+                *expr = left;
+                return res;
+        }
+
+        ParserConsumeToken(prs);
+        ms_Expr *right;
+        if ((res = ParserParseTermExpr(prs, &right)) == PARSE_ERROR) {
             return res;
         }
 
