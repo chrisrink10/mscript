@@ -71,7 +71,7 @@ DSBuffer *dsbuf_new_buffer(size_t cap) {
 
     s->len = 0;
     s->cap = cap;
-    s->str = malloc(s->cap);
+    s->str = calloc(s->cap, 1);
     if (!s->str) {
         goto cleanup_dsbuf_buffer;
     }
