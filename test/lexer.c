@@ -207,6 +207,7 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
 
     for (size_t i = 0; i < len; i++) {
         LexResultTuple *tuple = &tokens[0];
+        munit_logf(MUNIT_LOG_INFO, "  val='%s'", tuple->val);
         (void)LexExpect(tuple->val, tuple->type);
     }
 

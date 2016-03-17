@@ -33,8 +33,8 @@ MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2);
 MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
 MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
-MunitResult CompareExpressionList(ms_ExprList *el1, ms_ExprList *el2);
-MunitResult CompareVMIdent(ms_VMIdent *id1, ms_VMIdent *id2);
+MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2);
+MunitResult CompareVMIdent(const ms_VMIdent *id1, const ms_VMIdent *id2);
 MunitResult CompareVMValues(const ms_VMValue *val1, const ms_VMValue *val2);
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
@@ -1335,7 +1335,7 @@ MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) 
     return MUNIT_OK;
 }
 
-MunitResult CompareExpressionList(ms_ExprList *el1, ms_ExprList *el2) {
+MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2) {
     munit_assert_non_null(el1);
     munit_assert_non_null(el2);
 
@@ -1350,7 +1350,7 @@ MunitResult CompareExpressionList(ms_ExprList *el1, ms_ExprList *el2) {
     return MUNIT_OK;
 }
 
-MunitResult CompareVMIdent(ms_VMIdent *id1, ms_VMIdent *id2) {
+MunitResult CompareVMIdent(const ms_VMIdent *id1, const ms_VMIdent *id2) {
     munit_assert_non_null(id1);
     munit_assert_non_null(id1);
 
