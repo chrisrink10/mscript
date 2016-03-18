@@ -825,9 +825,9 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
 
             /* string literals */
         case STRING: {
-            ms_VMData p;
+            ms_ValData p;
             p.s = cur->value;
-            *expr = ms_ExprNewWithVal(VMVAL_STR, p);
+            *expr = ms_ExprNewWithVal(MSVAL_STR, p);
             if (!(*expr)) {
                 ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);
                 res = PARSE_ERROR;
@@ -839,9 +839,9 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
             /* boolean literals */
         case KW_TRUE:
         case KW_FALSE: {
-            ms_VMData p;
+            ms_ValData p;
             p.b = (cur->type == KW_TRUE) ? true : false;
-            *expr = ms_ExprNewWithVal(VMVAL_BOOL, p);
+            *expr = ms_ExprNewWithVal(MSVAL_BOOL, p);
             if (!(*expr)) {
                 ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);
                 res = PARSE_ERROR;
@@ -851,9 +851,9 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
 
             /* null literal */
         case KW_NULL: {
-            ms_VMData p;
+            ms_ValData p;
             p.n = MS_VM_NULL_POINTER;
-            *expr = ms_ExprNewWithVal(VMVAL_NULL, p);
+            *expr = ms_ExprNewWithVal(MSVAL_NULL, p);
             if (!(*expr)) {
                 ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);
                 res = PARSE_ERROR;
@@ -864,7 +864,7 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
             /* reference an identifier (either builtin or other identifier) */
         case IDENTIFIER:
         case BUILTIN_FUNC: {
-            *expr = ms_ExprNewWithIdent(dsbuf_char_ptr(cur->value));
+            *expr = ms_ExprNewWithIdent(dsbuf_char_ptr(cur->value), dsbuf_len(cur->value));
             if (!(*expr)) {
                 ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);
                 res = PARSE_ERROR;

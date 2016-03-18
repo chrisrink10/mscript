@@ -20,7 +20,6 @@
 #include "libds/array.h"
 #include "libds/buffer.h"
 #include "lexer.h"
-#include "vm.h"
 
 /**
 * @brief Expression syntax tree object
@@ -28,17 +27,61 @@
 typedef struct ms_Expr ms_Expr;
 
 /**
+* @brief Identifier
+*/
+typedef DSBuffer ms_Ident;
+
+/**
 * @brief Expression list object
 */
 typedef DSArray ms_ExprList;
+
+/*
+* @brief Typedefs of mscript values
+*/
+typedef double ms_ValFloat;
+typedef long long ms_ValInt;
+typedef DSBuffer ms_ValStr;
+typedef bool ms_ValBool;
+typedef const void ms_ValNull;
+
+/**
+* @brief Enumeration of data value types in mscript
+*/
+typedef enum {
+    MSVAL_FLOAT,
+    MSVAL_INT,
+    MSVAL_STR,
+    MSVAL_BOOL,
+    MSVAL_NULL,
+} ms_ValDataType;
+
+/**
+* @brief Union of data types in mscript
+*/
+typedef union {
+    ms_ValFloat f;
+    ms_ValInt i;
+    ms_ValStr *s;
+    ms_ValBool b;
+    ms_ValNull *n;
+} ms_ValData;
+
+/**
+* @brief Structure of any value within mscript
+*/
+typedef struct {
+    ms_ValDataType type;
+    ms_ValData val;
+} ms_Value;
 
 /**
 * @brief Expression atom union
 */
 typedef union {
     ms_Expr *expr;
-    ms_VMValue val;
-    ms_VMIdent *ident;
+    ms_Value val;
+    ms_Ident *ident;
     ms_ExprList *list;
 } ms_ExprAtom;
 
@@ -158,12 +201,12 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 /**
 * @brief Create a new @c ms_Expr object with a primitive value.
 */
-ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v);
+ms_Expr *ms_ExprNewWithVal(ms_ValDataType type, ms_ValData v);
 
 /**
 * @brief Create a new @c ms_Expr object for an identifier.
 */
-ms_Expr *ms_ExprNewWithIdent(const char *name);
+ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len);
 
 /**
 * @brief Create a new @c ms_Expr object for containing a list of expressions.
@@ -198,11 +241,6 @@ ms_Expr *ms_ExprIntFromString(const char *str);
 * @returns the outer expression
 */
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
-
-/**
-* @brief Generate mscript VM bytecode from the given expression value.
-*/
-ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
 
 /**
 * @brief Destroy the given @c ms_Expr and any nested expressions.
