@@ -909,7 +909,7 @@ static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_
 
     *newexpr = ms_ExprFlatten(*newexpr, left, EXPRLOC_LEFT);
     *newexpr = ms_ExprFlatten(*newexpr, right, EXPRLOC_RIGHT);
-    (*newexpr)->expr.b->op = op;
+    (*newexpr)->cmpnt.b->op = op;
 
     return PARSE_SUCCESS;
 }
@@ -927,7 +927,7 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_
     }
 
     *newexpr = ms_ExprFlatten(*newexpr, inner, EXPRLOC_UNARY);
-    (*newexpr)->expr.u->op = op;
+    (*newexpr)->cmpnt.u->op = op;
 
     return PARSE_SUCCESS;
 }

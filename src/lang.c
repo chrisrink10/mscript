@@ -34,25 +34,25 @@ ms_Expr *ms_ExprNew(ms_ExprType type) {
     expr->type = type;
     switch (type) {
         case EXPRTYPE_UNARY:
-            expr->expr.u = malloc(sizeof(ms_ExprUnary));
-            if (!expr->expr.u) {
+            expr->cmpnt.u = malloc(sizeof(ms_ExprUnary));
+            if (!expr->cmpnt.u) {
                 free(expr);
                 return NULL;
             }
-            expr->expr.u->expr.expr = NULL;
-            expr->expr.u->op = UNARY_NONE;
+            expr->cmpnt.u->atom.expr = NULL;
+            expr->cmpnt.u->op = UNARY_NONE;
             break;
         case EXPRTYPE_BINARY:
-            expr->expr.b = malloc(sizeof(ms_ExprBinary));
-            if (!expr->expr.b) {
+            expr->cmpnt.b = malloc(sizeof(ms_ExprBinary));
+            if (!expr->cmpnt.b) {
                 free(expr);
                 return NULL;
             }
-            expr->expr.b->left.expr = NULL;
-            expr->expr.b->ltype = EXPRATOM_EMPTY;
-            expr->expr.b->op = BINARY_EMPTY;
-            expr->expr.b->rtype = EXPRATOM_EMPTY;
-            expr->expr.b->right.expr = NULL;
+            expr->cmpnt.b->latom.expr = NULL;
+            expr->cmpnt.b->ltype = EXPRATOM_EMPTY;
+            expr->cmpnt.b->op = BINARY_EMPTY;
+            expr->cmpnt.b->rtype = EXPRATOM_EMPTY;
+            expr->cmpnt.b->ratom.expr = NULL;
             break;
     }
 
@@ -65,10 +65,10 @@ ms_Expr *ms_ExprNewWithVal(ms_ValDataType type, ms_ValData v) {
         return NULL;
     }
 
-    expr->expr.u->expr.val.type = type;
-    expr->expr.u->expr.val.val = v;
-    expr->expr.u->type = EXPRATOM_VALUE;
-    expr->expr.u->op = UNARY_NONE;
+    expr->cmpnt.u->atom.val.type = type;
+    expr->cmpnt.u->atom.val.val = v;
+    expr->cmpnt.u->type = EXPRATOM_VALUE;
+    expr->cmpnt.u->op = UNARY_NONE;
     return expr;
 }
 
@@ -78,14 +78,14 @@ ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len) {
         return NULL;
     }
 
-    expr->expr.u->expr.ident = dsbuf_new_l(name, len);
-    if (!expr->expr.u->expr.ident) {
+    expr->cmpnt.u->atom.ident = dsbuf_new_l(name, len);
+    if (!expr->cmpnt.u->atom.ident) {
         free(expr);
         return NULL;
     }
 
-    expr->expr.u->type = EXPRATOM_IDENT;
-    expr->expr.u->op = UNARY_NONE;
+    expr->cmpnt.u->type = EXPRATOM_IDENT;
+    expr->cmpnt.u->op = UNARY_NONE;
     return expr;
 }
 
@@ -99,9 +99,9 @@ ms_Expr *ms_ExprNewWithList(ms_ExprList *list) {
         return NULL;
     }
 
-    expr->expr.u->expr.list = list;
-    expr->expr.u->type = EXPRATOM_EXPRLIST;
-    expr->expr.u->op = UNARY_NONE;
+    expr->cmpnt.u->atom.list = list;
+    expr->cmpnt.u->type = EXPRATOM_EXPRLIST;
+    expr->cmpnt.u->op = UNARY_NONE;
     return expr;
 }
 
@@ -120,10 +120,10 @@ ms_Expr *ms_ExprFloatFromString(const char *str) {
         return NULL;
     }
 
-    expr->expr.u->expr.val.type = MSVAL_FLOAT;
-    expr->expr.u->expr.val.val.f = f;
-    expr->expr.u->type = EXPRATOM_VALUE;
-    expr->expr.u->op = UNARY_NONE;
+    expr->cmpnt.u->atom.val.type = MSVAL_FLOAT;
+    expr->cmpnt.u->atom.val.val.f = f;
+    expr->cmpnt.u->type = EXPRATOM_VALUE;
+    expr->cmpnt.u->op = UNARY_NONE;
     return expr;
 }
 
@@ -142,10 +142,10 @@ ms_Expr *ms_ExprIntFromString(const char *str) {
         return NULL;
     }
 
-    expr->expr.u->expr.val.type = MSVAL_INT;
-    expr->expr.u->expr.val.val.i = i;
-    expr->expr.u->type = EXPRATOM_VALUE;
-    expr->expr.u->op = UNARY_NONE;
+    expr->cmpnt.u->atom.val.type = MSVAL_INT;
+    expr->cmpnt.u->atom.val.val.i = i;
+    expr->cmpnt.u->type = EXPRATOM_VALUE;
+    expr->cmpnt.u->op = UNARY_NONE;
     return expr;
 }
 
@@ -153,37 +153,37 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     if ((!outer) || (!inner)) { return NULL; }
 
     bool should_flatten = (inner->type == EXPRTYPE_UNARY) &&
-                          (inner->expr.u->op == UNARY_NONE);
+                          (inner->cmpnt.u->op == UNARY_NONE);
 
     switch (loc) {
         case EXPRLOC_UNARY:
             assert(outer->type == EXPRTYPE_UNARY);
             if (!should_flatten) {
-                outer->expr.u->expr.expr = inner;
-                outer->expr.u->type = EXPRATOM_EXPRESSION;
+                outer->cmpnt.u->atom.expr = inner;
+                outer->cmpnt.u->type = EXPRATOM_EXPRESSION;
             } else {
-                outer->expr.u->expr = inner->expr.u->expr;
-                outer->expr.u->type = inner->expr.u->type;
+                outer->cmpnt.u->atom = inner->cmpnt.u->atom;
+                outer->cmpnt.u->type = inner->cmpnt.u->type;
             }
             break;
         case EXPRLOC_LEFT:
             assert(outer->type == EXPRTYPE_BINARY);
             if (!should_flatten) {
-                outer->expr.b->left.expr = inner;
-                outer->expr.b->ltype = EXPRATOM_EXPRESSION;
+                outer->cmpnt.b->latom.expr = inner;
+                outer->cmpnt.b->ltype = EXPRATOM_EXPRESSION;
             } else {
-                outer->expr.b->left = inner->expr.u->expr;
-                outer->expr.b->ltype = inner->expr.u->type;
+                outer->cmpnt.b->latom = inner->cmpnt.u->atom;
+                outer->cmpnt.b->ltype = inner->cmpnt.u->type;
             }
             break;
         case EXPRLOC_RIGHT:
             assert(outer->type == EXPRTYPE_BINARY);
             if (!should_flatten) {
-                outer->expr.b->right.expr = inner;
-                outer->expr.b->rtype = EXPRATOM_EXPRESSION;
+                outer->cmpnt.b->ratom.expr = inner;
+                outer->cmpnt.b->rtype = EXPRATOM_EXPRESSION;
             } else {
-                outer->expr.b->right = inner->expr.u->expr;
-                outer->expr.b->rtype = inner->expr.u->type;
+                outer->cmpnt.b->ratom = inner->cmpnt.u->atom;
+                outer->cmpnt.b->rtype = inner->cmpnt.u->type;
             }
             break;
     }
@@ -191,15 +191,15 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     /* clear pointers to objects such as lists and strings that would
      * be destroyed when the inner expression is destroyed otherwise */
     if (should_flatten) {
-        switch (inner->expr.u->type) {
+        switch (inner->cmpnt.u->type) {
             case EXPRATOM_EXPRESSION:
-                inner->expr.u->expr.expr = NULL;
+                inner->cmpnt.u->atom.expr = NULL;
                 break;
             case EXPRATOM_EXPRLIST:
-                inner->expr.u->expr.list = NULL;
+                inner->cmpnt.u->atom.list = NULL;
                 break;
             case EXPRATOM_IDENT:
-                inner->expr.u->expr.ident = NULL;
+                inner->cmpnt.u->atom.ident = NULL;
                 break;
             case EXPRATOM_VALUE:
             case EXPRATOM_EMPTY:
@@ -215,63 +215,63 @@ void ms_ExprDestroy(ms_Expr *expr) {
     if (!expr) { return; }
     switch (expr->type) {
         case EXPRTYPE_UNARY:
-            if (expr->expr.u) {
-                switch(expr->expr.u->type) {
+            if (expr->cmpnt.u) {
+                switch(expr->cmpnt.u->type) {
                     case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->expr.u->expr.expr);
+                        ms_ExprDestroy(expr->cmpnt.u->atom.expr);
                         break;
                     case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->expr.u->expr.ident);
-                        expr->expr.u->expr.ident = NULL;
+                        dsbuf_destroy(expr->cmpnt.u->atom.ident);
+                        expr->cmpnt.u->atom.ident = NULL;
                         break;
                     case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->expr.u->expr.list);
-                        expr->expr.u->expr.list = NULL;
+                        dsarray_destroy(expr->cmpnt.u->atom.list);
+                        expr->cmpnt.u->atom.list = NULL;
                         break;
                     case EXPRATOM_VALUE:    /* no free required */
                     case EXPRATOM_EMPTY:    /* no free required */
                         break;
                 }
-                free(expr->expr.u);
-                expr->expr.u = NULL;
+                free(expr->cmpnt.u);
+                expr->cmpnt.u = NULL;
             }
             break;
         case EXPRTYPE_BINARY:
-            if (expr->expr.b) {
-                switch (expr->expr.b->ltype) {
+            if (expr->cmpnt.b) {
+                switch (expr->cmpnt.b->ltype) {
                     case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->expr.b->left.expr);
+                        ms_ExprDestroy(expr->cmpnt.b->latom.expr);
                         break;
                     case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->expr.b->left.ident);
-                        expr->expr.b->left.ident = NULL;
+                        dsbuf_destroy(expr->cmpnt.b->latom.ident);
+                        expr->cmpnt.b->latom.ident = NULL;
                         break;
                     case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->expr.b->left.list);
-                        expr->expr.b->left.list = NULL;
+                        dsarray_destroy(expr->cmpnt.b->latom.list);
+                        expr->cmpnt.b->latom.list = NULL;
                         break;
                     case EXPRATOM_VALUE:    /* no free required */
                     case EXPRATOM_EMPTY:    /* no free required */
                         break;
                 }
-                switch(expr->expr.b->rtype) {
+                switch(expr->cmpnt.b->rtype) {
                     case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->expr.b->right.expr);
+                        ms_ExprDestroy(expr->cmpnt.b->ratom.expr);
                         break;
                     case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->expr.b->right.ident);
-                        expr->expr.b->right.ident = NULL;
+                        dsbuf_destroy(expr->cmpnt.b->ratom.ident);
+                        expr->cmpnt.b->ratom.ident = NULL;
                         break;
                     case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->expr.b->right.list);
-                        expr->expr.b->right.list = NULL;
+                        dsarray_destroy(expr->cmpnt.b->ratom.list);
+                        expr->cmpnt.b->ratom.list = NULL;
                         break;
                     case EXPRATOM_VALUE:    /* no free required */
                     case EXPRATOM_EMPTY:    /* no free required */
                         break;
                 }
-                free(expr->expr.b);
-                expr->expr.b = NULL;
+                free(expr->cmpnt.b);
+                expr->cmpnt.b = NULL;
             }
             break;
     }

@@ -110,7 +110,7 @@ typedef enum {
 * @brief Unary expression object
 */
 typedef struct {
-    ms_ExprAtom expr;
+    ms_ExprAtom atom;
     ms_ExprAtomType type;
     ms_ExprUnaryOp op;
 } ms_ExprUnary;
@@ -147,10 +147,10 @@ typedef enum {
 * @brief Binary expression object
 */
 typedef struct {
-    ms_ExprAtom left;
+    ms_ExprAtom latom;
     ms_ExprAtomType ltype;
     ms_ExprBinaryOp op;
-    ms_ExprAtom right;
+    ms_ExprAtom ratom;
     ms_ExprAtomType rtype;
 } ms_ExprBinary;
 
@@ -174,7 +174,7 @@ typedef enum {
 * @brief Expression object
 */
 struct ms_Expr {
-    ms_ExprComponent expr;
+    ms_ExprComponent cmpnt;
     ms_ExprType type;
 };
 

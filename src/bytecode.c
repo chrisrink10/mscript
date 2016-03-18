@@ -73,13 +73,13 @@ static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values, DSAr
     assert(values);
 
     if (expr->type == EXPRTYPE_UNARY) {
-        ExprComponentToOpCodes(&expr->expr.u->expr, expr->expr.u->type,
+        ExprComponentToOpCodes(&expr->cmpnt.u->atom, expr->cmpnt.u->type,
                                opcodes, values, idents);
         ExprOpToOpCode(expr, opcodes);
     } else {
-        ExprComponentToOpCodes(&expr->expr.b->left, expr->expr.b->ltype,
+        ExprComponentToOpCodes(&expr->cmpnt.b->latom, expr->cmpnt.b->ltype,
                                opcodes, values, idents);
-        ExprComponentToOpCodes(&expr->expr.b->right, expr->expr.b->rtype,
+        ExprComponentToOpCodes(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype,
                                opcodes, values, idents);
         ExprOpToOpCode(expr, opcodes);
     }
@@ -152,7 +152,7 @@ static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes) {
     if (!o) { return; }
 
     if (expr->type == EXPRTYPE_BINARY) {
-        switch (expr->expr.b->op) {
+        switch (expr->cmpnt.b->op) {
             case BINARY_PLUS:
                 *o = OPC_ADD;
                 break;
@@ -223,7 +223,7 @@ static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes) {
 
         dsarray_append(opcodes, o);
     } else {
-        switch (expr->expr.u->op) {
+        switch (expr->cmpnt.u->op) {
             case UNARY_MINUS:
                 *o = OPC_NEGATE;
                 break;
