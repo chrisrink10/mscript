@@ -28,6 +28,7 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
 MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS
@@ -69,6 +70,14 @@ static MunitTest parser_tests[] = {
     {
         "/OperatorPrecedence",
         prs_TestParseExprPrecedence,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/FunctionCalls",
+        prs_TestParseFunctionCalls,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
