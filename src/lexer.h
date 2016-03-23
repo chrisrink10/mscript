@@ -169,7 +169,7 @@ typedef enum ms_TokenType {
     RBRACE,
     PERIOD,
     COMMA,
-    NEWLINE
+    NEWLINE_TOK
 } ms_TokenType;
 
 /**
@@ -278,14 +278,6 @@ ms_Token *ms_TokenNew(ms_TokenType type, const char *value, size_t len, size_t l
 char *ms_TokenToString(ms_Token *tok);
 
 /**
-* @brief Indicate if the given token qualifies as an operator.
-*
-* @param tok a token object
-* @returns true if the given token is an operator; false otherwise
-*/
-bool ms_TokenIsOp(ms_Token *tok);
-
-/**
 * @brief Destroy a token.
 *
 * @param tok a token object
@@ -307,13 +299,5 @@ const char *ms_TokenName(ms_Token *tok);
 * @returns the string name of the given token type
 */
 const char *ms_TokenTypeName(ms_TokenType type);
-
-/**
-* @brief Indicate if the given type of token qualifies as an operator.
-*
-* @param type a type of token
-* @returns true if the given token type is an operator; false otherwise
-*/
-bool ms_TokenTypeIsOp(ms_TokenType type);
 
 #endif //MSCRIPT_LEXER_H

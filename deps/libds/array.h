@@ -65,7 +65,7 @@ static const int DSARRAY_NO_CMP_FUNC = -3;
 * @returns a new @c DSArray object or @c NULL if memory could not be
 *          allocated
 */
-DSArray* dsarray_new(dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
+DSArray *dsarray_new(dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
 
 /**
 * @brief Create a new @c DSArray object with @c cap slots and the given
@@ -82,7 +82,32 @@ DSArray* dsarray_new(dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
 * @returns a new @c DSArray object or @c NULL if memory could not be
 *          allocated
 */
-DSArray* dsarray_new_cap(size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
+DSArray *dsarray_new_cap(size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
+
+/**
+* @brief Create a new @c DSArray object with the given literal array items and
+* the given comparator and free function.
+*
+* This function will make a copy of the input list literal pointers, but it
+* will not make copies of the pointed-to objects (just as in every other
+* case with @c DSArray objects). Thus it is incumbent on callers to free the
+* input elements if they were previously responsible for that.
+*
+* Neither function pointer is required to create a new array. If the caller
+* does not specify a @c dsarray_compare_fn, then @c dsarray_sort will become
+* a no-op. Likewise, if no @c dsarray_free_fn is specified, then the array
+* will not free array elements when it is destroyed.
+*
+* @param list an array of elements to initialize in the array
+* @param len the starting capacity of the @c DSArray
+* @param cap the capacity of the @c DSArray ; must be greater than or equal to
+*            the specified length of the array literal
+* @param cmpfn a function which can compare two array elements
+* @param freefn a function which can free a array element
+* @returns a new @c DSArray object with the given elements or @c NULL if
+*          memory could not be allocated
+*/
+DSArray *dsarray_new_lit(void **list, size_t len, size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
 
 /**
 * @brief Destroy a @c DSArray object.
@@ -99,7 +124,7 @@ void dsarray_destroy(DSArray *array);
 * @param array a @c DSArray object
 * @returns the number of elements in @c array
 */
-size_t dsarray_len(DSArray *array);
+size_t dsarray_len(const DSArray *array);
 
 /**
 * @brief Return the capacity of a @c DSArray .
@@ -107,7 +132,7 @@ size_t dsarray_len(DSArray *array);
 * @param array a @c DSArray object
 * @returns the number of elements that @c array can hold
 */
-size_t dsarray_cap(DSArray *array);
+size_t dsarray_cap(const DSArray *array);
 
 /**
 * @brief Return the object stored at the given index.
@@ -117,7 +142,7 @@ size_t dsarray_cap(DSArray *array);
 * @returns @c NULL if the index has no element or is invalid; the
 *          object otherwise
 */
-void* dsarray_get(DSArray *array, size_t index);
+void *dsarray_get(const DSArray *array, size_t index);
 
 /**
 * @brief Return the top element in the array without popping it.
@@ -126,7 +151,7 @@ void* dsarray_get(DSArray *array, size_t index);
 * @returns @c NULL if there are no elements in the array; the top of
 *          the stack (array) otherwise
 */
-void* dsarray_top(DSArray *array);
+void *dsarray_top(const DSArray *array);
 
 /**
 * @brief Perform the given function on each object in the array.
@@ -193,7 +218,7 @@ bool dsarray_insert(DSArray *array, void *elem, size_t index);
 * @returns a pointer to the element or @c NULL if the element cannot be
 *          found or no comparator function was specified
 */
-void* dsarray_remove(DSArray *array, void *elem);
+void *dsarray_remove(DSArray *array, void *elem);
 
 /**
 * @brief Remove the element at the given index and return it.
@@ -206,7 +231,7 @@ void* dsarray_remove(DSArray *array, void *elem);
 *          found or no comparator function was specified or the index was
 *          invalid
 */
-void* dsarray_remove_index(DSArray *array, size_t index);
+void *dsarray_remove_index(DSArray *array, size_t index);
 
 /**
 * @brief Pop the top element from the array.
@@ -216,7 +241,7 @@ void* dsarray_remove_index(DSArray *array, size_t index);
 * @param array a @c DSArray object
 * @returns a pointer to the top element or @c NULL if the array is empty
 */
-void* dsarray_pop(DSArray *array);
+void *dsarray_pop(DSArray *array);
 
 /**
 * @brief Clear the entire array, freeing elements as they are removed.
@@ -239,7 +264,7 @@ void dsarray_clear(DSArray *array);
 * @returns the index of the element or @c DSARRAY_NOT_FOUND if the element
 *          is not found in the array
 */
-int dsarray_index(DSArray *array, void *elem);
+int dsarray_index(const DSArray *array, void *elem);
 
 /**
 * @brief Sort the array in ascending order using the given comparator function.

@@ -25,12 +25,12 @@ typedef struct DSBuffer DSBuffer;
 /**
 * @brief The factor by which a @c DSBuffer is resized when needed
 */
-static const int DSBUFFER_CAPACITY_FACTOR = 2;
+static const size_t DSBUFFER_CAPACITY_FACTOR = 2;
 
 /**
 * @brief The minimum size of a @c DSBuffer.
 */
-static const int DSBUFFER_MINIMUM_CAPACITY = 20;
+static const size_t DSBUFFER_MINIMUM_CAPACITY = 20;
 
 /**
 * @brief Error codes for @c DSBuffer functions.
@@ -93,6 +93,15 @@ DSBuffer *dsbuf_new_buffer(size_t cap);
 void dsbuf_destroy(DSBuffer *str);
 
 /**
+* @brief Duplicate a @c DSBuffer object
+*
+* @param str a @c DSBuffer object to copy
+* @returns a copy of the given @c DSBuffer object or NULL if a copy could
+*          not be made for some reason (e.g. memory allocation issues)
+*/
+DSBuffer *dsbuf_dup(const DSBuffer *str);
+
+/**
 * @brief Return the length in number of bytes in the @c DSBuffer.
 *
 * Note that this is not the UTF-8 length.
@@ -100,7 +109,7 @@ void dsbuf_destroy(DSBuffer *str);
 * @param str a @c DSBuffer object
 * @returns the number of used bytes in @c str
 */
-size_t dsbuf_len(DSBuffer *str);
+size_t dsbuf_len(const DSBuffer *str);
 
 /**
 * @brief Return the capacity in number of bytes in the @c DSBuffer.
@@ -108,7 +117,7 @@ size_t dsbuf_len(DSBuffer *str);
 * @param str a @c DSBuffer object
 * @returns the number of available bytes in @c str
 */
-size_t dsbuf_cap(DSBuffer *str);
+size_t dsbuf_cap(const DSBuffer *str);
 
 /**
 * @brief Append @c newc to @c str, resizing @c str if necessary.
@@ -160,7 +169,7 @@ bool dsbuf_append_str(DSBuffer *str, const char *newstr);
 * @returns @c DSBUFFER_CHAR_NOT_FOUND if the position is greater than or
 *          equal to the length of the string or is 0; the character otherwise
 */
-int dsbuf_char_at(DSBuffer *str, size_t pos);
+int dsbuf_char_at(const DSBuffer *str, size_t pos);
 
 /**
 * @brief Return a substring of the given buffer.
@@ -175,7 +184,7 @@ int dsbuf_char_at(DSBuffer *str, size_t pos);
 *          the length would exceed the length of the string or memory could
 *          not be allocated; the substring as a @c DSBuffer otherwise
 */
-DSBuffer* dsbuf_substr(DSBuffer *str, size_t start, size_t len);
+DSBuffer *dsbuf_substr(const DSBuffer *str, size_t start, size_t len);
 
 /**
 * @brief Check if two @c DSBuffer objects are equal (but not the same).
@@ -187,7 +196,7 @@ DSBuffer* dsbuf_substr(DSBuffer *str, size_t start, size_t len);
 * @param other another @c DSBuffer object
 * @returns @c true if @c str is equal to @c other
 */
-bool dsbuf_equals(DSBuffer *str, DSBuffer *other);
+bool dsbuf_equals(const DSBuffer *str, const DSBuffer *other);
 
 /**
 * @brief Check if the internal buffer of a @c DSBuffer is equal to a standard
@@ -197,7 +206,7 @@ bool dsbuf_equals(DSBuffer *str, DSBuffer *other);
 * @param other a standard C string
 * @returns @c true if the internal buffer of @c str is binary equal to @c other
 */
-bool dsbuf_equals_char(DSBuffer *str, const char *other);
+bool dsbuf_equals_char(const DSBuffer *str, const char *other);
 
 /**
 * @brief Return the pointer to the internal character array.
@@ -209,7 +218,7 @@ bool dsbuf_equals_char(DSBuffer *str, const char *other);
 * @param str a @c DSBuffer object
 * @returns a pointer to the internal character buffer
 */
-const char* dsbuf_char_ptr(DSBuffer *str);
+const char *dsbuf_char_ptr(const DSBuffer *str);
 
 /**
 * @brief Return a @c char array corresponding to the underlying string.
@@ -223,7 +232,7 @@ const char* dsbuf_char_ptr(DSBuffer *str);
 * @returns a copy of the internal buffer as a C string up to the first
 *          @c NUL byte
 */
-char* dsbuf_to_char_array(DSBuffer *str);
+char *dsbuf_to_char_array(const DSBuffer *str);
 
 /**
 * @brief Return a hash of the underlying string.
@@ -234,7 +243,7 @@ char* dsbuf_to_char_array(DSBuffer *str);
 * @param str a @c DSBuffer object
 * @returns a hash of the internal buffer
 */
-unsigned int dsbuf_hash(DSBuffer *str);
+unsigned int dsbuf_hash(const DSBuffer *str);
 
 /**
 * @brief Compare two DSBuffers.
@@ -248,7 +257,7 @@ unsigned int dsbuf_hash(DSBuffer *str);
 *          @c right is shorter than @c left; 0 if the two strings are the
 *          same length and equal
 */
-int dsbuf_compare(DSBuffer *left, DSBuffer *right);
+int dsbuf_compare(const DSBuffer *left, const DSBuffer *right);
 
 /*
 * @brief Check if the internal buffer contains a valid UTF-8 sequence.
@@ -257,7 +266,7 @@ int dsbuf_compare(DSBuffer *left, DSBuffer *right);
 * @param l output the length in UTF-8 characters; use @c NULL to ignore
 * @returns @c true if the buffer is valid UTF-8; @c false otherwise
 */
-bool dsbuf_utf8_validate(DSBuffer *buf, size_t *l);
+bool dsbuf_utf8_validate(const DSBuffer *buf, size_t *l);
 
 /*
 * @brief Return the length of the string in UTF-8 characters.
@@ -271,6 +280,6 @@ bool dsbuf_utf8_validate(DSBuffer *buf, size_t *l);
 * @param buf a @c DSBuffer object
 * @returns 0 if @c buf is @c NULL; the length in UTF-8 characters otherwise
 */
-size_t dsbuf_utf8_len(DSBuffer *buf);
+size_t dsbuf_utf8_len(const DSBuffer *buf);
 
 #endif //LIBDS_BUFFER_H

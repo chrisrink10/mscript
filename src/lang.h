@@ -18,26 +18,8 @@
 #define MSCRIPT_LANG_H
 
 #include "libds/array.h"
+#include "libds/buffer.h"
 #include "lexer.h"
-#include "vm.h"
-
-/**
-* @brief Operator associativity enumeration
-*/
-typedef enum ms_ExprOpAssociativity {
-    ASSOC_LEFT,
-    ASSOC_RIGHT
-} ms_ExprOpAssociativity;
-
-/**
-* @brief Tuple structure representing the type and associativity of
-* mscript operators
-*/
-typedef struct ms_ExprOpPrecedence {
-    ms_TokenType type;
-    int precedence;
-    ms_ExprOpAssociativity assoc;
-} ms_ExprOpPrecedence;
 
 /**
 * @brief Expression syntax tree object
@@ -45,11 +27,62 @@ typedef struct ms_ExprOpPrecedence {
 typedef struct ms_Expr ms_Expr;
 
 /**
+* @brief Identifier
+*/
+typedef DSBuffer ms_Ident;
+
+/**
+* @brief Expression list object
+*/
+typedef DSArray ms_ExprList;
+
+/*
+* @brief Typedefs of mscript values
+*/
+typedef double ms_ValFloat;
+typedef long long ms_ValInt;
+typedef DSBuffer ms_ValStr;
+typedef bool ms_ValBool;
+typedef const void ms_ValNull;
+
+/**
+* @brief Enumeration of data value types in mscript
+*/
+typedef enum {
+    MSVAL_FLOAT,
+    MSVAL_INT,
+    MSVAL_STR,
+    MSVAL_BOOL,
+    MSVAL_NULL,
+} ms_ValDataType;
+
+/**
+* @brief Union of data types in mscript
+*/
+typedef union {
+    ms_ValFloat f;
+    ms_ValInt i;
+    ms_ValStr *s;
+    ms_ValBool b;
+    ms_ValNull *n;
+} ms_ValData;
+
+/**
+* @brief Structure of any value within mscript
+*/
+typedef struct {
+    ms_ValDataType type;
+    ms_ValData val;
+} ms_Value;
+
+/**
 * @brief Expression atom union
 */
 typedef union {
     ms_Expr *expr;
-    ms_VMValue val;
+    ms_Value val;
+    ms_Ident *ident;
+    ms_ExprList *list;
 } ms_ExprAtom;
 
 /**
@@ -59,6 +92,8 @@ typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
     EXPRATOM_VALUE,
+    EXPRATOM_IDENT,
+    EXPRATOM_EXPRLIST,
 } ms_ExprAtomType;
 
 /**
@@ -75,7 +110,7 @@ typedef enum {
 * @brief Unary expression object
 */
 typedef struct {
-    ms_ExprAtom expr;
+    ms_ExprAtom atom;
     ms_ExprAtomType type;
     ms_ExprUnaryOp op;
 } ms_ExprUnary;
@@ -105,16 +140,17 @@ typedef enum {
     BINARY_NOT_EQ,
     BINARY_AND,
     BINARY_OR,
+    BINARY_CALL,
 } ms_ExprBinaryOp;
 
 /**
 * @brief Binary expression object
 */
 typedef struct {
-    ms_ExprAtom left;
+    ms_ExprAtom latom;
     ms_ExprAtomType ltype;
     ms_ExprBinaryOp op;
-    ms_ExprAtom right;
+    ms_ExprAtom ratom;
     ms_ExprAtomType rtype;
 } ms_ExprBinary;
 
@@ -138,7 +174,7 @@ typedef enum {
 * @brief Expression object
 */
 struct ms_Expr {
-    ms_ExprComponent expr;
+    ms_ExprComponent cmpnt;
     ms_ExprType type;
 };
 
@@ -165,7 +201,17 @@ ms_Expr *ms_ExprNew(ms_ExprType type);
 /**
 * @brief Create a new @c ms_Expr object with a primitive value.
 */
-ms_Expr *ms_ExprNewWithVal(ms_VMDataType type, ms_VMData v);
+ms_Expr *ms_ExprNewWithVal(ms_ValDataType type, ms_ValData v);
+
+/**
+* @brief Create a new @c ms_Expr object for an identifier.
+*/
+ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len);
+
+/**
+* @brief Create a new @c ms_Expr object for containing a list of expressions.
+*/
+ms_Expr *ms_ExprNewWithList(ms_ExprList *list);
 
 /**
 * @brief Create a new unary @c ms_Expr object containing a floating point
@@ -197,29 +243,9 @@ ms_Expr *ms_ExprIntFromString(const char *str);
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
-* @brief Generate mscript VM bytecode from the given expression value.
-*/
-ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
-
-/**
 * @brief Destroy the given @c ms_Expr and any nested expressions.
 */
 void ms_ExprDestroy(ms_Expr *expr);
-
-/**
-* @brief Fill a pointer to the operator precedence table for callers.
-*/
-size_t ms_ExprOpPrecedenceTable(const ms_ExprOpPrecedence **tbl);
-
-/*
-* @brief Convert a token type into a binary operation enumeration.
-*/
-ms_ExprBinaryOp ms_ExprTokenToBinaryOp(ms_TokenType type);
-
-/**
-* @brief Convert a token type into a unary operation enumeration.
-*/
-ms_ExprUnaryOp ms_ExprTokenToUnaryOp(ms_TokenType type);
 
 /*
 * @brief Placeholder for real AST destroy function.

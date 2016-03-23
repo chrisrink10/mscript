@@ -51,7 +51,7 @@ bool dsiter_has_next(DSIter *iter) {
     return false;
 }
 
-void* dsiter_key(DSIter *iter) {
+void *dsiter_key(DSIter *iter) {
     if (!iter) { return NULL; }
 
     switch(iter->type) {
@@ -66,7 +66,7 @@ void* dsiter_key(DSIter *iter) {
     return NULL;
 }
 
-void* dsiter_value(DSIter *iter) {
+void *dsiter_value(DSIter *iter) {
     if (!iter) { return NULL; }
 
     switch(iter->type) {
@@ -81,7 +81,7 @@ void* dsiter_value(DSIter *iter) {
     return NULL;
 }
 
-size_t dsiter_index(DSIter *iter) {
+size_t dsiter_index(const DSIter *iter) {
     if (!iter) { return SIZE_MAX; }
     return iter->cur;
 }

@@ -18,6 +18,7 @@
 #define MSCRIPT_PARSER_H
 
 #include <stdbool.h>
+#include "bytecode.h"
 #include "lang.h"
 
 /**

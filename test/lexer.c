@@ -166,7 +166,7 @@ MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_dat
 
 MunitResult lex_TestLexNewlines(const MunitParameter params[], void *user_data) {
     const char *newline = munit_parameters_get(params, "newline");
-    return LexExpect(newline, NEWLINE);
+    return LexExpect(newline, NEWLINE_TOK);
 }
 
 MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data) {
@@ -207,6 +207,7 @@ MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
 
     for (size_t i = 0; i < len; i++) {
         LexResultTuple *tuple = &tokens[0];
+        munit_logf(MUNIT_LOG_INFO, "  val='%s'", tuple->val);
         (void)LexExpect(tuple->val, tuple->type);
     }
 

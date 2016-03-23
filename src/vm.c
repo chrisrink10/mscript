@@ -31,7 +31,7 @@
 #define VM_FRAME_STACK_LIMIT_L (256)
 static const int FRAME_DATA_STACK_LIMIT = FRAME_DATA_STACK_LIMIT_L;
 static const int VM_FRAME_STACK_LIMIT = VM_FRAME_STACK_LIMIT_L;
-static const ms_VMValue EMPTY_STACK_VAL;
+static const ms_Value EMPTY_STACK_VAL;
 
 static const int MS_VM_NULL = 0;
 const void *MS_VM_NULL_POINTER = &MS_VM_NULL;
@@ -40,7 +40,7 @@ typedef struct {
     size_t ip;                                      /* instruction pointer */
     size_t dp;                                      /* data stack pointer (points to index of NEXT push), current top is always (dp-1) */
     ms_VMByteCode *code;                            /* byte code for current frame */
-    ms_VMValue data[FRAME_DATA_STACK_LIMIT_L];      /* frame data stack */
+    ms_Value data[FRAME_DATA_STACK_LIMIT_L];      /* frame data stack */
 } ms_VMFrame;
 
 struct ms_VM {
@@ -59,7 +59,7 @@ static bool VMGeneratePrototypes(ms_VM *vm);
 static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc);
 static void VMFrameDestroy(ms_VMFrame *f);
 static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
-static ms_VMValue *VMPeek(ms_VM *vm, int index);
+static ms_Value *VMPeek(ms_VM *vm, int index);
 
 static inline size_t VMPrint(ms_VM *vm);
 static inline size_t VMPush(ms_VM *vm, int val);
@@ -67,6 +67,8 @@ static inline size_t VMPop(ms_VM *vm);
 static inline size_t VMSwap(ms_VM *vm);
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name);
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name);
+static inline size_t VMCallFunction(ms_VM *vm);
+static inline size_t VMLoadName(ms_VM *vm, int arg);
 
 /*
  * PUBLIC FUNCTIONS
@@ -130,7 +132,7 @@ ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMEr
     return res;
 }
 
-ms_VMValue *ms_VMTop(ms_VM *vm) {
+ms_Value *ms_VMTop(ms_VM *vm) {
     assert(vm);
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
@@ -139,13 +141,13 @@ ms_VMValue *ms_VMTop(ms_VM *vm) {
     return &f->data[f->dp - 1];
 }
 
-ms_VMValue ms_VMPop(ms_VM *vm) {
+ms_Value ms_VMPop(ms_VM *vm) {
     assert(vm);
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
     assert(f);
     assert((f->dp - 1) != SIZE_MAX);
-    ms_VMValue val = f->data[f->dp - 1];
+    ms_Value val = f->data[f->dp - 1];
     f->data[f->dp] = EMPTY_STACK_VAL;
     f->dp--;
     return val;
@@ -167,7 +169,7 @@ void ms_VMErrorSet(ms_VM *vm, const char *msg, ...) {
     va_end(args);
 }
 
-void ms_VMPush(ms_VM *vm, ms_VMValue val) {
+void ms_VMPush(ms_VM *vm, ms_Value val) {
     assert(vm);
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
@@ -177,26 +179,26 @@ void ms_VMPush(ms_VM *vm, ms_VMValue val) {
     f->dp++;
 }
 
-void ms_VMPushFloat(ms_VM *vm, ms_VMFloat f) {
+void ms_VMPushFloat(ms_VM *vm, ms_ValFloat f) {
     assert(vm);
-    ms_VMValue v;
-    v.type = VMVAL_FLOAT;
+    ms_Value v;
+    v.type = MSVAL_FLOAT;
     v.val.f = f;
     ms_VMPush(vm, v);
 }
 
-void ms_VMPushInt(ms_VM *vm, ms_VMInt i) {
+void ms_VMPushInt(ms_VM *vm, ms_ValInt i) {
     assert(vm);
-    ms_VMValue v;
-    v.type = VMVAL_INT;
+    ms_Value v;
+    v.type = MSVAL_INT;
     v.val.i = i;
     ms_VMPush(vm, v);
 }
 
-void ms_VMPushStr(ms_VM *vm, ms_VMStr *s) {
+void ms_VMPushStr(ms_VM *vm, ms_ValStr *s) {
     assert(vm);
-    ms_VMValue v;
-    v.type = VMVAL_STR;
+    ms_Value v;
+    v.type = MSVAL_STR;
     v.val.s = s;
     ms_VMPush(vm, v);
 }
@@ -205,24 +207,24 @@ void ms_VMPushStrL(ms_VM *vm, const char *s, size_t len) {
     assert(vm);
     DSBuffer *buf = dsbuf_new_l(s, len);
     if (!buf) { return; }
-    ms_VMValue v;
-    v.type = VMVAL_STR;
+    ms_Value v;
+    v.type = MSVAL_STR;
     v.val.s = buf;
     ms_VMPush(vm, v);
 }
 
-void ms_VMPushBool(ms_VM *vm, ms_VMBool b) {
+void ms_VMPushBool(ms_VM *vm, ms_ValBool b) {
     assert(vm);
-    ms_VMValue v;
-    v.type = VMVAL_BOOL;
+    ms_Value v;
+    v.type = MSVAL_BOOL;
     v.val.b = b;
     ms_VMPush(vm, v);
 }
 
 void ms_VMPushNull(ms_VM *vm) {
     assert(vm);
-    ms_VMValue v;
-    v.type = VMVAL_NULL;
+    ms_Value v;
+    v.type = MSVAL_NULL;
     v.val.n = MS_VM_NULL_POINTER;
     ms_VMPush(vm, v);
 }
@@ -231,7 +233,7 @@ void ms_VMSwap(ms_VM *vm) {
     (void) VMSwap(vm);
 }
 
-ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMDataType type, const char *method) {
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_ValDataType type, const char *method) {
     assert(vm);
     assert(vm->float_);
     assert(vm->int_);
@@ -241,19 +243,19 @@ ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMDataType type, const char *met
 
     ms_FuncDef *def;
     switch (type) {
-        case VMVAL_FLOAT:
+        case MSVAL_FLOAT:
             def = dsdict_get(vm->float_, (void *)method);
             return (def) ? def->func : NULL;
-        case VMVAL_INT:
+        case MSVAL_INT:
             def = dsdict_get(vm->int_, (void *)method);
             return (def) ? def->func : NULL;
-        case VMVAL_STR:
+        case MSVAL_STR:
             def = dsdict_get(vm->str, (void *)method);
             return (def) ? def->func : NULL;
-        case VMVAL_BOOL:
+        case MSVAL_BOOL:
             def = dsdict_get(vm->bool_, (void *)method);
             return (def) ? def->func : NULL;
-        case VMVAL_NULL:
+        case MSVAL_NULL:
             def = dsdict_get(vm->null, (void *)method);
             return (def) ? def->func : NULL;
     }
@@ -287,9 +289,9 @@ void ms_VMDestroy(ms_VM *vm) {
     free(vm);
 }
 
-bool ms_VMFloatIsInt(ms_VMFloat f, ms_VMInt *l) {
+bool ms_ValFloatIsInt(ms_ValFloat f, ms_ValInt *l) {
     if (fmod(f, 1.0) == 0.0) {
-        *l = (ms_VMInt) f;
+        *l = (ms_ValInt) f;
         return true;
     }
     *l = 0;
@@ -308,7 +310,7 @@ ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c) {
     return (ms_VMOpCodeType)(c & ((1 << 16) - 1));
 }
 
-ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
+ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents) {
     if (!opcodes) { return NULL; }
 
     ms_VMByteCode *bc = malloc(sizeof(ms_VMByteCode));
@@ -324,8 +326,17 @@ ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
     }
 
     bc->nvals = dsarray_len((DSArray *)values);
-    bc->values = malloc(sizeof(ms_VMValue) * (bc->nvals));
+    bc->values = malloc(sizeof(ms_Value) * (bc->nvals));
     if (!bc->values) {
+        free(bc->code);
+        free(bc);
+        return NULL;
+    }
+
+    bc->nidents = dsarray_len((DSArray *)idents);
+    bc->idents = malloc(sizeof(ms_Ident *) * (bc->nidents));
+    if (!bc->idents) {
+        free(bc->values);
         free(bc->code);
         free(bc);
         return NULL;
@@ -336,7 +347,11 @@ ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values) {
     }
 
     for (size_t i = 0; i < bc->nvals; i++) {
-        bc->values[i] = *(ms_VMValue *)dsarray_get((DSArray *)values, i);
+        bc->values[i] = *(ms_Value *)dsarray_get((DSArray *)values, i);
+    }
+
+    for (size_t i = 0; i < bc->nidents; i++) {
+        bc->idents[i] = dsarray_get((DSArray *)idents, i);
     }
 
     return bc;
@@ -348,6 +363,12 @@ void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
     bc->code = NULL;
     free(bc->values);
     bc->values = NULL;
+    for (size_t i = 0; i < bc->nidents; i++) {
+        dsbuf_destroy(bc->idents[i]);
+        bc->idents[i] = NULL;
+    }
+    free(bc->idents);
+    bc->idents = NULL;
     free(bc);
 }
 
@@ -529,6 +550,12 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_OR:
                 inc = VMDoBinaryOp(vm, "__or__");
                 break;
+            case OPC_CALL:
+                inc = VMCallFunction(vm);
+                break;
+            case OPC_LOAD_NAME:
+                inc = VMLoadName(vm, arg);
+                break;
         }
         if (inc == 0) { return VMEXEC_ERROR; }
         f->ip += inc;
@@ -540,7 +567,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
 // Peek at a value a certain index of the stack without changing the pointer
 // Negative values are relative to the top with (-1) indicating top, non-zero
 // values indicate actual stack indices from the bottom (0)
-static ms_VMValue *VMPeek(ms_VM *vm, int index) {
+static ms_Value *VMPeek(ms_VM *vm, int index) {
     assert(vm);
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
@@ -562,22 +589,22 @@ static ms_VMValue *VMPeek(ms_VM *vm, int index) {
 static inline size_t VMPrint(ms_VM *vm) {
     assert(vm);
     /* CHECK_VM_STACK(vm, 1); */
-    ms_VMValue *v = ms_VMTop(vm);
+    ms_Value *v = ms_VMTop(vm);
 
     switch (v->type) {
-        case VMVAL_FLOAT:
+        case MSVAL_FLOAT:
             printf("%f\n", v->val.f);
             break;
-        case VMVAL_INT:
+        case MSVAL_INT:
             printf("%lld\n", v->val.i);
             break;
-        case VMVAL_BOOL:
+        case MSVAL_BOOL:
             printf("%s\n", (v->val.b) ? "true" : "false");
             break;
-        case VMVAL_NULL:
+        case MSVAL_NULL:
             printf("null\n");
             break;
-        case VMVAL_STR:
+        case MSVAL_STR:
             printf("%s\n", dsbuf_char_ptr(v->val.s));
             break;
     }
@@ -607,8 +634,8 @@ static inline size_t VMPop(ms_VM *vm) {
 
 static inline size_t VMSwap(ms_VM *vm) {
     assert(vm);
-    ms_VMValue v2 = ms_VMPop(vm);
-    ms_VMValue v1 = ms_VMPop(vm);
+    ms_Value v2 = ms_VMPop(vm);
+    ms_Value v1 = ms_VMPop(vm);
     ms_VMPush(vm, v2);
     ms_VMPush(vm, v1);
     return 1;
@@ -616,7 +643,7 @@ static inline size_t VMSwap(ms_VM *vm) {
 
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name) {
     assert(vm);
-    ms_VMValue *l = VMPeek(vm, -2);
+    ms_Value *l = VMPeek(vm, -2);
     ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
         ms_VMErrorSet(vm, "Method '%s' not supported for this object.", name);
@@ -628,7 +655,7 @@ static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name) {
 
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     assert(vm);
-    ms_VMValue *l = VMPeek(vm, -1);
+    ms_Value *l = VMPeek(vm, -1);
     ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, name);
     if (!op) {
         ms_VMErrorSet(vm, "Method '%s' not supported for this object.", name);
@@ -636,4 +663,26 @@ static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     }
     int res = op(vm);
     return (size_t)res;
+}
+
+static inline size_t VMCallFunction(ms_VM *vm) {
+    assert(vm);
+    ms_Value *l = VMPeek(vm, -1);
+    ms_Function op = ms_VMPrototypeFuncGet(vm, l->type, "__call__");
+    if (!op) {
+        ms_VMErrorSet(vm, "Object is not callable.");
+        return 0;
+    }
+    int res = op(vm);
+    return (size_t)res;
+}
+
+static inline size_t VMLoadName(ms_VM *vm, int arg) {
+    assert(vm);
+    assert(vm->fstack);
+    ms_VMFrame *f = dsarray_top(vm->fstack);
+    assert(f->code);
+    ms_Ident *id = f->code->idents[arg];
+    assert(id);
+    return 1;
 }
