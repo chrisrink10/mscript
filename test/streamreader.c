@@ -17,6 +17,42 @@
 #include <string.h>
 #include "streamreader.h"
 
+MunitTest streamreader_tests[] = {
+    {
+        "/FILE-NextChar",
+        sr_TestFileNextChar,
+        sr_CreateTempFile,
+        sr_CleanUpTempFile,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/FILE-Unread",
+        sr_TestFileUnread,
+        sr_CreateTempFile,
+        sr_CleanUpTempFile,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/char*-NextChar",
+        sr_TestStringNextChar,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/char*-Unread",
+        sr_TestStringUnread,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
+};
+
 static const char * const TestString = "This value is going to be the test\n"
                                        "string for the functions of the\n"
                                        "bundled StreamReader library.\n";

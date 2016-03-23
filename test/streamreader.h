@@ -27,40 +27,6 @@ MunitResult sr_TestFileUnread(const MunitParameter params[], void *file);
 MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na);
 MunitResult sr_TestStringUnread(const MunitParameter params[], void *na);
 
-static MunitTest streamreader_tests[] = {
-    {
-        "/FILE-NextChar",
-        sr_TestFileNextChar,
-        sr_CreateTempFile,
-        sr_CleanUpTempFile,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/FILE-Unread",
-        sr_TestFileUnread,
-        sr_CreateTempFile,
-        sr_CleanUpTempFile,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/char*-NextChar",
-        sr_TestStringNextChar,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/char*-Unread",
-        sr_TestStringUnread,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
-};
+extern MunitTest streamreader_tests[];
 
 #endif //MSCRIPT_TEST_STREAMREADER_H

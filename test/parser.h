@@ -34,56 +34,6 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
  * TEST DEFINITIONS
  */
 
-static MunitTest parser_tests[] = {
-    {
-        "/ParseErrors",
-        prs_TestParseErrors,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/Literals",
-        prs_TestParseLiterals,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/UnaryExpressions",
-        prs_TestParseUnaryExprs,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/BinaryExpressions",
-        prs_TestParseBinaryExprs,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/OperatorPrecedence",
-        prs_TestParseExprPrecedence,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/FunctionCalls",
-        prs_TestParseFunctionCalls,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
-};
+extern MunitTest parser_tests[];
 
 #endif //MSCRIPT_TEST_PARSER_H
