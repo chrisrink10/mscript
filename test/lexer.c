@@ -166,7 +166,7 @@ MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_dat
 
 MunitResult lex_TestLexNewlines(const MunitParameter params[], void *user_data) {
     const char *newline = munit_parameters_get(params, "newline");
-    return LexExpect(newline, NEWLINE);
+    return LexExpect(newline, NEWLINE_TOK);
 }
 
 MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data) {

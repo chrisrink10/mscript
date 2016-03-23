@@ -169,7 +169,7 @@ typedef enum ms_TokenType {
     RBRACE,
     PERIOD,
     COMMA,
-    NEWLINE
+    NEWLINE_TOK
 } ms_TokenType;
 
 /**

@@ -180,13 +180,13 @@ begin_lex:              // Jump label for ignored input
             if (!LexerAcceptOne(lex, "\n")) {
                 return LexerTokenError(lex, "\\r");
             }
-            return LexerTokenFromBuffer(lex, NEWLINE);
+            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
 
             // Newlines \n
         case '\n':
             LexerIncrementLine(lex);
             LexerAddToBuffer(lex, n);
-            return LexerTokenFromBuffer(lex, NEWLINE);
+            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
 
             // Spaces and tabs
         case ' ':
@@ -510,7 +510,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case RBRACE:            return TOK_RBRACE;
         case PERIOD:            return TOK_PERIOD;
         case COMMA:             return TOK_COMMA;
-        case NEWLINE:           return TOK_NEWLINE;
+        case NEWLINE_TOK:       return TOK_NEWLINE;
     }
 
     assert(false);
