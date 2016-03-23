@@ -18,6 +18,7 @@
 #include "../src/lang.h"
 #include "../src/parser.h"
 #include "../src/vm.h"
+#include "../src/bytecode.h"
 
 typedef struct ParseResultTuple {
     const char *val;        /** Value of the input token */
@@ -34,8 +35,14 @@ MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
 MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
 MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2);
-MunitResult CompareVMIdent(const ms_Ident *id1, const ms_Ident *id2);
-MunitResult CompareVMValues(const ms_Value *val1, const ms_Value *val2);
+MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2);
+MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2);
+void CleanAST(ms_AST *ast);
+void CleanExpression(ms_Expr *expr);
+void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom);
+void CleanExpressionList(ms_ExprList *list);
+void CleanByteCode(ms_VMByteCode *bc);
+void CleanParseResultTuple(ParseResultTuple *tuple);
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
 /*
@@ -50,29 +57,30 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_EXPRCOMPONENT_BINARY(latomv, latomtype, opname, ratomv, ratomtype) AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .latom = latomv, .ltype = latomtype, .op = opname, .ratom = ratomv, .rtype = ratomtype}))
 #define AST_EXPRATOM_EXPR(eatom)  ((ms_ExprAtom){ .expr = &eatom })
 #define AST_EXPRATOM_VAL(vatom)   ((ms_ExprAtom){ .val = vatom })
-#define AST_EXPRATOM_IDENT(iatom) ((ms_ExprAtom){ .ident = &iatom })
-#define AST_EXPRATOM_LIST(latom)  ((ms_ExprAtom){ .list = &latom })
+#define AST_EXPRATOM_IDENT(iatom) ((ms_ExprAtom){ .ident = iatom })
+#define AST_EXPRATOM_LIST(latom)  ((ms_ExprAtom){ .list = latom })
 #define AST_UNARY(atp, uop, v) AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
 #define AST_BINARY(latp, lv, op, ratp, rv) AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
 
 // Expression macros
-#define AST_UEXPR_I(uop, v) AST_UNARY(EXPRATOM_IDENT, uop, AST_EXPRATOM_IDENT(v))
-#define AST_UEXPR_V(uop, v) AST_UNARY(EXPRATOM_VALUE, uop, AST_EXPRATOM_VAL(v))
-#define AST_UEXPR_E(uop, v) AST_UNARY(EXPRATOM_EXPRESSION, uop, AST_EXPRATOM_EXPR(v))
+#define AST_UEXPR_I(uop, v)       AST_UNARY(EXPRATOM_IDENT, uop, AST_EXPRATOM_IDENT(v))
+#define AST_UEXPR_V(uop, v)       AST_UNARY(EXPRATOM_VALUE, uop, AST_EXPRATOM_VAL(v))
+#define AST_UEXPR_E(uop, v)       AST_UNARY(EXPRATOM_EXPRESSION, uop, AST_EXPRATOM_EXPR(v))
 #define AST_BEXPR_VV(lv, bop, rv) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
 #define AST_BEXPR_VE(lv, bop, re) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
 #define AST_BEXPR_EV(le, bop, rv) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
 #define AST_BEXPR_EE(le, bop, re) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
-#define AST_FNCALL_E(e, list) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(list))
-#define AST_FNCALL_I(id, lst) AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_IDENT(v, l) ((ms_Ident) { .val = v, .len = l })
-#define AST_EXPRLIST(l, ...) ((ms_ExprList) { .list = ((ms_Expr **)(&((ms_Expr[]) { __VA_ARGS__ , }))), .len = l })
+#define AST_FNCALL_E(e, lst)      AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_FNCALL_I(id, lst)     AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_IDENT(v)         (dsbuf_new_l(v, sizeof(v)-1)) /* subtract one to ignore the terminating NUL */
+#define AST_EXPRLIST(l, ...) (dsarray_new_lit((void **)&(((ms_Expr*){ __VA_ARGS__ , })), l, l, NULL, NULL))
+#define AST_EMPTY_EXPRLIST() (dsarray_new_cap(1, NULL, NULL))
 
 // VM type and bytecode macros
 #define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
 #define VM_FLOAT(v) ((ms_Value){ .type = MSVAL_FLOAT, .val = (ms_ValData){ .f = v } })
 #define VM_INT(v)   ((ms_Value){ .type = MSVAL_INT,   .val = (ms_ValData){ .i = v } })
-#define VM_STR(v)   ((ms_Value){ .type = MSVAL_STR,   .val = (ms_ValData){ .s = v } })
+#define VM_STR(v)   ((ms_Value){ .type = MSVAL_STR,   .val = (ms_ValData){ .s = dsbuf_new_l(v, sizeof(v)-1) } })
 #define VM_BOOL(v)  ((ms_Value){ .type = MSVAL_BOOL,  .val = (ms_ValData){ .b = v } })
 #define VM_NULL()   ((ms_Value){ .type = MSVAL_NULL,  .val = (ms_ValData){ .n = MS_VM_NULL_POINTER } })
 
@@ -1269,6 +1277,112 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
 }
 
 MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "$len()",
+            .ast = AST(AST_FNCALL_I(AST_IDENT("$len"), AST_EMPTY_EXPRLIST())),
+            .bc = {
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("$len"),
+                }),
+                .nops = 2, .nvals = 0, .nidents = 1
+            }
+        },
+        {
+            .val = "foo()",
+            .ast = AST(AST_FNCALL_I(AST_IDENT("foo"), AST_EMPTY_EXPRLIST())),
+            .bc = {
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("foo"),
+                }),
+                .nops = 2, .nvals = 0, .nidents = 1
+            }
+        },
+        {
+            .val = "$len(\"string\")",
+            .ast = AST(AST_FNCALL_I(AST_IDENT("$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"string\""))))),
+            .bc = {
+                .values = (ms_Value[]){
+                    VM_STR("\"string\""),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("$len"),
+                }),
+                .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "foo(\"string\")",
+            .ast = AST(AST_FNCALL_I(AST_IDENT("foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"string\""))))),
+            .bc = {
+                .values = (ms_Value[]){
+                    VM_STR("\"string\""),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("foo"),
+                }),
+                .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "foo()()",
+            .ast = AST(AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("foo"), AST_EMPTY_EXPRLIST()), AST_EMPTY_EXPRLIST())),
+            .bc = {
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("foo"),
+                }),
+                .nops = 3, .nvals = 0, .nidents = 1
+            }
+        },
+        {
+            .val = "bar(\"baz\")()",
+            .ast = AST(AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"baz\"")))), AST_EMPTY_EXPRLIST())),
+            .bc = {
+                .values = (ms_Value[]){
+                    VM_STR("\"baz\""),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_LOAD_NAME, 0),
+                    VM_OPC(OPC_CALL, 0),
+                    VM_OPC(OPC_CALL, 0),
+                },
+                .idents = ((ms_Ident*[]){
+                    AST_IDENT("bar"),
+                }),
+                .nops = 4, .nvals = 1, .nidents = 1
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
@@ -1314,10 +1428,10 @@ MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom
             CompareExpressions(atom1->expr, atom2->expr);
             break;
         case EXPRATOM_VALUE:
-            CompareVMValues(&atom1->val, &atom2->val);
+            CompareValues(&atom1->val, &atom2->val);
             break;
         case EXPRATOM_IDENT:
-            CompareVMIdent(atom1->ident, atom2->ident);
+            CompareIdent(atom1->ident, atom2->ident);
             break;
         case EXPRATOM_EXPRLIST:
             CompareExpressionList(atom1->list, atom2->list);
@@ -1341,7 +1455,11 @@ MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) 
     }
 
     for (size_t i = 0; i < bc1->nvals; i++) {
-        CompareVMValues(&bc1->values[i], &bc2->values[i]);
+        CompareValues(&bc1->values[i], &bc2->values[i]);
+    }
+
+    for (size_t i = 0; i < bc1->nidents; i++) {
+        CompareIdent(bc1->idents[i], bc2->idents[i]);
     }
 
     return MUNIT_OK;
@@ -1362,7 +1480,7 @@ MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2
     return MUNIT_OK;
 }
 
-MunitResult CompareVMIdent(const ms_Ident *id1, const ms_Ident *id2) {
+MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2) {
     munit_assert_non_null(id1);
     munit_assert_non_null(id1);
 
@@ -1375,7 +1493,7 @@ MunitResult CompareVMIdent(const ms_Ident *id1, const ms_Ident *id2) {
     return MUNIT_OK;
 }
 
-MunitResult CompareVMValues(const ms_Value *val1, const ms_Value *val2) {
+MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
     munit_assert_non_null(val1);
     munit_assert_non_null(val2);
 
@@ -1401,6 +1519,78 @@ MunitResult CompareVMValues(const ms_Value *val1, const ms_Value *val2) {
     return MUNIT_OK;
 }
 
+void CleanAST(ms_AST *ast) {
+    CleanExpression(ast);
+}
+
+void CleanExpression(ms_Expr *expr) {
+    if (!expr) { return; }
+
+    switch(expr->type) {
+        case EXPRTYPE_UNARY:
+            CleanExpressionAtom(expr->cmpnt.u->type, &expr->cmpnt.u->atom);
+            return;
+        case EXPRTYPE_BINARY:
+            CleanExpressionAtom(expr->cmpnt.b->ltype, &expr->cmpnt.b->latom);
+            CleanExpressionAtom(expr->cmpnt.b->rtype, &expr->cmpnt.b->ratom);
+            return;
+    }
+}
+
+void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom) {
+    switch(type) {
+        case EXPRATOM_EXPRESSION:
+            CleanExpression(atom->expr);
+            break;
+        case EXPRATOM_VALUE:
+            if (atom->val.type == MSVAL_STR) {
+                dsbuf_destroy(atom->val.val.s);
+                atom->val.val.s = NULL;
+            }
+            break;
+        case EXPRATOM_IDENT:
+            dsbuf_destroy(atom->ident);
+            atom->ident = NULL;
+            break;
+        case EXPRATOM_EXPRLIST:
+            CleanExpressionList(atom->list);
+            atom->list = NULL;
+            break;
+        case EXPRATOM_EMPTY:
+            break;
+    }
+}
+
+void CleanExpressionList(ms_ExprList *el) {
+    if (!el) { return; }
+
+    size_t len = dsarray_len(el);
+    for (size_t i = 0; i < len; i++) {
+        ms_Expr *expr = dsarray_get(el, i);
+        CleanExpression(expr);
+    }
+    dsarray_destroy(el);
+}
+
+void CleanByteCode(ms_VMByteCode *bc) {
+    for (size_t i = 0; i < bc->nvals; i++) {
+        if (bc->values[i].type == MSVAL_STR) {
+            dsbuf_destroy(bc->values[i].val.s);
+            bc->values[i].val.s = NULL;
+        }
+    }
+
+    for (size_t i = 0; i < bc->nidents; i++) {
+        dsbuf_destroy(bc->idents[i]);
+        bc->idents[i] = NULL;
+    }
+}
+
+void CleanParseResultTuple(ParseResultTuple *tuple) {
+    CleanAST(&tuple->ast);
+    CleanByteCode(&tuple->bc);
+}
+
 MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
     ms_Parser *prs = ms_ParserNew();
     munit_assert_non_null(prs);
@@ -1424,6 +1614,7 @@ MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
         CompareAST(ast, &tuple->ast);
 
         ms_VMByteCodeDestroy(code);
+        CleanParseResultTuple(tuple);
     }
 
     ms_ParserDestroy(prs);

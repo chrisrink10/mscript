@@ -77,11 +77,19 @@ static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values, DSAr
                                opcodes, values, idents);
         ExprOpToOpCode(expr, opcodes);
     } else {
-        ExprComponentToOpCodes(&expr->cmpnt.b->latom, expr->cmpnt.b->ltype,
-                               opcodes, values, idents);
-        ExprComponentToOpCodes(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype,
-                               opcodes, values, idents);
-        ExprOpToOpCode(expr, opcodes);
+        if (expr->cmpnt.b->op == BINARY_CALL) {
+            ExprComponentToOpCodes(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype,
+                                   opcodes, values, idents);
+            ExprComponentToOpCodes(&expr->cmpnt.b->latom, expr->cmpnt.b->ltype,
+                                   opcodes, values, idents);
+            ExprOpToOpCode(expr, opcodes);
+        } else {
+            ExprComponentToOpCodes(&expr->cmpnt.b->latom, expr->cmpnt.b->ltype,
+                                   opcodes, values, idents);
+            ExprComponentToOpCodes(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype,
+                                   opcodes, values, idents);
+            ExprOpToOpCode(expr, opcodes);
+        }
     }
 }
 
