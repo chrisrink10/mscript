@@ -29,8 +29,8 @@
 
 #define FRAME_DATA_STACK_LIMIT_L (256)
 #define VM_FRAME_STACK_LIMIT_L (256)
-static const int FRAME_DATA_STACK_LIMIT = FRAME_DATA_STACK_LIMIT_L;
-static const int VM_FRAME_STACK_LIMIT = VM_FRAME_STACK_LIMIT_L;
+static const size_t FRAME_DATA_STACK_LIMIT = FRAME_DATA_STACK_LIMIT_L;
+static const size_t VM_FRAME_STACK_LIMIT = VM_FRAME_STACK_LIMIT_L;
 static const ms_Value EMPTY_STACK_VAL;
 
 static const int MS_VM_NULL = 0;
