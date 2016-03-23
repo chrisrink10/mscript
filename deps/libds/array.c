@@ -53,6 +53,22 @@ DSArray* dsarray_new_cap(size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn f
     return array;
 }
 
+DSArray *dsarray_new_lit(void **list, size_t len, size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn) {
+    if ((!list) || (cap < len)) { return NULL; }
+
+    DSArray *array = dsarray_new_cap(cap, cmpfn, freefn);
+    if (!array) {
+        return NULL;
+    }
+
+    for (size_t i = 0; i < cap; i++) {
+        array->data[i] = list[i];
+        array->len++;
+    }
+
+    return array;
+}
+
 void dsarray_destroy(DSArray *array) {
     if (!array) { return; }
     dsarray_free(array);

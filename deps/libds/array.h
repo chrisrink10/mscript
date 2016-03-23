@@ -85,6 +85,31 @@ DSArray *dsarray_new(dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
 DSArray *dsarray_new_cap(size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
 
 /**
+* @brief Create a new @c DSArray object with the given literal array items and
+* the given comparator and free function.
+*
+* This function will make a copy of the input list literal pointers, but it
+* will not make copies of the pointed-to objects (just as in every other
+* case with @c DSArray objects). Thus it is incumbent on callers to free the
+* input elements if they were previously responsible for that.
+*
+* Neither function pointer is required to create a new array. If the caller
+* does not specify a @c dsarray_compare_fn, then @c dsarray_sort will become
+* a no-op. Likewise, if no @c dsarray_free_fn is specified, then the array
+* will not free array elements when it is destroyed.
+*
+* @param list an array of elements to initialize in the array
+* @param len the starting capacity of the @c DSArray
+* @param cap the capacity of the @c DSArray ; must be greater than or equal to
+*            the specified length of the array literal
+* @param cmpfn a function which can compare two array elements
+* @param freefn a function which can free a array element
+* @returns a new @c DSArray object with the given elements or @c NULL if
+*          memory could not be allocated
+*/
+DSArray *dsarray_new_lit(void **list, size_t len, size_t cap, dsarray_compare_fn cmpfn, dsarray_free_fn freefn);
+
+/**
 * @brief Destroy a @c DSArray object.
 *
 * If a @c dsarray_free_fn was specified when the array was created, it will
