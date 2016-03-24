@@ -207,14 +207,23 @@ begin_lex:              // Jump label for ignored input
             while (n != '\n' && n != '\r') { n = LexerNextChar(lex); }
             goto begin_lex;
 
-            // Equals (set) and Equals (check)
+            // Equality check
         case '=':
             n = LexerPeek(lex);
             if (n == '=') {
                 (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_DOUBLE_EQ, "==", 2);
             }
-            return LexerTokenNew(lex, OP_EQ, "=", 1);
+            return LexerTokenError(lex, "=");
+
+            // Assignment operator or colon separator
+        case ':':
+            n = LexerPeek(lex);
+            if (n == '=') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_EQ, ":=", 2);
+            }
+            return LexerTokenNew(lex, COLON, ":", 1);
 
             // Addition and increment
         case '+':
@@ -287,8 +296,8 @@ begin_lex:              // Jump label for ignored input
             return LexerTokenNew(lex, OP_BITWISE_NOT, "~", 1);
 
             // Bitwise XOR
-        case '@':
-            return LexerTokenNew(lex, OP_BITWISE_XOR, "@", 1);
+        case '^':
+            return LexerTokenNew(lex, OP_BITWISE_XOR, "^", 1);
 
             // Less than and less equal
         case '<':
@@ -324,7 +333,6 @@ begin_lex:              // Jump label for ignored input
             return LexerTokenNew(lex, OP_NOT, "!", 1);
 
             // Various unambiguous symbols
-        case ':':   return LexerTokenNew(lex, COLON, ":", 1);
         case '(':   return LexerTokenNew(lex, LPAREN, "(", 1);
         case ')':   return LexerTokenNew(lex, RPAREN, ")", 1);
         case '[':   return LexerTokenNew(lex, LBRACKET, "[", 1);
@@ -348,7 +356,7 @@ begin_lex:              // Jump label for ignored input
             return LexerLexWord(lex, n);
 
             // Database (global) reference
-        case '^':
+        case '@':
             if (!LexerResetBuffer(lex)) { return NULL; }
             return LexerLexWord(lex, n);
 
@@ -610,7 +618,7 @@ static ms_Token *LexerLexWord(ms_Lexer *lex, int prev) {
     // global and built-in function identifiers
     ms_TokenType type;
     switch (prev) {
-        case '^':
+        case '@':
             type = (num < 1) ? ERROR : GLOBAL;
             break;
         case '$':

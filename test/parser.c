@@ -596,7 +596,7 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
             }
         },
         {
-            .val = "53 @ 7",
+            .val = "53 ^ 7",
             .ast = AST(AST_BEXPR_VV(VM_INT(53), BINARY_BITWISE_XOR, VM_INT(7))),
             .bc = {
                 .values = (ms_Value[]){
@@ -939,7 +939,7 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
             }
         },
         {
-            .val = "7 @ 2 & 15",
+            .val = "7 ^ 2 & 15",
             .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_AND, VM_INT(15)))),
             .bc = {
                 .values = (ms_Value[]){
@@ -958,7 +958,7 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
             }
         },
         {
-            .val = "7 @ 2 | 15",
+            .val = "7 ^ 2 | 15",
             .ast = AST(AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_XOR, VM_INT(2)), BINARY_BITWISE_OR, VM_INT(15))),
             .bc = {
                 .values = (ms_Value[]){
@@ -977,7 +977,7 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
             }
         },
         {
-            .val = "7 @ (2 | 15)",
+            .val = "7 ^ (2 | 15)",
             .ast = AST(AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_OR, VM_INT(15)))),
             .bc = {
                 .values = (ms_Value[]){

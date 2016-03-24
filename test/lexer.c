@@ -92,7 +92,7 @@ static MunitParameterEnum reserved_keyword_params[] = {
 };
 
 static char* global_vals[] = {
-    "^global", "^var", "^_legal_name", "^________", "^g", "^\xF0\x9F\x86\x92",
+    "@global", "@var", "@_legal_name", "@________", "@g", "@\xF0\x9F\x86\x92",
     NULL
 };
 
@@ -113,7 +113,7 @@ static MunitParameterEnum builtin_params[] = {
 };
 
 static char* invalid_identifier_vals[] = {
-    "$", "^", "^-some-name", "$%%%%", ";", "?", "`", "#",
+    "$", "@", "@-some-name", "$%%%%", ";", "?", "`", "#",
     NULL
 };
 
@@ -137,7 +137,7 @@ static char* string_vals[] = {
     "\"string with \\\"escaped sub\\\" -- very meta\"",
     "\"string containing keywords: if, else, func\"",
     "\"string containing builtin: $begin, $commit\"",
-    "\"string containing global: ^glo, ^people\"",
+    "\"string containing global: @glo, @people\"",
     NULL
 };
 
@@ -395,11 +395,11 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { ">=", OP_GE },
         { "<", OP_LT },
         { "<=", OP_LE },
-        { "=", OP_EQ },
+        { ":=", OP_EQ },
         { "&", OP_BITWISE_AND },
         { "|", OP_BITWISE_OR },
         { "~", OP_BITWISE_NOT },
-        { "@", OP_BITWISE_XOR },
+        { "^", OP_BITWISE_XOR },
         { ">>", OP_SHIFT_RIGHT },
         { ">>", OP_SHIFT_LEFT },
     };
