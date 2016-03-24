@@ -277,3 +277,34 @@ void ms_ExprDestroy(ms_Expr *expr) {
     }
     free(expr);
 }
+
+void ms_StmtDestroy(ms_Stmt *stmt) {
+    if (!stmt) { return; }
+
+    switch (stmt->type) {
+        case STMTTYPE_IF:
+            ms_ExprDestroy(stmt->cmpnt.ifstmt->expr);
+            stmt->cmpnt.ifstmt->expr = NULL;
+            dsarray_destroy(stmt->cmpnt.ifstmt->block);
+            stmt->cmpnt.ifstmt->block = NULL;
+            break;
+        case STMTTYPE_ASSIGNMENT:
+            dsbuf_destroy(stmt->cmpnt.assign->ident);
+            stmt->cmpnt.assign->ident = NULL;
+            ms_ExprDestroy(stmt->cmpnt.assign->expr);
+            stmt->cmpnt.assign->expr = NULL;
+            break;
+        case STMTTYPE_DECLARATION:
+            dsbuf_destroy(stmt->cmpnt.decl->ident);
+            stmt->cmpnt.decl->ident = NULL;
+            ms_ExprDestroy(stmt->cmpnt.decl->expr);
+            stmt->cmpnt.decl->expr = NULL;
+            break;
+        case STMTTYPE_EXPRESSION:
+            ms_ExprDestroy(stmt->cmpnt.expr);
+            stmt->cmpnt.expr = NULL;
+            break;
+    }
+
+    free(stmt);
+}

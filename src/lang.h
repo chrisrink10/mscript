@@ -21,33 +21,25 @@
 #include "libds/buffer.h"
 #include "lexer.h"
 
-/**
-* @brief Expression syntax tree object
-*/
 typedef struct ms_Expr ms_Expr;
 
-/**
-* @brief Identifier
-*/
-typedef DSBuffer ms_Ident;
+/*
+ * MISCELLANEOUS LANGUAGE COMPONENTS
+ */
 
-/**
-* @brief Expression list object
-*/
+typedef DSBuffer ms_Ident;
 typedef DSArray ms_ExprList;
 
 /*
-* @brief Typedefs of mscript values
-*/
+ * VALUE LANGUAGE COMPONENTS
+ */
+
 typedef double ms_ValFloat;
 typedef long long ms_ValInt;
 typedef DSBuffer ms_ValStr;
 typedef bool ms_ValBool;
 typedef const void ms_ValNull;
 
-/**
-* @brief Enumeration of data value types in mscript
-*/
 typedef enum {
     MSVAL_FLOAT,
     MSVAL_INT,
@@ -56,9 +48,6 @@ typedef enum {
     MSVAL_NULL,
 } ms_ValDataType;
 
-/**
-* @brief Union of data types in mscript
-*/
 typedef union {
     ms_ValFloat f;
     ms_ValInt i;
@@ -67,17 +56,15 @@ typedef union {
     ms_ValNull *n;
 } ms_ValData;
 
-/**
-* @brief Structure of any value within mscript
-*/
 typedef struct {
     ms_ValDataType type;
     ms_ValData val;
 } ms_Value;
 
-/**
-* @brief Expression atom union
-*/
+/*
+ * EXPRESSION LANGUAGE COMPONENTS
+ */
+
 typedef union {
     ms_Expr *expr;
     ms_Value val;
@@ -85,9 +72,6 @@ typedef union {
     ms_ExprList *list;
 } ms_ExprAtom;
 
-/**
-* @brief Type of expression atom
-*/
 typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
@@ -96,9 +80,6 @@ typedef enum {
     EXPRATOM_EXPRLIST,
 } ms_ExprAtomType;
 
-/**
-* @brief Type of operation for this binary expression
-*/
 typedef enum {
     UNARY_NONE,
     UNARY_MINUS,
@@ -106,18 +87,12 @@ typedef enum {
     UNARY_BITWISE_NOT,
 } ms_ExprUnaryOp;
 
-/*
-* @brief Unary expression object
-*/
 typedef struct {
     ms_ExprAtom atom;
     ms_ExprAtomType type;
     ms_ExprUnaryOp op;
 } ms_ExprUnary;
 
-/**
-* @brief Type of operation for this binary expression
-*/
 typedef enum {
     BINARY_EMPTY,
     BINARY_PLUS,
@@ -143,9 +118,6 @@ typedef enum {
     BINARY_CALL,
 } ms_ExprBinaryOp;
 
-/**
-* @brief Binary expression object
-*/
 typedef struct {
     ms_ExprAtom latom;
     ms_ExprAtomType ltype;
@@ -154,44 +126,74 @@ typedef struct {
     ms_ExprAtomType rtype;
 } ms_ExprBinary;
 
-/*
-* @brief Union of binary or unary expression
-*/
 typedef union {
     ms_ExprBinary *b;
     ms_ExprUnary *u;
 } ms_ExprComponent;
 
-/*
-* @brief Type of expression (binary or unary)
-*/
 typedef enum {
     EXPRTYPE_BINARY,
     EXPRTYPE_UNARY
 } ms_ExprType;
 
-/**
-* @brief Expression object
-*/
 struct ms_Expr {
     ms_ExprComponent cmpnt;
     ms_ExprType type;
 };
 
-/**
-* @brief Enumeration used to indicate which part of an expression to flatten
-* into the outer/containing expression.
-*/
+/* Enumeration used to indicate which part of an expression to flatten
+ * into the outer/containing expression. */
 typedef enum {
     EXPRLOC_UNARY,
     EXPRLOC_LEFT,
     EXPRLOC_RIGHT,
 } ms_ExprLocation;
 
-/**
-* @brief Placeholder for a more sophisticated AST object.
-*/
-typedef ms_Expr ms_AST;
+/*
+ * STATEMENT LANGUAGE COMPONENTS
+ */
+
+typedef DSArray ms_StmtBlock;
+
+typedef struct {
+    ms_Expr *expr;
+    ms_StmtBlock *block;
+} ms_StmtIf;
+
+typedef struct {
+    ms_Ident *ident;
+    ms_Expr *expr;
+} ms_StmtAssignment;
+
+typedef struct {
+    ms_Ident *ident;
+    ms_Expr *expr;
+} ms_StmtDeclaration;
+
+typedef enum {
+    STMTTYPE_IF,
+    STMTTYPE_ASSIGNMENT,
+    STMTTYPE_DECLARATION,
+    STMTTYPE_EXPRESSION,
+} ms_StmtType;
+
+typedef union {
+    ms_StmtIf *ifstmt;
+    ms_StmtAssignment *assign;
+    ms_StmtDeclaration *decl;
+    ms_Expr *expr;
+} ms_StmtComponent;
+
+typedef struct {
+    ms_StmtComponent cmpnt;
+    ms_StmtType type;
+} ms_Stmt;
+
+/*
+ * ABSTRACT SYNTAX TREE ROOT
+ */
+
+typedef ms_Stmt ms_AST;
 
 /**
 * @brief Create a new @c ms_Expr object.
@@ -247,9 +249,14 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 */
 void ms_ExprDestroy(ms_Expr *expr);
 
+/**
+* @brief Destroy the given @c ms_Stmt and nested AST elements.
+*/
+void ms_StmtDestroy(ms_Stmt *stmt);
+
 /*
 * @brief Placeholder for real AST destroy function.
 */
-#define ms_ASTDestroy(ast) ms_ExprDestroy(ast)
+#define ms_ASTDestroy(ast) ms_StmtDestroy(ast)
 
 #endif //MSCRIPT_LANG_H

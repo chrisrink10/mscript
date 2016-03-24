@@ -30,7 +30,8 @@
  * FORWARD DECLARATIONS
  */
 
-static const int EXPRESSION_LIST_DEFAULT_LEN = 10;
+static const size_t EXPRESSION_LIST_DEFAULT_LEN = 10;
+static const size_t STATEMENT_BLOCK_DEFAULT_CAP = 10;
 
 struct ms_Parser {
     ms_Lexer *lex;                          /** lexer object */
@@ -45,8 +46,17 @@ struct ms_Parser {
 static const char *const ERR_OUT_OF_MEMORY = "Out of memory";
 static const char *const ERR_MISMATCHED_PARENS = "Mismatched parentheses (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_EXPRESSION = "Expected expression (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_IDENTIFIER = "Expected identifier (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_KEYWORD = "Expected keyword '%s' (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_STATEMENT = "Expected statement (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
 
+static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
+static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block);
+static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
+static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
+static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_StmtAssignment **assign);
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseOrExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAndExpr(ms_Parser *prs, ms_Expr **expr);
@@ -170,7 +180,7 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST
     }
 
     *err = NULL;
-    ms_ParseResult res = ParserParseExpression(prs, &prs->ast);
+    ms_ParseResult res = ParserParseStatement(prs, &prs->ast);
 
     if (prs->cur) {
         ParserErrorSet(prs, ERR_INVALID_SYNTAX_GOT_TOK, prs->cur,
@@ -182,7 +192,7 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST
         *err = prs->err;
         *code = NULL;
     } else {
-        *code = ms_ExprToOpCodes(prs->ast);
+        //*code = ms_ExprToOpCodes(prs->ast);
         if (ast) {
             *ast = prs->ast;
         }
@@ -210,6 +220,12 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
+ * stmt:            if_stmt | declare | assign | expr
+ * if_stmt:         'if' '(' expr ')' block
+ * block:           '{' stmt* '}'
+ * declare:         'var' assign (',' assign)*
+ * assign:          ident ':=' expr
+ *
  * expr:            or_expr ('||' or_expr)*
  * or_expr:         and_expr ('&&' and_expr)*
  * and_expr:        eq_expr (('!='|'==') eq_expr)*
@@ -230,6 +246,173 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * expr_list:       expr [',' expr]*
  * arg_list:        '(' expr_list ')'
  */
+
+static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
+    assert(prs);
+    assert(stmt);
+
+    ms_ParseResult res;
+    ms_Token *cur = prs->cur;
+
+    if (!cur) {
+        ParserErrorSet(prs, ERR_EXPECTED_STATEMENT, NULL, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    *stmt = malloc(sizeof(ms_Stmt));
+    if (!(*stmt)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    switch (cur->type) {
+        case KW_IF:
+            (*stmt)->type = STMTTYPE_IF;
+            if ((res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
+        case KW_VAR:
+            (*stmt)->type = STMTTYPE_DECLARATION;
+            if ((res = ParserParseDeclaration(prs, &(*stmt)->cmpnt.decl)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
+        case IDENTIFIER:
+            (*stmt)->type = STMTTYPE_ASSIGNMENT;
+            if ((res = ParserParseAssignment(prs, &(*stmt)->cmpnt.assign)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
+        default:
+            (*stmt)->type = STMTTYPE_EXPRESSION;
+            if ((res = ParserParseExpression(prs, &(*stmt)->cmpnt.expr)) == PARSE_ERROR) {
+                return res;
+            }
+    }
+
+    return res;
+}
+
+static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
+    assert(prs);
+    assert(block);
+
+    ms_ParseResult res = PARSE_SUCCESS;
+
+    *block = dsarray_new_cap(STATEMENT_BLOCK_DEFAULT_CAP, NULL,
+                             (dsarray_free_fn)ms_StmtDestroy);
+    if (!(*block)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, LBRACE)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, "{", prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    while (res != PARSE_ERROR) {
+        ms_Stmt *stmt;
+        res = ParserParseStatement(prs, &stmt);
+        dsarray_append(*block, stmt);
+    }
+
+    if (!ParserExpectToken(prs, RBRACE)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, "}", prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return res;
+}
+
+static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt) {
+    assert(prs);
+    assert(ifstmt);
+
+    *ifstmt = malloc(sizeof(ms_StmtIf));
+    if (!(*ifstmt)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_IF)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_IF, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    if (ParserParseExpression(prs, &(*ifstmt)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseBlock(prs, &(*ifstmt)->block);
+}
+
+static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
+    assert(prs);
+    assert(decl);
+
+    *decl = malloc(sizeof(ms_StmtDeclaration));
+    if (!(*decl)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_VAR)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_VAR, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    if (!ParserExpectToken(prs, IDENTIFIER)) {
+        ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    /* take the identifier from the current token so the buffer isn't destroyed */
+    (*decl)->ident = prs->cur->value;
+    prs->cur->value = NULL;
+    ParserConsumeToken(prs);
+
+    /* allow a declaration without initialization */
+    if (!ParserExpectToken(prs, OP_EQ)) {
+        return PARSE_SUCCESS;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseExpression(prs, &(*decl)->expr);
+}
+
+static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_StmtAssignment **assign) {
+    assert(prs);
+    assert(assign);
+
+    *assign = malloc(sizeof(ms_StmtAssignment));
+    if (!(*assign)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, IDENTIFIER)) {
+        ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    /* take the identifier from the current token so the buffer isn't destroyed */
+    (*assign)->ident = prs->cur->value;
+    prs->cur->value = NULL;
+    ParserConsumeToken(prs);
+
+    if (!ParserExpectToken(prs, OP_EQ)) {
+        ParserErrorSet(prs, ERR_EXPECTED_EXPRESSION, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseExpression(prs, &(*assign)->expr);
+}
 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
     assert(prs);
