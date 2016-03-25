@@ -44,11 +44,8 @@ static KeywordTuple KEYWORDS[] = {
     { "if", KW_IF }, { "else", KW_ELSE }, { "return", KW_RETURN },
     { "true", KW_TRUE }, { "false", KW_FALSE }, { "null", KW_NULL },
     { "func", KW_FUNC }, { "del", KW_DEL }, { "continue", KW_CONTINUE },
-    { "break", KW_BREAK }, { "import", KW_IMPORT }, { "package", KW_PACKAGE },
-    { "merge", KW_MERGE }, { "var", KW_VAR }, { "num", KW_NUM },
-    { "str", KW_STR }, { "bool", KW_BOOL }, { "datetime", KW_DATETIME },
-    { "obj", KW_OBJ }, { "as", KW_AS }, { "in", KW_IN },
-    { "is", KW_IS }, { "for", KW_FOR },
+    { "break", KW_BREAK }, { "import", KW_IMPORT }, { "merge", KW_MERGE },
+    { "var", KW_VAR },  { "in", KW_IN }, { "is", KW_IS }, { "for", KW_FOR },
 
     // Unused and reserved keywords
     { "switch", RESERVED_KW }, { "error", RESERVED_KW }, { "goto", RESERVED_KW },
@@ -59,7 +56,9 @@ static KeywordTuple KEYWORDS[] = {
     { "or", RESERVED_KW }, { "mut", RESERVED_KW }, { "const", RESERVED_KW },
     { "async", RESERVED_KW }, { "await", RESERVED_KW },
     { "repeat", RESERVED_KW }, { "until", RESERVED_KW },
-    { "while", RESERVED_KW }, { "except", RESERVED_KW },
+    { "while", RESERVED_KW }, { "except", RESERVED_KW }, { "num", RESERVED_KW },
+    { "str", RESERVED_KW }, { "bool", RESERVED_KW }, { "datetime", RESERVED_KW },
+    { "obj", RESERVED_KW }, { "as", RESERVED_KW }, { "package", RESERVED_KW },
 };
 
 /*
@@ -462,7 +461,6 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case KW_RETURN:         return TOK_KW_RETURN;
         case KW_FOR:            return TOK_KW_FOR;
         case KW_IMPORT:         return TOK_KW_IMPORT;
-        case KW_PACKAGE:        return TOK_KW_PACKAGE;
         case KW_CONTINUE:       return TOK_KW_CONTINUE;
         case KW_BREAK:          return TOK_KW_BREAK;
         case KW_VAR:            return TOK_KW_VAR;
@@ -471,13 +469,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case KW_FALSE:          return TOK_KW_FALSE;
         case KW_NULL:           return TOK_KW_NULL;
         case KW_MERGE:          return TOK_KW_MERGE;
-        case KW_NUM:            return TOK_KW_NUM;
-        case KW_STR:            return TOK_KW_STR;
-        case KW_BOOL:           return TOK_KW_BOOL;
-        case KW_DATETIME:       return TOK_KW_DATETIME;
-        case KW_OBJ:            return TOK_KW_OBJ;
         case KW_IS:             return TOK_KW_IS;
-        case KW_AS:             return TOK_KW_AS;
         case KW_IN:             return TOK_KW_IN;
         case OP_UMINUS:         return TOK_OP_UMINUS;
         case OP_PLUS:           return TOK_OP_PLUS;

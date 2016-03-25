@@ -82,7 +82,8 @@ static MunitParameterEnum non_keyword_params[] = {
 static char *reserved_keyword_vals[] = {
     "while", "switch", "goto", "error", "class", "private", "public",
     "protected", "yield", "from", "try", "except", "finally", "do", "and",
-    "or", "mut", "const", "async", "await", "repeat", "until",
+    "or", "mut", "const", "async", "await", "repeat", "until", "package",
+    "num", "str", "bool", "datetime", "obj", "as",
     NULL
 };
 
@@ -328,15 +329,8 @@ MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data) 
         { "continue", KW_CONTINUE },
         { "break", KW_BREAK },
         { "import", KW_IMPORT },
-        { "package", KW_PACKAGE },
         { "merge", KW_MERGE },
         { "var", KW_VAR },
-        { "num", KW_NUM },
-        { "str", KW_STR },
-        { "bool", KW_BOOL },
-        { "datetime", KW_DATETIME },
-        { "obj", KW_OBJ },
-        { "as", KW_AS },
         { "in", KW_IN },
         { "is", KW_IS },
         { "for", KW_FOR },

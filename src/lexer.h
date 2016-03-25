@@ -74,20 +74,13 @@ static const char *const TOK_KW_DEL = "KW_DEL";
 static const char *const TOK_KW_VAR = "KW_VAR";
 static const char *const TOK_KW_BREAK = "KW_BREAK";
 static const char *const TOK_KW_CONTINUE = "KW_CONTINUE";
-static const char *const TOK_KW_PACKAGE = "KW_PACKAGE";
 static const char *const TOK_KW_IMPORT = "KW_IMPORT";
 static const char *const TOK_KW_FOR = "KW_FOR";
 static const char *const TOK_KW_RETURN = "KW_RETURN";
 static const char *const TOK_KW_ELSE = "KW_ELSE";
 static const char *const TOK_KW_IF = "KW_IF";
 static const char *const TOK_KW_FUNC = "KW_FUNC";
-static const char *const TOK_KW_NUM = "KW_NUM";
-static const char *const TOK_KW_STR = "KW_STR";
-static const char *const TOK_KW_BOOL = "KW_BOOL";
-static const char *const TOK_KW_DATETIME = "KW_DATETIME";
-static const char *const TOK_KW_OBJ = "KW_OBJ";
 static const char *const TOK_KW_IS = "KW_IS";
-static const char *const TOK_KW_AS = "KW_AS";
 static const char *const TOK_KW_IN = "KW_IN";
 static const char *const TOK_STRING = "STRING";
 static const char *const TOK_INT_NUMBER = "INT_NUMBER";
@@ -113,7 +106,6 @@ typedef enum ms_TokenType {
     KW_RETURN,
     KW_FOR,
     KW_IMPORT,
-    KW_PACKAGE,
     KW_CONTINUE,
     KW_BREAK,
     KW_VAR,
@@ -122,13 +114,7 @@ typedef enum ms_TokenType {
     KW_FALSE,
     KW_NULL,
     KW_MERGE,
-    KW_NUM,
-    KW_STR,
-    KW_BOOL,
-    KW_DATETIME,
-    KW_OBJ,
     KW_IS,
-    KW_AS,
     KW_IN,
     OP_UMINUS,
     OP_PLUS,
