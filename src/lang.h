@@ -155,10 +155,37 @@ typedef enum {
 
 typedef DSArray ms_StmtBlock;
 
+typedef struct ms_StmtIf ms_StmtIf;
+typedef struct ms_StmtElse ms_StmtElse;
+
+typedef union {
+    ms_StmtIf *ifstmt;
+    ms_StmtElse *elstmt;
+} ms_StmtIfElseClause;
+
+typedef enum {
+    IFELSE_IF,
+    IFELSE_ELSE,
+} ms_StmtIfElseType;
+
 typedef struct {
+    ms_StmtIfElseClause clause;
+    ms_StmtIfElseType type;
+} ms_StmtIfElse;
+
+struct ms_StmtIf {
     ms_Expr *expr;
     ms_StmtBlock *block;
-} ms_StmtIf;
+    ms_StmtIfElse *elif;
+};
+
+struct ms_StmtElse {
+    ms_StmtBlock *block;
+};
+
+typedef struct {
+    ms_Expr *expr;
+} ms_StmtReturn;
 
 typedef struct {
     ms_Ident *ident;
@@ -172,6 +199,7 @@ typedef struct {
 
 typedef enum {
     STMTTYPE_IF,
+    STMTTYPE_RETURN,
     STMTTYPE_ASSIGNMENT,
     STMTTYPE_DECLARATION,
     STMTTYPE_EXPRESSION,
@@ -179,6 +207,7 @@ typedef enum {
 
 typedef union {
     ms_StmtIf *ifstmt;
+    ms_StmtReturn *ret;
     ms_StmtAssignment *assign;
     ms_StmtDeclaration *decl;
     ms_Expr *expr;

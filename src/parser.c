@@ -55,6 +55,8 @@ static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: 
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block);
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
+static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
+static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_StmtAssignment **assign);
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
@@ -79,6 +81,7 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_
 
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
+static inline void ParserConsumeNewlines(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParseErrorDestroy(ms_ParseError *err);
@@ -220,11 +223,13 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
- * stmt:            if_stmt | declare | assign | expr
- * if_stmt:         'if' '(' expr ')' block
+ * stmt:            if_stmt | declare | ret_stmt | assign | expr
+ * if_stmt:         'if' expr block [else_stmt]
+ * else_stmt:       'else' if_stmt | 'else' block
+ * ret_stmt:        'return' expr
  * block:           '{' stmt* '}'
- * declare:         'var' assign (',' assign)*
- * assign:          ident ':=' expr
+ * declare:         'var' IDENTIFIER [':=' expr] (',' IDENTIFIER [':=' expr])*
+ * assign:          IDENTIFIER ':=' expr
  *
  * expr:            or_expr ('||' or_expr)*
  * or_expr:         and_expr ('&&' and_expr)*
@@ -272,6 +277,12 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
                 return res;
             }
             break;
+        case KW_RETURN:
+            (*stmt)->type = STMTTYPE_RETURN;
+            if ((res = ParserParseReturnStatement(prs, &(*stmt)->cmpnt.ret)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
         case KW_VAR:
             (*stmt)->type = STMTTYPE_DECLARATION;
             if ((res = ParserParseDeclaration(prs, &(*stmt)->cmpnt.decl)) == PARSE_ERROR) {
@@ -312,9 +323,15 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
         return PARSE_ERROR;
     }
 
-    while (res != PARSE_ERROR) {
+    ParserConsumeToken(prs);
+    ParserConsumeNewlines(prs);
+
+    while ((prs->cur) && (!ParserExpectToken(prs, RBRACE))) {
         ms_Stmt *stmt;
-        res = ParserParseStatement(prs, &stmt);
+        if ((res = ParserParseStatement(prs, &stmt)) == PARSE_ERROR) {
+            return res;
+        }
+        ParserConsumeNewlines(prs);
         dsarray_append(*block, stmt);
     }
 
@@ -331,6 +348,8 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
     assert(prs);
     assert(ifstmt);
 
+    ms_ParseResult res;
+
     *ifstmt = malloc(sizeof(ms_StmtIf));
     if (!(*ifstmt)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
@@ -343,11 +362,70 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
     }
 
     ParserConsumeToken(prs);
-    if (ParserParseExpression(prs, &(*ifstmt)->expr) == PARSE_ERROR) {
+    if ((res = ParserParseExpression(prs, &(*ifstmt)->expr)) == PARSE_ERROR) {
+        return res;
+    }
+
+    if ((res = ParserParseBlock(prs, &(*ifstmt)->block)) == PARSE_ERROR) {
+        return res;
+    }
+
+    if (!ParserExpectToken(prs, KW_ELSE)) {
+        (*ifstmt)->elif = NULL;
+        return res;
+    }
+
+    return ParserParseElseStatement(prs, &(*ifstmt)->elif);
+}
+
+static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif) {
+    assert(prs);
+    assert(elif);
+
+    *elif = malloc(sizeof(ms_StmtIfElse));
+    if (!(*elif)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
     }
 
-    return ParserParseBlock(prs, &(*ifstmt)->block);
+    if (!ParserExpectToken(prs, KW_ELSE)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_ELSE, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    if (ParserExpectToken(prs, KW_IF)) {
+        (*elif)->type = IFELSE_IF;
+        return ParserParseIfStatement(prs, &(*elif)->clause.ifstmt);
+    }
+
+    (*elif)->clause.elstmt = malloc(sizeof(ms_StmtElse));
+    if (!(*elif)->clause.elstmt) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    (*elif)->type = IFELSE_ELSE;
+    return ParserParseBlock(prs, &(*elif)->clause.elstmt->block);
+}
+
+static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret) {
+    assert(prs);
+    assert(ret);
+
+    *ret = malloc(sizeof(ms_StmtReturn));
+    if (!(*ret)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_RETURN)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_RETURN, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseExpression(prs, &(*ret)->expr);
 }
 
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
@@ -1135,7 +1213,16 @@ static inline ms_Token *ParserAdvanceToken(ms_Parser *prs) {
 
 // Consume the next token in the stream.
 static inline void ParserConsumeToken(ms_Parser *prs) {
+    assert(prs);
     ms_TokenDestroy(ParserAdvanceToken(prs));
+}
+
+// Consume newlines until there are none remaining
+static inline void ParserConsumeNewlines(ms_Parser *prs) {
+    assert(prs);
+    while (ParserExpectToken(prs, NEWLINE_TOK)) {
+        ParserConsumeToken(prs);
+    }
 }
 
 // Check if the next token to see if it matches our expected next token.
