@@ -223,7 +223,8 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
- * stmt:            if_stmt | declare | ret_stmt | assign | expr
+ * stmt:            'break' | 'continue' | if_stmt | declare | ret_stmt |
+ *                  assign | expr
  * if_stmt:         'if' expr block [else_stmt]
  * else_stmt:       'else' if_stmt | 'else' block
  * ret_stmt:        'return' expr
@@ -271,6 +272,16 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
     }
 
     switch (cur->type) {
+        case KW_BREAK:
+            (*stmt)->type = STMTTYPE_BREAK;
+            (*stmt)->cmpnt.brk = NULL;
+            ParserConsumeToken(prs);
+            break;
+        case KW_CONTINUE:
+            (*stmt)->type = STMTTYPE_CONTINUE;
+            (*stmt)->cmpnt.cont = NULL;
+            ParserConsumeToken(prs);
+            break;
         case KW_IF:
             (*stmt)->type = STMTTYPE_IF;
             if ((res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt)) == PARSE_ERROR) {

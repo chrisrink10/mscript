@@ -155,6 +155,8 @@ typedef enum {
 
 typedef DSArray ms_StmtBlock;
 
+typedef struct ms_StmtBreak ms_StmtBreak;           /* dummy types required to be declared */
+typedef struct ms_StmtContinue ms_StmtContinue;     /* as pointers (which will have to be NULL) */
 typedef struct ms_StmtIf ms_StmtIf;
 typedef struct ms_StmtElse ms_StmtElse;
 
@@ -198,6 +200,8 @@ typedef struct {
 } ms_StmtDeclaration;
 
 typedef enum {
+    STMTTYPE_BREAK,
+    STMTTYPE_CONTINUE,
     STMTTYPE_IF,
     STMTTYPE_RETURN,
     STMTTYPE_ASSIGNMENT,
@@ -206,6 +210,8 @@ typedef enum {
 } ms_StmtType;
 
 typedef union {
+    ms_StmtBreak *brk;
+    ms_StmtContinue *cont;
     ms_StmtIf *ifstmt;
     ms_StmtReturn *ret;
     ms_StmtAssignment *assign;
