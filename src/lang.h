@@ -116,6 +116,7 @@ typedef enum {
     BINARY_AND,
     BINARY_OR,
     BINARY_CALL,
+    BINARY_GETATTR,
 } ms_ExprBinaryOp;
 
 typedef struct {
@@ -190,7 +191,7 @@ typedef struct {
 } ms_StmtReturn;
 
 typedef struct {
-    ms_Ident *ident;
+    ms_Expr *ident;
     ms_Expr *expr;
 } ms_StmtAssignment;
 
@@ -200,6 +201,7 @@ typedef struct {
 } ms_StmtDeclaration;
 
 typedef enum {
+    STMTTYPE_EMPTY,
     STMTTYPE_BREAK,
     STMTTYPE_CONTINUE,
     STMTTYPE_IF,

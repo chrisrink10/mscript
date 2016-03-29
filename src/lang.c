@@ -282,14 +282,22 @@ void ms_StmtDestroy(ms_Stmt *stmt) {
     if (!stmt) { return; }
 
     switch (stmt->type) {
+        case STMTTYPE_EMPTY:        // Fall through
+        case STMTTYPE_BREAK:        // Fall through
+        case STMTTYPE_CONTINUE:
+            break;
         case STMTTYPE_IF:
             ms_ExprDestroy(stmt->cmpnt.ifstmt->expr);
             stmt->cmpnt.ifstmt->expr = NULL;
             dsarray_destroy(stmt->cmpnt.ifstmt->block);
             stmt->cmpnt.ifstmt->block = NULL;
             break;
+        case STMTTYPE_RETURN:
+            ms_ExprDestroy(stmt->cmpnt.ret->expr);
+            stmt->cmpnt.ret->expr = NULL;
+            break;
         case STMTTYPE_ASSIGNMENT:
-            dsbuf_destroy(stmt->cmpnt.assign->ident);
+            ms_ExprDestroy(stmt->cmpnt.assign->ident);
             stmt->cmpnt.assign->ident = NULL;
             ms_ExprDestroy(stmt->cmpnt.assign->expr);
             stmt->cmpnt.assign->expr = NULL;
