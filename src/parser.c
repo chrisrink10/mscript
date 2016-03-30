@@ -54,8 +54,10 @@ static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: 
 
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block);
+static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete **del);
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
 static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
+static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
@@ -224,10 +226,12 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
- * stmt:            'break' | 'continue' | if_stmt | declare | ret_stmt |
- *                  assign | expr
+ * stmt:            'break' | 'continue' | del_stmt | if_stmt | merge_stmt |
+ *                  ret_stmt | declare | assign | expr
  * if_stmt:         'if' expr block [else_stmt]
  * else_stmt:       'else' if_stmt | 'else' block
+ * del_stmt:        'delete' expr
+ * merge_stmt:      'merge' expr ':=' expr
  * ret_stmt:        'return' expr
  * block:           '{' stmt* '}'
  * declare:         'var' IDENTIFIER [':=' expr] (',' IDENTIFIER [':=' expr])*
@@ -247,7 +251,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * term_expr:       ('-'|'!'|'~') atom_expr | power_expr
  * atom_expr:       atom [accessor]*
  * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL |
- *                  IDENTIFIER | BUILTIN_FUNC | expr | '(' expr ')'
+ *                  IDENTIFIER | BUILTIN_FUNC | GLOBAL | expr | '(' expr ')'
  *
  * accessor:        arg_list | sub_list | '.' IDENTIFIER
  * expr_list:       expr [',' expr]*
@@ -285,9 +289,21 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
             (*stmt)->cmpnt.cont = NULL;
             ParserConsumeToken(prs);
             break;
+        case KW_DEL:
+            (*stmt)->type = STMTTYPE_DELETE;
+            if ((res = ParserParseDeleteStatement(prs, &(*stmt)->cmpnt.del)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
         case KW_IF:
             (*stmt)->type = STMTTYPE_IF;
             if ((res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt)) == PARSE_ERROR) {
+                return res;
+            }
+            break;
+        case KW_MERGE:
+            (*stmt)->type = STMTTYPE_MERGE;
+            if ((res = ParserParseMergeStatement(prs, &(*stmt)->cmpnt.merge)) == PARSE_ERROR) {
                 return res;
             }
             break;
@@ -357,6 +373,25 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
     return res;
 }
 
+static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete **del) {
+    assert(prs);
+    assert(del);
+
+    *del = malloc(sizeof(ms_StmtDelete));
+    if (!(*del)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_DEL)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_DEL, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseExpression(prs, &(*del)->expr);
+}
+
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt) {
     assert(prs);
     assert(ifstmt);
@@ -420,6 +455,35 @@ static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **e
 
     (*elif)->type = IFELSE_ELSE;
     return ParserParseBlock(prs, &(*elif)->clause.elstmt->block);
+}
+
+static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge) {
+    assert(prs);
+    assert(merge);
+
+    *merge = malloc(sizeof(ms_StmtMerge));
+    if (!(*merge)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_MERGE)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_MERGE, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    if (ParserParseExpression(prs, &(*merge)->left) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, OP_EQ)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_OP_EQ, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseExpression(prs, &(*merge)->right);
 }
 
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret) {
@@ -1154,9 +1218,10 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
             break;
         }
 
-            /* reference an identifier (either builtin or other identifier) */
+            /* reference an identifier (either builtin, global, or other identifier) */
         case IDENTIFIER:
-        case BUILTIN_FUNC: {
+        case BUILTIN_FUNC:
+        case GLOBAL: {
             *expr = ms_ExprNewWithIdent(dsbuf_char_ptr(cur->value), dsbuf_len(cur->value));
             if (!(*expr)) {
                 ParserErrorSet(prs, ERR_OUT_OF_MEMORY, cur);

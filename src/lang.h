@@ -188,6 +188,15 @@ struct ms_StmtElse {
 
 typedef struct {
     ms_Expr *expr;
+} ms_StmtDelete;
+
+typedef struct {
+    ms_Expr *left;
+    ms_Expr *right;
+} ms_StmtMerge;
+
+typedef struct {
+    ms_Expr *expr;
 } ms_StmtReturn;
 
 typedef struct {
@@ -204,7 +213,9 @@ typedef enum {
     STMTTYPE_EMPTY,
     STMTTYPE_BREAK,
     STMTTYPE_CONTINUE,
+    STMTTYPE_DELETE,
     STMTTYPE_IF,
+    STMTTYPE_MERGE,
     STMTTYPE_RETURN,
     STMTTYPE_ASSIGNMENT,
     STMTTYPE_DECLARATION,
@@ -214,7 +225,9 @@ typedef enum {
 typedef union {
     ms_StmtBreak *brk;
     ms_StmtContinue *cont;
+    ms_StmtDelete *del;
     ms_StmtIf *ifstmt;
+    ms_StmtMerge *merge;
     ms_StmtReturn *ret;
     ms_StmtAssignment *assign;
     ms_StmtDeclaration *decl;
