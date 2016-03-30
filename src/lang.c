@@ -149,6 +149,173 @@ ms_Expr *ms_ExprIntFromString(const char *str) {
     return expr;
 }
 
+ms_Expr *ms_ExprDup(const ms_Expr *src) {
+    if (!src) { return NULL; }
+
+    ms_Expr *expr = ms_ExprNew(src->type);
+    if (!expr) {
+        return NULL;
+    }
+
+    switch (src->type) {
+        case EXPRTYPE_UNARY:
+            assert(src->cmpnt.u);
+            expr->cmpnt.u->type = src->cmpnt.u->type;
+            expr->cmpnt.u->op = src->cmpnt.u->op;
+            switch(src->cmpnt.u->type) {
+                case EXPRATOM_EXPRESSION:
+                    expr->cmpnt.u->atom.expr = ms_ExprDup(src->cmpnt.u->atom.expr);
+                    if (!expr->cmpnt.u->atom.expr) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_IDENT:
+                    expr->cmpnt.u->atom.ident = dsbuf_dup(src->cmpnt.u->atom.ident);
+                    if (!expr->cmpnt.u->atom.ident) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_EXPRLIST: {
+                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.u->atom.list),
+                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
+                    if (!exprlist) {
+                        goto expr_dup_fail;
+                    }
+
+                    size_t len = dsarray_len(src->cmpnt.u->atom.list);
+                    for (size_t i = 0; i < len; i++) {
+                        const ms_Expr *e = dsarray_get(src->cmpnt.u->atom.list, i);
+                        ms_Expr *e2 = ms_ExprDup(e);
+                        if (!e2) {
+                            goto expr_dup_fail;
+                        }
+
+                        dsarray_append(exprlist, e2);
+                    }
+
+                    expr->cmpnt.u->atom.list = exprlist;
+                    }
+                    break;
+                case EXPRATOM_VALUE:
+                    expr->cmpnt.u->atom.val = src->cmpnt.u->atom.val;
+                    if (expr->cmpnt.u->atom.val.type == MSVAL_STR) {
+                        expr->cmpnt.u->atom.val.val.s = dsbuf_dup(expr->cmpnt.u->atom.val.val.s);
+                        if (!expr->cmpnt.u->atom.val.val.s) {
+                            goto expr_dup_fail;
+                        }
+                    }
+                    break;
+                case EXPRATOM_EMPTY:
+                    break;
+            }
+            break;
+        case EXPRTYPE_BINARY:
+            assert(expr->cmpnt.b);
+            expr->cmpnt.b->ltype = src->cmpnt.b->ltype;
+            expr->cmpnt.b->op = src->cmpnt.b->op;
+            expr->cmpnt.b->rtype = src->cmpnt.b->rtype;
+            switch (src->cmpnt.b->ltype) {
+                case EXPRATOM_EXPRESSION:
+                    expr->cmpnt.b->latom.expr = ms_ExprDup(src->cmpnt.b->latom.expr);
+                    if (!expr->cmpnt.b->latom.expr) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_IDENT:
+                    expr->cmpnt.b->latom.ident = dsbuf_dup(src->cmpnt.b->latom.ident);
+                    if (!expr->cmpnt.b->latom.ident) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_EXPRLIST: {
+                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.b->latom.list),
+                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
+                    if (!exprlist) {
+                        goto expr_dup_fail;
+                    }
+
+                    size_t len = dsarray_len(src->cmpnt.b->latom.list);
+                    for (size_t i = 0; i < len; i++) {
+                        const ms_Expr *e = dsarray_get(src->cmpnt.b->latom.list, i);
+                        ms_Expr *e2 = ms_ExprDup(e);
+                        if (!e2) {
+                            goto expr_dup_fail;
+                        }
+
+                        dsarray_append(exprlist, e2);
+                    }
+
+                    expr->cmpnt.b->latom.list = exprlist;
+                }
+                    break;
+                case EXPRATOM_VALUE:
+                    expr->cmpnt.b->latom.val = src->cmpnt.b->latom.val;
+                    if (expr->cmpnt.b->latom.val.type == MSVAL_STR) {
+                        expr->cmpnt.b->latom.val.val.s = dsbuf_dup(expr->cmpnt.b->latom.val.val.s);
+                        if (!expr->cmpnt.b->latom.val.val.s) {
+                            goto expr_dup_fail;
+                        }
+                    }
+                    break;
+                case EXPRATOM_EMPTY:
+                    break;
+            }
+            switch(src->cmpnt.b->rtype) {
+                case EXPRATOM_EXPRESSION:
+                    expr->cmpnt.b->ratom.expr = ms_ExprDup(src->cmpnt.b->ratom.expr);
+                    if (!expr->cmpnt.b->ratom.expr) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_IDENT:
+                    expr->cmpnt.b->ratom.ident = dsbuf_dup(src->cmpnt.b->ratom.ident);
+                    if (!expr->cmpnt.b->ratom.ident) {
+                        goto expr_dup_fail;
+                    }
+                    break;
+                case EXPRATOM_EXPRLIST: {
+                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.b->ratom.list),
+                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
+                    if (!exprlist) {
+                        goto expr_dup_fail;
+                    }
+
+                    size_t len = dsarray_len(src->cmpnt.b->ratom.list);
+                    for (size_t i = 0; i < len; i++) {
+                        const ms_Expr *e = dsarray_get(src->cmpnt.b->ratom.list, i);
+                        ms_Expr *e2 = ms_ExprDup(e);
+                        if (!e2) {
+                            goto expr_dup_fail;
+                        }
+
+                        dsarray_append(exprlist, e2);
+                    }
+
+                    expr->cmpnt.b->ratom.list = exprlist;
+                }
+                    break;
+                case EXPRATOM_VALUE:
+                    expr->cmpnt.b->ratom.val = src->cmpnt.b->ratom.val;
+                    if (expr->cmpnt.b->ratom.val.type == MSVAL_STR) {
+                        expr->cmpnt.b->ratom.val.val.s = dsbuf_dup(expr->cmpnt.b->ratom.val.val.s);
+                        if (!expr->cmpnt.b->ratom.val.val.s) {
+                            goto expr_dup_fail;
+                        }
+                    }
+                    break;
+                case EXPRATOM_EMPTY:
+                    break;
+            }
+            break;
+    }
+
+    return expr;
+
+expr_dup_fail:
+    ms_ExprDestroy(expr);
+    return NULL;
+}
+
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     if ((!outer) || (!inner)) { return NULL; }
 
@@ -286,11 +453,21 @@ void ms_StmtDestroy(ms_Stmt *stmt) {
         case STMTTYPE_BREAK:        // Fall through
         case STMTTYPE_CONTINUE:
             break;
+        case STMTTYPE_DELETE:
+            ms_ExprDestroy(stmt->cmpnt.del->expr);
+            stmt->cmpnt.del->expr = NULL;
+            break;
         case STMTTYPE_IF:
             ms_ExprDestroy(stmt->cmpnt.ifstmt->expr);
             stmt->cmpnt.ifstmt->expr = NULL;
             dsarray_destroy(stmt->cmpnt.ifstmt->block);
             stmt->cmpnt.ifstmt->block = NULL;
+            break;
+        case STMTTYPE_MERGE:
+            ms_ExprDestroy(stmt->cmpnt.merge->left);
+            stmt->cmpnt.merge->left = NULL;
+            ms_ExprDestroy(stmt->cmpnt.merge->right);
+            stmt->cmpnt.merge->right = NULL;
             break;
         case STMTTYPE_RETURN:
             ms_ExprDestroy(stmt->cmpnt.ret->expr);

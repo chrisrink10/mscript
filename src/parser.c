@@ -61,6 +61,8 @@ static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **m
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
+static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
+static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseOrExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAndExpr(ms_Parser *prs, ms_Expr **expr);
@@ -544,15 +546,73 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
     assert(prs);
     assert(stmt);
 
-    ms_Expr *expr;
-    if (ParserParseExpression(prs, &expr) == PARSE_ERROR) {
+    ms_Expr *name;
+    if (ParserParseExpression(prs, &name) == PARSE_ERROR) {
         return PARSE_ERROR;
     }
 
-    if (!ParserExpectToken(prs, OP_EQ)) {
-        (*stmt)->type = STMTTYPE_EXPRESSION;
-        (*stmt)->cmpnt.expr = expr;
+    /* some sort of assignment (simple or compound) */
+    if (ParserExpectToken(prs, OP_EQ)) {
+        if (ParserParseSimpleAssignment(prs, name, stmt) == PARSE_ERROR) {
+            ms_ExprDestroy(name);
+            return PARSE_ERROR;
+        }
+
         return PARSE_SUCCESS;
+    } else if (ParserExpectToken(prs, OP_PLUS_EQUALS) ||
+               ParserExpectToken(prs, OP_MINUS_EQUALS) ||
+               ParserExpectToken(prs, OP_TIMES_EQUALS) ||
+               ParserExpectToken(prs, OP_DIVIDE_EQUALS) ||
+               ParserExpectToken(prs, OP_IDIVIDE_EQUALS) ||
+               ParserExpectToken(prs, OP_MODULO_EQUALS)) {
+
+        if (ParserParseCompoundAssignment(prs, name, stmt) == PARSE_ERROR) {
+            ms_ExprDestroy(name);
+            return PARSE_ERROR;
+        }
+
+        return PARSE_SUCCESS;
+    }
+
+    /* ONLY an expression */
+    (*stmt)->type = STMTTYPE_EXPRESSION;
+    (*stmt)->cmpnt.expr = name;
+    return PARSE_SUCCESS;
+}
+
+static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt) {
+    assert(prs);
+    assert(name);
+    assert(stmt);
+
+    ParserConsumeToken(prs);
+    (*stmt)->cmpnt.assign = malloc(sizeof(ms_StmtAssignment));
+    if (!((*stmt)->cmpnt.assign)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    (*stmt)->type = STMTTYPE_ASSIGNMENT;
+    (*stmt)->cmpnt.assign->ident = name;
+    (*stmt)->cmpnt.assign->expr = NULL;
+    return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr);
+}
+
+static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt) {
+    assert(prs);
+    assert(name);
+    assert(stmt);
+
+    /* translate compound operator to binary op */
+    ms_ExprBinaryOp op = BINARY_EMPTY;
+    switch (prs->cur->type) {
+        case OP_PLUS_EQUALS:        op = BINARY_PLUS;       break;
+        case OP_MINUS_EQUALS:       op = BINARY_MINUS;      break;
+        case OP_TIMES_EQUALS:       op = BINARY_TIMES;      break;
+        case OP_DIVIDE_EQUALS:      op = BINARY_DIVIDE;     break;
+        case OP_IDIVIDE_EQUALS:     op = BINARY_IDIVIDE;    break;
+        case OP_MODULO_EQUALS:      op = BINARY_MODULO;     break;
+        default:                    assert(false);          break;
     }
 
     ParserConsumeToken(prs);
@@ -563,9 +623,34 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
     }
 
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
-    (*stmt)->cmpnt.assign->ident = expr;
+    (*stmt)->cmpnt.assign->ident = name;
     (*stmt)->cmpnt.assign->expr = NULL;
-    return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr);
+    ms_Expr *right = NULL;
+
+    /* parse the right piece of the expanded compound expression  */
+    if (ParserParseExpression(prs, &right) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    /* duplicate the identifier expression being set to be used in
+     * the left piece of the resulting compound expression */
+    ms_Expr *left = ms_ExprDup(name);
+    if (!left) {
+        ms_ExprDestroy(right);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    /* combine the two pieces of the compound expression */
+    ms_Expr *combined;
+    if (ParserExprCombineBinary(prs, left, op, right, &combined) == PARSE_ERROR) {
+        ms_ExprDestroy(left);
+        ms_ExprDestroy(right);
+        return PARSE_ERROR;
+    }
+
+    (*stmt)->cmpnt.assign->expr = combined;
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {

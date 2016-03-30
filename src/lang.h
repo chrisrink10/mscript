@@ -278,6 +278,11 @@ ms_Expr *ms_ExprFloatFromString(const char *str);
 ms_Expr *ms_ExprIntFromString(const char *str);
 
 /**
+* @brief Duplicate the given expression.
+*/
+ms_Expr *ms_ExprDup(const ms_Expr *src);
+
+/**
 * @brief Flatten two expressions such that the expression tree does not
 * become too deep too quickly.
 *
