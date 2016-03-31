@@ -184,6 +184,7 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST
 
     if (prs->ast) {
         ms_ASTDestroy(prs->ast);
+        prs->ast = NULL;
     }
 
     *err = NULL;
@@ -261,11 +262,20 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * sub_list:        '[' expr_list ']'
  */
 
+/*
+ * For the most part, the parsing functions bubble their return values up
+ * as output parameters (pointers to pointers). It is for this reason that
+ * very few functions appear to clean up their allocated memory in the case
+ * of an error. However, note that everything ultimately bubbles up to the
+ * parser `ast` field which is always cleaned up when the parser is destroyed
+ * or whenever the parser is reinitialized with a new file or string.
+ */
+
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
     assert(prs);
     assert(stmt);
 
-    ms_ParseResult res = PARSE_ERROR;
+    ms_ParseResult res;
     ms_Token *cur = prs->cur;
 
     if (!cur) {
@@ -273,7 +283,7 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         return PARSE_ERROR;
     }
 
-    *stmt = malloc(sizeof(ms_Stmt));
+    *stmt = calloc(1, sizeof(ms_Stmt));
     if (!(*stmt)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -285,52 +295,41 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
             (*stmt)->type = STMTTYPE_BREAK;
             (*stmt)->cmpnt.brk = NULL;
             ParserConsumeToken(prs);
+            res = PARSE_SUCCESS;
             break;
         case KW_CONTINUE:
             (*stmt)->type = STMTTYPE_CONTINUE;
             (*stmt)->cmpnt.cont = NULL;
             ParserConsumeToken(prs);
+            res = PARSE_SUCCESS;
             break;
         case KW_DEL:
             (*stmt)->type = STMTTYPE_DELETE;
-            if ((res = ParserParseDeleteStatement(prs, &(*stmt)->cmpnt.del)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseDeleteStatement(prs, &(*stmt)->cmpnt.del);
             break;
         case KW_IF:
             (*stmt)->type = STMTTYPE_IF;
-            if ((res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt);
             break;
         case KW_MERGE:
             (*stmt)->type = STMTTYPE_MERGE;
-            if ((res = ParserParseMergeStatement(prs, &(*stmt)->cmpnt.merge)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseMergeStatement(prs, &(*stmt)->cmpnt.merge);
             break;
         case KW_RETURN:
             (*stmt)->type = STMTTYPE_RETURN;
-            if ((res = ParserParseReturnStatement(prs, &(*stmt)->cmpnt.ret)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseReturnStatement(prs, &(*stmt)->cmpnt.ret);
             break;
         case KW_VAR:
             (*stmt)->type = STMTTYPE_DECLARATION;
-            if ((res = ParserParseDeclaration(prs, &(*stmt)->cmpnt.decl)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseDeclaration(prs, &(*stmt)->cmpnt.decl);
             break;
         case IDENTIFIER:
-            if ((res = ParserParseAssignment(prs, stmt)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseAssignment(prs, stmt);
             break;
         default:
             (*stmt)->type = STMTTYPE_EXPRESSION;
-            if ((res = ParserParseExpression(prs, &(*stmt)->cmpnt.expr)) == PARSE_ERROR) {
-                return res;
-            }
+            res = ParserParseExpression(prs, &(*stmt)->cmpnt.expr);
+            break;
     }
 
     return res;
@@ -339,8 +338,6 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
 static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
     assert(prs);
     assert(block);
-
-    ms_ParseResult res = PARSE_SUCCESS;
 
     *block = dsarray_new_cap(STATEMENT_BLOCK_DEFAULT_CAP, NULL,
                              (dsarray_free_fn)ms_StmtDestroy);
@@ -359,8 +356,8 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
 
     while ((prs->cur) && (!ParserExpectToken(prs, RBRACE))) {
         ms_Stmt *stmt;
-        if ((res = ParserParseStatement(prs, &stmt)) == PARSE_ERROR) {
-            return res;
+        if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
+            return PARSE_ERROR;
         }
         ParserConsumeNewlines(prs);
         dsarray_append(*block, stmt);
@@ -372,14 +369,14 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
     }
 
     ParserConsumeToken(prs);
-    return res;
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete **del) {
     assert(prs);
     assert(del);
 
-    *del = malloc(sizeof(ms_StmtDelete));
+    *del = calloc(1, sizeof(ms_StmtDelete));
     if (!(*del)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -398,9 +395,7 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
     assert(prs);
     assert(ifstmt);
 
-    ms_ParseResult res;
-
-    *ifstmt = malloc(sizeof(ms_StmtIf));
+    *ifstmt = calloc(1, sizeof(ms_StmtIf));
     if (!(*ifstmt)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -412,17 +407,16 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
     }
 
     ParserConsumeToken(prs);
-    if ((res = ParserParseExpression(prs, &(*ifstmt)->expr)) == PARSE_ERROR) {
-        return res;
+    if (ParserParseExpression(prs, &(*ifstmt)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
     }
 
-    if ((res = ParserParseBlock(prs, &(*ifstmt)->block)) == PARSE_ERROR) {
-        return res;
+    if (ParserParseBlock(prs, &(*ifstmt)->block) == PARSE_ERROR) {
+        return PARSE_ERROR;
     }
 
     if (!ParserExpectToken(prs, KW_ELSE)) {
-        (*ifstmt)->elif = NULL;
-        return res;
+        return PARSE_ERROR;
     }
 
     return ParserParseElseStatement(prs, &(*ifstmt)->elif);
@@ -432,7 +426,7 @@ static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **e
     assert(prs);
     assert(elif);
 
-    *elif = malloc(sizeof(ms_StmtIfElse));
+    *elif = calloc(1, sizeof(ms_StmtIfElse));
     if (!(*elif)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -463,7 +457,7 @@ static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **m
     assert(prs);
     assert(merge);
 
-    *merge = malloc(sizeof(ms_StmtMerge));
+    *merge = calloc(1, sizeof(ms_StmtMerge));
     if (!(*merge)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -492,7 +486,7 @@ static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn *
     assert(prs);
     assert(ret);
 
-    *ret = malloc(sizeof(ms_StmtReturn));
+    *ret = calloc(1, sizeof(ms_StmtReturn));
     if (!(*ret)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -511,7 +505,7 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration 
     assert(prs);
     assert(decl);
 
-    *decl = malloc(sizeof(ms_StmtDeclaration));
+    *decl = calloc(1, sizeof(ms_StmtDeclaration));
     if (!(*decl)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -586,7 +580,7 @@ static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name,
     assert(stmt);
 
     ParserConsumeToken(prs);
-    (*stmt)->cmpnt.assign = malloc(sizeof(ms_StmtAssignment));
+    (*stmt)->cmpnt.assign = calloc(1, sizeof(ms_StmtAssignment));
     if (!((*stmt)->cmpnt.assign)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -594,7 +588,6 @@ static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name,
 
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
     (*stmt)->cmpnt.assign->ident = name;
-    (*stmt)->cmpnt.assign->expr = NULL;
     return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr);
 }
 
@@ -616,7 +609,7 @@ static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *nam
     }
 
     ParserConsumeToken(prs);
-    (*stmt)->cmpnt.assign = malloc(sizeof(ms_StmtAssignment));
+    (*stmt)->cmpnt.assign = calloc(1, sizeof(ms_StmtAssignment));
     if (!((*stmt)->cmpnt.assign)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -624,7 +617,6 @@ static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *nam
 
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
     (*stmt)->cmpnt.assign->ident = name;
-    (*stmt)->cmpnt.assign->expr = NULL;
     ms_Expr *right = NULL;
 
     /* parse the right piece of the expanded compound expression  */
