@@ -32,6 +32,7 @@
 
 static const size_t EXPRESSION_LIST_DEFAULT_LEN = 10;
 static const size_t STATEMENT_BLOCK_DEFAULT_CAP = 10;
+static const size_t ARGUMENT_LIST_DEFAULT_CAP = 10;
 
 struct ms_Parser {
     ms_Lexer *lex;                          /** lexer object */
@@ -62,6 +63,7 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
 static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
+static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
@@ -83,6 +85,7 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr, ms_ExprBinaryOp *op);
 static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_TokenType closer);
 static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr);
+static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require_name, ms_Expr **expr);
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_ExprUnaryOp op, ms_Expr **newexpr);
 
@@ -328,6 +331,10 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         case KW_RETURN:
             (*stmt)->type = STMTTYPE_RETURN;
             res = ParserParseReturnStatement(prs, &(*stmt)->cmpnt.ret);
+            break;
+        case KW_FUNC:
+            (*stmt)->type = STMTTYPE_DECLARATION;
+            res = ParserParseFunctionDeclaration(prs, &(*stmt)->cmpnt.decl);
             break;
         case KW_VAR:
             (*stmt)->type = STMTTYPE_DECLARATION;
@@ -623,6 +630,29 @@ static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn *
 
     ParserConsumeToken(prs);
     return ParserParseExpression(prs, &(*ret)->expr);
+}
+
+static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
+    assert(prs);
+    assert(decl);
+
+    *decl = calloc(1, sizeof(ms_StmtDeclaration));
+    if (!(*decl)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (ParserParseFunctionExpression(prs, true, &(*decl)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    const ms_Ident *name = (*decl)->expr->cmpnt.u->atom.val.val.fn->ident;  /* just... lol */
+    (*decl)->ident = dsbuf_dup(name);
+    if (!(*decl)->ident) {
+        return PARSE_ERROR;
+    }
+
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
@@ -1315,7 +1345,7 @@ static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_Tok
     }
 
     /* no parameters, close and return */
-    if ((prs->cur) && (prs->cur->type == RPAREN)) {
+    if ((prs->cur) && (prs->cur->type == closer)) {
         ParserConsumeToken(prs);
         return PARSE_SUCCESS;
     }
@@ -1431,6 +1461,10 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
             break;
         }
 
+            /* function literal */
+        case KW_FUNC:
+            return ParserParseFunctionExpression(prs, false, expr);
+
             /* parenthetical expression */
         case LPAREN:
             ParserConsumeToken(prs);
@@ -1452,6 +1486,117 @@ static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
 
     ParserConsumeToken(prs);
     return res;
+}
+
+static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require_name, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    /*
+     * Function declarations for mscript of the form
+     *
+     *      func name(arg1, arg2) {
+     *          return arg1 + arg2
+     *      }
+     *
+     * are internally rewritten as the following
+     *
+     *      var name := func name(arg1, arg2) {
+     *          return arg1 + arg2
+     *      }
+     *
+     * when declared at the top level. This obviates the need for
+     * programmers to declare functions using the cumbersome `var`
+     * syntax for functions declared as statements.
+     *
+     * This does not preclude programmers from using anonymous
+     * function declarations as expressions, however, as in
+     *
+     *      api.ProcessData(func (arg1, arg2) {
+     *          return arg1 + arg2
+     *      })
+     *
+     * Note that top-level function declarations require a name
+     * following the `func` keyword, which is in contrast to
+     * anonymous functions declared as expressions.
+     */
+
+    ms_ValFunc *fn = calloc(1, sizeof(ms_ValFunc));
+    if (!fn) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    *expr = ms_ExprNewWithFunc(fn);
+    if (!(*expr)) {
+        ms_ValFuncDestroy(fn);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_FUNC)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_FUNC, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    /* potentially optional name (see description above) */
+    bool has_name = ParserExpectToken(prs, IDENTIFIER);
+    if (!has_name && require_name) {
+        ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    /* steal the identifier for the declaration */
+    if (has_name) {
+        fn->ident = prs->cur->value;
+        prs->cur->value = NULL;
+        ParserConsumeToken(prs);
+    }
+
+    /* parse the argument name list */
+    if (!ParserExpectToken(prs, LPAREN)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, "(", prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    fn->args = dsarray_new_cap(ARGUMENT_LIST_DEFAULT_CAP, NULL,
+                                  (dsarray_free_fn)dsbuf_destroy);
+    if (!fn->args) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    while (!ParserExpectToken(prs, RPAREN)) {
+        if (!ParserExpectToken(prs, IDENTIFIER)) {
+            ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line,
+                           prs->col);
+            return PARSE_ERROR;
+        }
+
+        ms_Ident *ident = prs->cur->value;
+        prs->cur->value = NULL;
+        dsarray_append(fn->args, ident);
+        ParserConsumeToken(prs);
+
+        if (ParserExpectToken(prs, COMMA)) {
+            ParserConsumeToken(prs);
+        } else {
+            if (!ParserExpectToken(prs, RPAREN)) {
+                ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_COMMA, prs->line, prs->col);
+                return PARSE_ERROR;
+            }
+        }
+    }
+
+    if (!ParserExpectToken(prs, RPAREN)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_RPAREN, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    return ParserParseBlock(prs, &fn->block);
 }
 
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr) {

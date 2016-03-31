@@ -115,6 +115,19 @@ ms_Expr *ms_ExprNewWithList(ms_ExprList *list) {
     return expr;
 }
 
+ms_Expr *ms_ExprNewWithFunc(ms_ValFunc *fn) {
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->cmpnt.u->atom.val.type = MSVAL_FUNC;
+    expr->cmpnt.u->atom.val.val.fn = fn;
+    expr->cmpnt.u->type = EXPRATOM_VALUE;
+    expr->cmpnt.u->op = UNARY_NONE;
+    return expr;
+}
+
 ms_Expr *ms_ExprFloatFromString(const char *str) {
     assert(str);
 
@@ -388,6 +401,17 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     return outer;
 }
 
+void ms_ValFuncDestroy(ms_ValFunc *fn) {
+    if (!fn) { return; }
+    dsbuf_destroy(fn->ident);
+    fn->ident = NULL;
+    dsarray_destroy(fn->args);
+    fn->args = NULL;
+    dsarray_destroy(fn->block);
+    fn->block = NULL;
+    free(fn);
+}
+
 void ms_ExprDestroy(ms_Expr *expr) {
     if (!expr) { return; }
     switch (expr->type) {
@@ -474,7 +498,12 @@ void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
             dsarray_destroy(atom->list);
             atom->list = NULL;
             break;
-        case EXPRATOM_VALUE:    /* no free required */
+        case EXPRATOM_VALUE:
+            if (atom->val.type == MSVAL_FUNC) {
+                ms_ValFuncDestroy(atom->val.val.fn);
+                atom->val.val.fn = NULL;
+            }
+            break;
         case EXPRATOM_EMPTY:    /* no free required */
             break;
     }

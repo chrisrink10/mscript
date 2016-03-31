@@ -26,6 +26,7 @@
 #include "libds/hash.h"
 #include "obj.h"
 #include "vm.h"
+#include "lang.h"
 
 #define FRAME_DATA_STACK_LIMIT_L (256)
 #define VM_FRAME_STACK_LIMIT_L (256)
@@ -606,6 +607,9 @@ static inline size_t VMPrint(ms_VM *vm) {
             break;
         case MSVAL_STR:
             printf("%s\n", dsbuf_char_ptr(v->val.s));
+            break;
+        case MSVAL_FUNC:
+            printf("%s\n", dsbuf_char_ptr(v->val.fn->ident));
             break;
     }
     return 1;

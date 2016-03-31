@@ -27,8 +27,10 @@ typedef struct ms_Expr ms_Expr;
  * MISCELLANEOUS LANGUAGE COMPONENTS
  */
 
+typedef DSArray ms_StmtBlock;
 typedef DSBuffer ms_Ident;
 typedef DSArray ms_ExprList;
+typedef DSArray ms_ArgList;
 
 /*
  * VALUE LANGUAGE COMPONENTS
@@ -40,12 +42,19 @@ typedef DSBuffer ms_ValStr;
 typedef bool ms_ValBool;
 typedef const void ms_ValNull;
 
+typedef struct {
+    ms_Ident *ident;
+    ms_ArgList *args;
+    ms_StmtBlock *block;
+} ms_ValFunc;
+
 typedef enum {
     MSVAL_FLOAT,
     MSVAL_INT,
     MSVAL_STR,
     MSVAL_BOOL,
     MSVAL_NULL,
+    MSVAL_FUNC,
 } ms_ValDataType;
 
 typedef union {
@@ -54,6 +63,7 @@ typedef union {
     ms_ValStr *s;
     ms_ValBool b;
     ms_ValNull *n;
+    ms_ValFunc *fn;
 } ms_ValData;
 
 typedef struct {
@@ -153,8 +163,6 @@ typedef enum {
 /*
  * STATEMENT LANGUAGE COMPONENTS
  */
-
-typedef DSArray ms_StmtBlock;
 
 typedef struct ms_StmtBreak ms_StmtBreak;           /* dummy types required to be declared */
 typedef struct ms_StmtContinue ms_StmtContinue;     /* as pointers (which will have to be NULL) */
@@ -305,6 +313,11 @@ ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len);
 ms_Expr *ms_ExprNewWithList(ms_ExprList *list);
 
 /**
+* @brief Create a new @c ms_Expr object for containing a function expression.
+*/
+ms_Expr *ms_ExprNewWithFunc(ms_ValFunc *fn);
+
+/**
 * @brief Create a new unary @c ms_Expr object containing a floating point
 * number from a string.
 */
@@ -337,6 +350,11 @@ ms_Expr *ms_ExprDup(const ms_Expr *src);
 * @returns the outer expression
 */
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
+
+/**
+* @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.
+*/
+void ms_ValFuncDestroy(ms_ValFunc *fn);
 
 /**
 * @brief Destroy the given @c ms_Expr and any nested expressions.
