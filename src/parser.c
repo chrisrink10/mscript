@@ -55,6 +55,9 @@ static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: 
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block);
 static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete **del);
+static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forstmt);
+static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIncrement **inc, ms_StmtBlock **block);
+static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIterator **iter, ms_StmtBlock **block);
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
 static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
@@ -229,8 +232,11 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
- * stmt:            'break' | 'continue' | del_stmt | if_stmt | merge_stmt |
- *                  ret_stmt | declare | assign | expr
+ * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
+ *                  merge_stmt | ret_stmt | declare | assign | expr
+ * for_stmt:        'for' ['var'] expr ':=' expr [':' expr [':' expr]] |
+ *                  'for' ['var'] expr 'in' expr block |
+ *                  'for' expr block
  * if_stmt:         'if' expr block [else_stmt]
  * else_stmt:       'else' if_stmt | 'else' block
  * del_stmt:        'delete' expr
@@ -306,6 +312,10 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         case KW_DEL:
             (*stmt)->type = STMTTYPE_DELETE;
             res = ParserParseDeleteStatement(prs, &(*stmt)->cmpnt.del);
+            break;
+        case KW_FOR:
+            (*stmt)->type = STMTTYPE_FOR;
+            res = ParserParseForStatement(prs, &(*stmt)->cmpnt.forstmt);
             break;
         case KW_IF:
             (*stmt)->type = STMTTYPE_IF;
@@ -389,6 +399,120 @@ static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete *
 
     ParserConsumeToken(prs);
     return ParserParseExpression(prs, &(*del)->expr);
+}
+
+static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forstmt) {
+    assert(prs);
+    assert(forstmt);
+
+    *forstmt = calloc(1, sizeof(ms_StmtFor));
+    if (!(*forstmt)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_FOR)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_FOR, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    /* one of { iterator, incremented } FOR statement with declaration */
+    bool declare = false;
+    if (ParserExpectToken(prs, KW_VAR)) {
+        ParserConsumeToken(prs);
+        declare = true;
+    }
+
+    /* one of { iterator, incremented } FOR statement without declaration */
+    ms_Expr *ident;
+    if (ParserParseExpression(prs, &ident) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    if (ParserExpectToken(prs, OP_EQ)) {
+        ParserConsumeToken(prs);
+        (*forstmt)->type = FORSTMT_INCREMENT;
+        return ParserParseForIncrement(prs, ident, declare, &(*forstmt)->clause.inc, &(*forstmt)->block);
+    } else if (ParserExpectToken(prs, KW_IN)) {
+        ParserConsumeToken(prs);
+        (*forstmt)->type = FORSTMT_ITERATOR;
+        return ParserParseForIterator(prs, ident, declare, &(*forstmt)->clause.iter, &(*forstmt)->block);
+    }
+
+    /* prohibit 'var' keyword for generic single expression FOR statements */
+    if (declare) {
+        ParserErrorSet(prs, ERR_EXPECTED_EXPRESSION, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    /* generic single expression FOR statement */
+    (*forstmt)->type = FORSTMT_EXPR;
+    (*forstmt)->clause.expr = calloc(1, sizeof(ms_StmtForExpr));
+    if (!(*forstmt)->clause.expr) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+    (*forstmt)->clause.expr->expr = ident;
+    return ParserParseBlock(prs, &(*forstmt)->block);
+}
+
+static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIncrement **inc, ms_StmtBlock **block) {
+    assert(prs);
+    assert(ident);
+    assert(inc);
+
+    *inc = calloc(1, sizeof(ms_StmtForIncrement));
+    if (!(*inc)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+    (*inc)->declare = declare;
+    (*inc)->ident = ident;
+
+    if (ParserParseExpression(prs, &(*inc)->init) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, COLON)) {
+        return PARSE_SUCCESS;
+    }
+    ParserConsumeToken(prs);
+
+    if (ParserParseExpression(prs, &(*inc)->end) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, COLON)) {
+        return PARSE_SUCCESS;
+    }
+    ParserConsumeToken(prs);
+
+    if (ParserParseExpression(prs, &(*inc)->step) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseBlock(prs, block);
+}
+
+static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIterator **iter, ms_StmtBlock **block) {
+    assert(prs);
+    assert(ident);
+    assert(iter);
+
+    *iter = calloc(1, sizeof(ms_StmtForIterator));
+    if (!(*iter)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+    (*iter)->declare = declare;
+    (*iter)->ident = ident;
+
+    if (ParserParseExpression(prs, &(*iter)->iter) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseBlock(prs, block);
 }
 
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt) {

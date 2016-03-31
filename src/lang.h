@@ -158,6 +158,43 @@ typedef DSArray ms_StmtBlock;
 
 typedef struct ms_StmtBreak ms_StmtBreak;           /* dummy types required to be declared */
 typedef struct ms_StmtContinue ms_StmtContinue;     /* as pointers (which will have to be NULL) */
+
+typedef enum {
+    FORSTMT_INCREMENT,
+    FORSTMT_ITERATOR,
+    FORSTMT_EXPR,
+} ms_StmtForType;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Expr *init;
+    ms_Expr *end;
+    ms_Expr *step;
+    bool declare;
+} ms_StmtForIncrement;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Expr *iter;
+    bool declare;
+} ms_StmtForIterator;
+
+typedef struct {
+    ms_Expr *expr;
+} ms_StmtForExpr;
+
+typedef union {
+    ms_StmtForIncrement *inc;
+    ms_StmtForIterator *iter;
+    ms_StmtForExpr *expr;
+} ms_StmtForClause;
+
+typedef struct {
+    ms_StmtForClause clause;
+    ms_StmtForType type;
+    ms_StmtBlock *block;
+} ms_StmtFor;
+
 typedef struct ms_StmtIf ms_StmtIf;
 typedef struct ms_StmtElse ms_StmtElse;
 
@@ -214,6 +251,7 @@ typedef enum {
     STMTTYPE_BREAK,
     STMTTYPE_CONTINUE,
     STMTTYPE_DELETE,
+    STMTTYPE_FOR,
     STMTTYPE_IF,
     STMTTYPE_MERGE,
     STMTTYPE_RETURN,
@@ -226,6 +264,7 @@ typedef union {
     ms_StmtBreak *brk;
     ms_StmtContinue *cont;
     ms_StmtDelete *del;
+    ms_StmtFor *forstmt;
     ms_StmtIf *ifstmt;
     ms_StmtMerge *merge;
     ms_StmtReturn *ret;
