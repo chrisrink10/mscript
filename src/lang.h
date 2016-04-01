@@ -354,6 +354,17 @@ ms_Expr *ms_ExprDup(const ms_Expr *src);
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
+* @brief Determine if an expression contains _only_ a single identifier.
+*/
+bool ms_ExprIsIdent(const ms_Expr *expr);
+
+/**
+* @brief Determine if an expression contains _only_ a qualified identifier.
+* Qualified identifiers are in the form: IDENTIFIER ('.' IDENTIFIER)*
+*/
+bool ms_ExprIsQualifiedIdent(const ms_Expr *expr);
+
+/**
 * @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.
 */
 void ms_ValFuncDestroy(ms_ValFunc *fn);

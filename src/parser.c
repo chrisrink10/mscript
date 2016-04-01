@@ -53,6 +53,8 @@ static const char *const ERR_EXPECTED_KEYWORD = "Expected keyword '%s' (ln: %d, 
 static const char *const ERR_EXPECTED_STATEMENT = "Expected statement (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
+static const char *const ERR_MUST_ASSIGN_TO_IDENT = "Assignment target must be identifier (ln: %d, col: %d)";
+static const char *const ERR_MUST_ASSIGN_TO_QIDENT = "Assignment target must be identifier or qualified identifier (ln: %d, col: %d)";
 
 static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module);
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
@@ -95,6 +97,7 @@ static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static inline void ParserConsumeNewlines(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
+static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParseErrorDestroy(ms_ParseError *err);
 
@@ -303,6 +306,10 @@ static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module) {
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
             return PARSE_ERROR;
         }
+        if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
+            ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
         ParserConsumeNewlines(prs);
         dsarray_append(*module, stmt);
     }
@@ -406,6 +413,10 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
             return PARSE_ERROR;
         }
+        if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
+            ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
         ParserConsumeNewlines(prs);
         dsarray_append(*block, stmt);
     }
@@ -465,6 +476,19 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
     ms_Expr *ident;
     if (ParserParseExpression(prs, &ident) == PARSE_ERROR) {
         return PARSE_ERROR;
+    }
+
+    /* verify that the expression is an identifier */
+    if (declare) {
+        if (!ms_ExprIsIdent(ident)) {
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+    } else {
+        if (!ms_ExprIsQualifiedIdent(ident)) {
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
     }
 
     if (ParserExpectToken(prs, OP_EQ)) {
@@ -731,6 +755,11 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
 
     /* some sort of assignment (simple or compound) */
     if (ParserExpectToken(prs, OP_EQ)) {
+        if (!ms_ExprIsQualifiedIdent(name)) {
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+
         if (ParserParseSimpleAssignment(prs, name, stmt) == PARSE_ERROR) {
             ms_ExprDestroy(name);
             return PARSE_ERROR;
@@ -743,6 +772,11 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
                ParserExpectToken(prs, OP_DIVIDE_EQUALS) ||
                ParserExpectToken(prs, OP_IDIVIDE_EQUALS) ||
                ParserExpectToken(prs, OP_MODULO_EQUALS)) {
+
+        if (!ms_ExprIsQualifiedIdent(name)) {
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
 
         if (ParserParseCompoundAssignment(prs, name, stmt) == PARSE_ERROR) {
             ms_ExprDestroy(name);
@@ -1703,6 +1737,22 @@ static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
     assert(prs);
 
     if ((!prs->cur) || (prs->cur->type != type)) {
+        return false;
+    }
+
+    return true;
+}
+
+// Check if the next token to see if it matches our expected next token or if
+// there are NO tokens left.
+static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type) {
+    assert(prs);
+
+    if (!prs->cur) {
+        return true;
+    }
+
+    if (prs->cur->type != type) {
         return false;
     }
 

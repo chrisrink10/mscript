@@ -401,6 +401,62 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     return outer;
 }
 
+bool ms_ExprIsIdent(const ms_Expr *expr) {
+    if (!expr) {
+        return false;
+    }
+
+    if (expr->type != EXPRTYPE_UNARY) {
+        return false;
+    }
+
+    if (!expr->cmpnt.u) {
+        return false;
+    }
+
+    if (expr->cmpnt.u->op != UNARY_NONE) {
+        return false;
+    }
+
+    if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    return true;
+}
+
+bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
+    if (!expr) {
+        return false;
+    }
+
+    if (expr->type == EXPRTYPE_UNARY) {
+        return ms_ExprIsIdent(expr);
+    }
+
+    if (!expr->cmpnt.b) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
+        if (!ms_ExprIsQualifiedIdent(expr->cmpnt.b->latom.expr)) {
+            return false;
+        }
+    } else if (expr->cmpnt.b->ltype != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->rtype != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->op != BINARY_GETATTR) {
+        return false;
+    }
+
+    return true;
+}
+
 void ms_ValFuncDestroy(ms_ValFunc *fn) {
     if (!fn) { return; }
     dsbuf_destroy(fn->ident);
