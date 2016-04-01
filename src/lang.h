@@ -236,6 +236,11 @@ typedef struct {
 } ms_StmtDelete;
 
 typedef struct {
+    ms_Expr *ident;
+    ms_Ident *alias;
+} ms_StmtImport;
+
+typedef struct {
     ms_Expr *left;
     ms_Expr *right;
 } ms_StmtMerge;
@@ -261,6 +266,7 @@ typedef enum {
     STMTTYPE_DELETE,
     STMTTYPE_FOR,
     STMTTYPE_IF,
+    STMTTYPE_IMPORT,
     STMTTYPE_MERGE,
     STMTTYPE_RETURN,
     STMTTYPE_ASSIGNMENT,
@@ -274,6 +280,7 @@ typedef union {
     ms_StmtDelete *del;
     ms_StmtFor *forstmt;
     ms_StmtIf *ifstmt;
+    ms_StmtImport *import;
     ms_StmtMerge *merge;
     ms_StmtReturn *ret;
     ms_StmtAssignment *assign;

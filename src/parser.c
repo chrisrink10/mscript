@@ -55,6 +55,7 @@ static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
 static const char *const ERR_MUST_ASSIGN_TO_IDENT = "Assignment target must be identifier (ln: %d, col: %d)";
 static const char *const ERR_MUST_ASSIGN_TO_QIDENT = "Assignment target must be identifier or qualified identifier (ln: %d, col: %d)";
+static const char *const ERR_MUST_IMPORT_QIDENT = "Imported module must be identifier or qualified identifier (ln: %d, col: %d)";
 
 static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module);
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
@@ -65,6 +66,7 @@ static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bo
 static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIterator **iter, ms_StmtBlock **block);
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
 static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
+static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport **import);
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
@@ -242,13 +244,15 @@ void ms_ParserDestroy(ms_Parser *prs) {
  *
  * module:          (stmt)*
  * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
- *                  merge_stmt | ret_stmt | func_decl | declare | assign | expr
+ *                  import_stmt | merge_stmt | ret_stmt | func_decl |
+ *                  declare | assign | expr
  * for_stmt:        'for' ('var') expr ':=' expr (':' expr (':' expr)) |
  *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
  * if_stmt:         'if' expr block (else_stmt)
  * else_stmt:       'else' if_stmt | 'else' block
  * del_stmt:        'delete' expr
+ * import_stmt:     'import' expr (':' IDENTIFIER)
  * merge_stmt:      'merge' expr ':=' expr
  * ret_stmt:        'return' expr
  * block:           '{' stmt* '}'
@@ -360,6 +364,10 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         case KW_IF:
             (*stmt)->type = STMTTYPE_IF;
             res = ParserParseIfStatement(prs, &(*stmt)->cmpnt.ifstmt);
+            break;
+        case KW_IMPORT:
+            (*stmt)->type = STMTTYPE_IMPORT;
+            res = ParserParseImportStatement(prs, &(*stmt)->cmpnt.import);
             break;
         case KW_MERGE:
             (*stmt)->type = STMTTYPE_MERGE;
@@ -636,6 +644,49 @@ static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **e
 
     (*elif)->type = IFELSE_ELSE;
     return ParserParseBlock(prs, &(*elif)->clause.elstmt->block);
+}
+
+static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport **import) {
+    assert(prs);
+    assert(import);
+
+    *import = calloc(1, sizeof(ms_StmtImport));
+    if (!(*import)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, KW_IMPORT)) {
+        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_IMPORT, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
+    if (ParserParseExpression(prs, &(*import)->ident) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    if (!ms_ExprIsQualifiedIdent((*import)->ident)) {
+        ParserErrorSet(prs, ERR_MUST_IMPORT_QIDENT, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, COLON)) {
+        return PARSE_SUCCESS;
+    }
+
+    ParserConsumeToken(prs);
+
+    if (!ParserExpectToken(prs, IDENTIFIER)) {
+        ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    /* steal the identifier from the token */
+    (*import)->alias = prs->cur->value;
+    prs->cur->value = NULL;
+    ParserConsumeToken(prs);
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge) {
