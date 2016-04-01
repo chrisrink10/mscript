@@ -236,7 +236,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * Expression Grammar:
  *
  * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
- *                  merge_stmt | ret_stmt | declare | assign | expr
+ *                  merge_stmt | ret_stmt | func_decl | declare | assign | expr
  * for_stmt:        'for' ('var') expr ':=' expr (':' expr (':' expr)) |
  *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
