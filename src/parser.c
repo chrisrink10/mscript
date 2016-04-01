@@ -237,16 +237,17 @@ void ms_ParserDestroy(ms_Parser *prs) {
  *
  * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
  *                  merge_stmt | ret_stmt | declare | assign | expr
- * for_stmt:        'for' ['var'] expr ':=' expr [':' expr [':' expr]] |
- *                  'for' ['var'] expr 'in' expr block |
+ * for_stmt:        'for' ('var') expr ':=' expr (':' expr (':' expr)) |
+ *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
- * if_stmt:         'if' expr block [else_stmt]
+ * if_stmt:         'if' expr block (else_stmt)
  * else_stmt:       'else' if_stmt | 'else' block
  * del_stmt:        'delete' expr
  * merge_stmt:      'merge' expr ':=' expr
  * ret_stmt:        'return' expr
  * block:           '{' stmt* '}'
- * declare:         'var' IDENTIFIER [':=' expr] (',' IDENTIFIER [':=' expr])*
+ * func_decl:       'func' IDENTIFIER '(' ident_list ')' block
+ * declare:         'var' IDENTIFIER (':=' expr) (',' IDENTIFIER (':=' expr))*
  * assign:          expr (':=' | '+=' | '-=' | '*=' | '/=' | '\=' | '%=') expr
  *
  * expr:            or_expr ('||' or_expr)*
@@ -262,13 +263,15 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * power_expr:      atom_expr ('**' arith_expr)*
  * term_expr:       ('-'|'!'|'~') atom_expr | power_expr
  * atom_expr:       atom [accessor]*
- * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL |
- *                  IDENTIFIER | BUILTIN_FUNC | GLOBAL | expr | '(' expr ')'
+ * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL | GLOBAL |
+ *                  IDENTIFIER | BUILTIN_FUNC | func_expr | expr | '(' expr ')'
+ * func_expr:       'func' (IDENTIFIER) '(' ident_list ')' block
  *
  * accessor:        arg_list | sub_list | '.' IDENTIFIER
- * expr_list:       expr [',' expr]*
+ * expr_list:       (expr (',' expr)*)
  * arg_list:        '(' expr_list ')'
  * sub_list:        '[' expr_list ']'
+ * ident_list:      (IDENTIFIER (',' IDENTIFIER)*)
  */
 
 /*
