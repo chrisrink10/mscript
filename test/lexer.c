@@ -39,7 +39,8 @@ static MunitParameterEnum int_num_params[] = {
 
 static char* float_num_vals[] = {
     "32223.53", "3.14", "2.7182818284", "1.6180339", "1.414", "2.",
-    "2402.", "1332.", "10e4", "1e10", "2.3e8", "8.e4", "7e33",
+    "2402.", "1332.", "10e4", "1e10", "2.3e8", "8.e4", "7e33", ".2",
+    ".0314", "0.02718",
     NULL
 };
 
@@ -83,7 +84,7 @@ static char *reserved_keyword_vals[] = {
     "while", "switch", "goto", "error", "class", "private", "public",
     "protected", "yield", "from", "try", "except", "finally", "do", "and",
     "or", "mut", "const", "async", "await", "repeat", "until", "package",
-    "num", "str", "bool", "datetime", "obj", "as",
+    "num", "str", "bool", "datetime", "obj", "as", "with", "using",
     NULL
 };
 
