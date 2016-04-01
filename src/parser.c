@@ -30,9 +30,10 @@
  * FORWARD DECLARATIONS
  */
 
-static const size_t EXPRESSION_LIST_DEFAULT_LEN = 10;
-static const size_t STATEMENT_BLOCK_DEFAULT_CAP = 10;
 static const size_t ARGUMENT_LIST_DEFAULT_CAP = 10;
+static const size_t EXPRESSION_LIST_DEFAULT_CAP = 10;
+static const size_t MODULE_DEFAULT_CAP = 10;
+static const size_t STATEMENT_BLOCK_DEFAULT_CAP = 10;
 
 struct ms_Parser {
     ms_Lexer *lex;                          /** lexer object */
@@ -53,6 +54,7 @@ static const char *const ERR_EXPECTED_STATEMENT = "Expected statement (ln: %d, c
 static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
 
+static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module);
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block);
 static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete **del);
@@ -194,7 +196,7 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST
     }
 
     *err = NULL;
-    ms_ParseResult res = ParserParseStatement(prs, &prs->ast);
+    ms_ParseResult res = ParserParseModule(prs, &prs->ast);
 
     if ((res != PARSE_ERROR) && (prs->cur)) {
         ParserErrorSet(prs, ERR_INVALID_SYNTAX_GOT_TOK, prs->cur,
@@ -235,6 +237,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
 /*
  * Expression Grammar:
  *
+ * module:          (stmt)*
  * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
  *                  merge_stmt | ret_stmt | func_decl | declare | assign | expr
  * for_stmt:        'for' ('var') expr ':=' expr (':' expr (':' expr)) |
@@ -282,6 +285,30 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * parser `ast` field which is always cleaned up when the parser is destroyed
  * or whenever the parser is reinitialized with a new file or string.
  */
+
+static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module) {
+    assert(prs);
+    assert(module);
+
+    *module = dsarray_new_cap(MODULE_DEFAULT_CAP, NULL,
+                              (dsarray_free_fn)ms_StmtDestroy);
+    if (!(*module)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeNewlines(prs);
+    while (prs->cur) {
+        ms_Stmt *stmt;
+        if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
+            return PARSE_ERROR;
+        }
+        ParserConsumeNewlines(prs);
+        dsarray_append(*module, stmt);
+    }
+
+    return PARSE_SUCCESS;
+}
 
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
     assert(prs);
@@ -1333,7 +1360,7 @@ static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_Tok
     assert(prs);
     assert(list);
 
-    DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_LEN, NULL,
+    DSArray *params = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_CAP, NULL,
                                       (dsarray_free_fn)ms_ExprDestroy);
     if (!params) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);

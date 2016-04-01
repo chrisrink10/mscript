@@ -286,11 +286,13 @@ typedef struct {
     ms_StmtType type;
 } ms_Stmt;
 
+typedef DSArray ms_Module;
+
 /*
  * ABSTRACT SYNTAX TREE ROOT
  */
 
-typedef ms_Stmt ms_AST;
+typedef ms_Module ms_AST;
 
 /**
 * @brief Create a new @c ms_Expr object.
@@ -369,6 +371,6 @@ void ms_StmtDestroy(ms_Stmt *stmt);
 /*
 * @brief Placeholder for real AST destroy function.
 */
-#define ms_ASTDestroy(ast) ms_StmtDestroy(ast)
+#define ms_ASTDestroy(ast) dsarray_destroy(ast)
 
 #endif //MSCRIPT_LANG_H
