@@ -43,6 +43,76 @@ typedef struct ParseResultTuple {
  * TEST DEFINITIONS
  */
 
+static char* bad_code[] = {
+    "(",
+    "(3 ",
+    "(3 + ",
+    "(3 + 3",
+    "3 +",
+    "3 + 3)",
+    "+ 3",
+    "+ 3)",
+    "(+ 3",
+    "+3",
+    "3 ++ 3",
+    "3!",
+    "3!!",
+    "3-",
+    "3--",
+    "3~",
+    "3~~",
+    "-3-",
+    "~3~",
+    "!3!",
+    "3 5",
+    "true.",
+    "name.",
+    "name.second.",
+    "break \"string\"",
+    "continue 3.14",
+    "del",
+    "del for",
+    "for var := 10 { }",
+    "for var 10 := true { }",
+    "for var x := { }",
+    "for var x := 1 : { }",
+    "for var x := 1 : 10 : { }",
+    "for 10 := true { }",
+    "for := true { }",
+    "for x := { }",
+    "for x := 1 : { }",
+    "for x := 1 : 10 : { }",
+    "for x += 1 { }",
+    "for i in { }",
+    "for { }",
+    "for true",
+    "for true {",
+    "if { }",
+    "if true {",
+    "if true { } else {",
+    "if true { } else if { }",
+    "else { }",
+    "import",
+    "import 10",
+    "import Sys :",
+    "import Sys : true",
+    "merge",
+    "merge 10",
+    "merge x :=",
+    "merge var := y",
+    "return )",
+    "return func",
+    "func { }",
+    "var := 10",
+    "var name :=",
+    NULL
+};
+
+static MunitParameterEnum parse_error_params[] = {
+    { "code", bad_code },
+    { NULL, NULL }
+};
+
 MunitTest parser_tests[] = {
     {
         "/ParseErrors",
@@ -50,7 +120,7 @@ MunitTest parser_tests[] = {
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
-        NULL
+        parse_error_params
     },
     {
         "/Literals",
@@ -119,6 +189,7 @@ static void CleanStatement(ms_Stmt *stmt);
 static void CleanBlock(ms_StmtBlock *block);
 static void CleanForStatement(ms_StmtFor *forstmt);
 static void CleanIfElseStatement(ms_StmtIfElse *elif);
+static void CleanDeclaration(ms_StmtDeclaration *decl);
 static void CleanExpression(ms_Expr *expr);
 static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom);
 static void CleanFunction(ms_ValFunc *func);
@@ -128,7 +199,14 @@ static void CleanParseResultTuple(ParseResultTuple *tuple);
 static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
 /*
- * UNIT TEST FUNCTIONS
+ * AST COMPOSITION MACROS
+ *
+ * Writing struct literals for each statement and expression struct was
+ * prohibitively difficult for definiting enough test cases, so I created
+ * macros that could compose each element at a higher level and save me
+ * a tremendous amount of time in writing (and hopefully improve readability).
+ * Sadly, the complexity and nesting of these macros causes my IDE (CLion)
+ * to drag on this file -_-
  */
 
 // "Private" expression composition macros
@@ -166,50 +244,29 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define VM_BOOL(v)  ((ms_Value){ .type = MSVAL_BOOL,  .val = (ms_ValData){ .b = v } })
 #define VM_NULL()   ((ms_Value){ .type = MSVAL_NULL,  .val = (ms_ValData){ .n = MS_VM_NULL_POINTER } })
 
-MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
-    char *exprs[] = {
-        "(",
-        "(3 ",
-        "(3 + ",
-        "(3 + 3",
-        "3 +",
-        "3 + 3)",
-        "+ 3",
-        "+ 3)",
-        "(+ 3",
-        "+3",
-        "3 ++ 3",
-        "3!",
-        "3!!",
-        "3-",
-        "3--",
-        "3~",
-        "3~~",
-        "-3-",
-        "~3~",
-        "!3!",
-        "3 5",
-    };
+/*
+ * TEST CASE FUNCTIONS
+ *
+ * The functions below (mostly) contain test cases of abstract syntax tree
+ * elements and expected bytecode. Each tests a sort of fuzzy subset of
+ * language grammar elements.
+ */
 
-    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
+    const char *code = munit_parameters_get(params, "code");
     ms_Parser *prs = ms_ParserNew();
     munit_assert_non_null(prs);
 
-    for (size_t i = 0; i < len; i++) {
-        char *expr = exprs[i];
-        ms_ParserInitString(prs, expr);
+    ms_ParserInitString(prs, code);
+    ms_VMByteCode *bc;
+    const ms_ParseError *err;
+    ms_ParseResult pres = ms_ParserParse(prs, &bc, NULL, &err);
 
-        ms_VMByteCode *code;
-        const ms_ParseError *err;
-        ms_ParseResult pres = ms_ParserParse(prs, &code, NULL, &err);
-
-        munit_assert_cmp_int(pres, ==, PARSE_ERROR);
-        munit_assert_non_null(err);
-        munit_assert_null(code);
-    }
+    munit_assert_cmp_int(pres, ==, PARSE_ERROR);
+    munit_assert_non_null(err);
+    munit_assert_null(bc);
 
     ms_ParserDestroy(prs);
-
     return MUNIT_OK;
 }
 
@@ -1540,7 +1597,17 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
 }
 
 /*
- * PRIVATE FUNCTIONS
+ * COMPARISON FUNCTIONS
+ *
+ * The functions below compare the abstract syntax tree components given
+ * as test cases against the AST returned from the parser. The parse test
+ * case tuple allows callers to specify different AST granularity (expression,
+ * statement, or full module), so comparisons always need to start with
+ * `CompareASTToComponent` since it will select the more granular element
+ * from the full AST returned by the parser. Each other comparison function
+ * will be called recursively as needed when processing the AST. Each
+ * comparison function will bubble errors back up as they call various
+ * assert functions from the unit test library.
  */
 
 static MunitResult CompareASTToComponent(const ms_AST *ast, ASTComponentType type, ASTComponent *cmpnt) {
@@ -1850,6 +1917,47 @@ static MunitResult CompareFunctions(const ms_ValFunc *fn1, const ms_ValFunc *fn2
     return MUNIT_OK;
 }
 
+static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
+    ms_Parser *prs = ms_ParserNew();
+    munit_assert_non_null(prs);
+
+    for (size_t i = 0; i < len; i++) {
+        ParseResultTuple *tuple = &tuples[i];
+        ms_ParserInitString(prs, tuple->val);
+        munit_logf(MUNIT_LOG_INFO, "  code='%s'", tuple->val);
+
+        const ms_AST *ast;
+        ms_VMByteCode *code;
+        const ms_ParseError *err;
+        ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
+
+        munit_assert_cmp_int(pres, !=, PARSE_ERROR);
+        //munit_assert_non_null(code);
+        munit_assert_non_null(ast);
+        munit_assert_null(err);
+
+        //CompareByteCode(code, &tuple->bc);
+        CompareASTToComponent(ast, tuple->type, &tuple->cmpnt);
+
+        ms_VMByteCodeDestroy(code);
+        CleanParseResultTuple(tuple);
+    }
+
+    ms_ParserDestroy(prs);
+    return MUNIT_OK;
+}
+
+/*
+ * CLEAN UP FUNCTIONS
+ *
+ * Most of the structures allocated for testing that the parser forms
+ * proper ASTs from the input text are stack allocated. However, because
+ * a few of the structures inside the actual AST are heap-allocated opaque
+ * types (such as the DSArray array list and DSBuf string buffer), it is
+ * necessary to have some cleanup functions to make sure we don't leak
+ * massive amounts of memory while the tests are running.
+ */
+
 static void CleanAST(ms_AST *ast) {
     if (!ast) { return; }
 
@@ -1893,8 +2001,7 @@ static void CleanStatement(ms_Stmt *stmt) {
             CleanExpression(stmt->cmpnt.ret->expr);
             break;
         case STMTTYPE_DECLARATION:
-            dsbuf_destroy(stmt->cmpnt.decl->ident);
-            CleanExpression(stmt->cmpnt.decl->expr);
+            CleanDeclaration(stmt->cmpnt.decl);
             break;
         case STMTTYPE_ASSIGNMENT:
             CleanExpression(stmt->cmpnt.assign->ident);
@@ -1954,6 +2061,13 @@ static void CleanIfElseStatement(ms_StmtIfElse *elif) {
             CleanBlock(elif->clause.elstmt->block);
             break;
     }
+}
+
+static void CleanDeclaration(ms_StmtDeclaration *decl) {
+    if (!decl) { return; }
+    dsbuf_destroy(decl->ident);
+    CleanExpression(decl->expr);
+    CleanDeclaration(decl->next);
 }
 
 static void CleanExpression(ms_Expr *expr) {
@@ -2052,34 +2166,4 @@ static void CleanParseResultTuple(ParseResultTuple *tuple) {
     }
 
     CleanByteCode(&tuple->bc);
-}
-
-static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
-    ms_Parser *prs = ms_ParserNew();
-    munit_assert_non_null(prs);
-
-    for (size_t i = 0; i < len; i++) {
-        ParseResultTuple *tuple = &tuples[i];
-        ms_ParserInitString(prs, tuple->val);
-        munit_logf(MUNIT_LOG_INFO, "  code='%s'", tuple->val);
-
-        const ms_AST *ast;
-        ms_VMByteCode *code;
-        const ms_ParseError *err;
-        ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
-
-        munit_assert_cmp_int(pres, !=, PARSE_ERROR);
-        //munit_assert_non_null(code);
-        munit_assert_non_null(ast);
-        munit_assert_null(err);
-
-        //CompareByteCode(code, &tuple->bc);
-        CompareASTToComponent(ast, tuple->type, &tuple->cmpnt);
-
-        ms_VMByteCodeDestroy(code);
-        CleanParseResultTuple(tuple);
-    }
-
-    ms_ParserDestroy(prs);
-    return MUNIT_OK;
 }
