@@ -421,6 +421,9 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
             return PARSE_ERROR;
         }
+        if (ParserExpectToken(prs, RBRACE)) {
+            break;
+        }
         if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
             ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
             return PARSE_ERROR;
