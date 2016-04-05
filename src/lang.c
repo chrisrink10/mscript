@@ -25,6 +25,7 @@ void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type);
 void StmtDeleteDestroy(ms_StmtDelete *del);
 void StmtForDestroy(ms_StmtFor *forstmt);
 void StmtIfDestroy(ms_StmtIf *ifstmt);
+void StmtImportDestroy(ms_StmtImport *import);
 void StmtElseDestroy(ms_StmtElse *elstmt);
 void StmtMergeDestroy(ms_StmtMerge *merge);
 void StmtReturnDestroy(ms_StmtReturn *ret);
@@ -510,6 +511,10 @@ void ms_StmtDestroy(ms_Stmt *stmt) {
             StmtIfDestroy(stmt->cmpnt.ifstmt);
             stmt->cmpnt.ifstmt = NULL;
             break;
+        case STMTTYPE_IMPORT:
+            StmtImportDestroy(stmt->cmpnt.import);
+            stmt->cmpnt.import = NULL;
+            break;
         case STMTTYPE_MERGE:
             StmtMergeDestroy(stmt->cmpnt.merge);
             stmt->cmpnt.merge = NULL;
@@ -585,6 +590,7 @@ void StmtForDestroy(ms_StmtFor *forstmt) {
                 forstmt->clause.inc->end = NULL;
                 ms_ExprDestroy(forstmt->clause.inc->step);
                 forstmt->clause.inc->step = NULL;
+                free(forstmt->clause.inc);
             }
             break;
         case FORSTMT_ITERATOR:
@@ -593,12 +599,14 @@ void StmtForDestroy(ms_StmtFor *forstmt) {
                 forstmt->clause.iter->ident = NULL;
                 ms_ExprDestroy(forstmt->clause.iter->iter);
                 forstmt->clause.iter->iter = NULL;
+                free(forstmt->clause.iter);
             }
             break;
         case FORSTMT_EXPR:
             if (forstmt->clause.expr) {
                 ms_ExprDestroy(forstmt->clause.expr->expr);
                 forstmt->clause.expr->expr = NULL;
+                free(forstmt->clause.expr);
             }
             break;
     }
@@ -624,6 +632,15 @@ void StmtIfDestroy(ms_StmtIf *ifstmt) {
         }
     }
     free(ifstmt);
+}
+
+void StmtImportDestroy(ms_StmtImport *import) {
+    if (!import) { return; }
+    ms_ExprDestroy(import->ident);
+    import->ident = NULL;
+    dsbuf_destroy(import->alias);
+    import->alias = NULL;
+    free(import);
 }
 
 void StmtElseDestroy(ms_StmtElse *elstmt) {

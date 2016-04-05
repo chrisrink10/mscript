@@ -306,11 +306,13 @@ static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module) {
 
     ParserConsumeNewlines(prs);
     while (prs->cur) {
-        ms_Stmt *stmt;
+        ms_Stmt *stmt = NULL;
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
+            ms_StmtDestroy(stmt);
             return PARSE_ERROR;
         }
         if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
+            ms_StmtDestroy(stmt);
             ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
             return PARSE_ERROR;
         }
@@ -492,11 +494,13 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
     /* verify that the expression is an identifier */
     if (declare) {
         if (!ms_ExprIsIdent(ident)) {
+            ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
         }
     } else {
         if (!ms_ExprIsQualifiedIdent(ident)) {
+            ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
         }
@@ -514,6 +518,7 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
 
     /* prohibit 'var' keyword for generic single expression FOR statements */
     if (declare) {
+        ms_ExprDestroy(ident);
         ParserErrorSet(prs, ERR_EXPECTED_EXPRESSION, prs->cur, prs->line, prs->col);
         return PARSE_ERROR;
     }
@@ -522,6 +527,7 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
     (*forstmt)->type = FORSTMT_EXPR;
     (*forstmt)->clause.expr = calloc(1, sizeof(ms_StmtForExpr));
     if (!(*forstmt)->clause.expr) {
+        ms_ExprDestroy(ident);
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
     }
