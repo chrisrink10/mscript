@@ -254,7 +254,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * del_stmt:        'delete' expr
  * import_stmt:     'import' expr (':' IDENTIFIER)
  * merge_stmt:      'merge' expr ':=' expr
- * ret_stmt:        'return' expr
+ * ret_stmt:        'return' (expr)
  * block:           '{' stmt* '}'
  * func_decl:       'func' IDENTIFIER '(' ident_list ')' block
  * declare:         'var' IDENTIFIER (':=' expr) (',' IDENTIFIER (':=' expr))*
@@ -737,6 +737,20 @@ static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn *
     }
 
     ParserConsumeToken(prs);
+
+    if (!prs->cur || ParserExpectToken(prs, NEWLINE_TOK) || ParserExpectToken(prs, RBRACE)) {
+        ms_ValData p;
+        p.n = MS_VM_NULL_POINTER;
+        (*ret)->expr = ms_ExprNewWithVal(MSVAL_NULL, p);
+        if (!(*ret)->expr) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return PARSE_ERROR;
+        }
+
+        ParserConsumeToken(prs);
+        return PARSE_SUCCESS;
+    }
+
     return ParserParseExpression(prs, &(*ret)->expr);
 }
 
