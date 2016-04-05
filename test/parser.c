@@ -162,6 +162,22 @@ MunitTest parser_tests[] = {
         MUNIT_TEST_OPTION_NONE,
         NULL
     },
+    {
+        "/DeleteStatement",
+        prs_TestParseDeleteStatement,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ImportStatement",
+        prs_TestParseImportStatement,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
@@ -212,30 +228,65 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
 // "Private" expression composition macros
 #define AST(expr) (expr)
-#define AST_EXPR(arity, component) ((ms_Expr){ .type = arity, .cmpnt = component })
-#define AST_EXPRCOMPONENT(field, memb) ((ms_ExprComponent){ .field = &(memb) })
-#define AST_EXPRCOMPONENT_UNARY(atomtype, opname, atomv) AST_EXPRCOMPONENT(u, ((ms_ExprUnary){ .type = atomtype, .op = opname, .atom = atomv }))
-#define AST_EXPRCOMPONENT_BINARY(latomv, latomtype, opname, ratomv, ratomtype) AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .latom = latomv, .ltype = latomtype, .op = opname, .ratom = ratomv, .rtype = ratomtype}))
-#define AST_EXPRATOM_EXPR(eatom)  ((ms_ExprAtom){ .expr = &eatom })
-#define AST_EXPRATOM_VAL(vatom)   ((ms_ExprAtom){ .val = vatom })
-#define AST_EXPRATOM_IDENT(iatom) ((ms_ExprAtom){ .ident = iatom })
-#define AST_EXPRATOM_LIST(latom)  ((ms_ExprAtom){ .list = latom })
-#define AST_UNARY(atp, uop, v) AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
-#define AST_BINARY(latp, lv, op, ratp, rv) AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
+#define AST_EXPR(arity, component)  ((ms_Expr){ .type = arity, .cmpnt = component })
+#define AST_EXPRCOMPONENT(field, memb) \
+                                    ((ms_ExprComponent){ .field = &(memb) })
+#define AST_EXPRCOMPONENT_UNARY(atomtype, opname, atomv) \
+                                    AST_EXPRCOMPONENT(u, ((ms_ExprUnary){ .type = atomtype, .op = opname, .atom = atomv }))
+#define AST_EXPRCOMPONENT_BINARY(latomv, latomtype, opname, ratomv, ratomtype) \
+                                    AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .latom = latomv, .ltype = latomtype, .op = opname, .ratom = ratomv, .rtype = ratomtype}))
+#define AST_EXPRATOM_EXPR(eatom)    ((ms_ExprAtom){ .expr = &eatom })
+#define AST_EXPRATOM_VAL(vatom)     ((ms_ExprAtom){ .val = vatom })
+#define AST_EXPRATOM_IDENT(iatom)   ((ms_ExprAtom){ .ident = iatom })
+#define AST_EXPRATOM_LIST(latom)    ((ms_ExprAtom){ .list = latom })
+#define AST_UNARY(atp, uop, v)      AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
+#define AST_BINARY(latp, lv, op, ratp, rv) \
+                                    AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
 
 // Expression macros
-#define AST_UEXPR_I(uop, v)       AST_UNARY(EXPRATOM_IDENT, uop, AST_EXPRATOM_IDENT(v))
-#define AST_UEXPR_V(uop, v)       AST_UNARY(EXPRATOM_VALUE, uop, AST_EXPRATOM_VAL(v))
-#define AST_UEXPR_E(uop, v)       AST_UNARY(EXPRATOM_EXPRESSION, uop, AST_EXPRATOM_EXPR(v))
-#define AST_BEXPR_VV(lv, bop, rv) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
-#define AST_BEXPR_VE(lv, bop, re) AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
-#define AST_BEXPR_EV(le, bop, rv) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
-#define AST_BEXPR_EE(le, bop, re) AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
-#define AST_FNCALL_E(e, lst)      AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_FNCALL_I(id, lst)     AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_IDENT(v)         (dsbuf_new_l(v, sizeof(v)-1)) /* subtract one to ignore the terminating NUL */
-#define AST_EXPRLIST(l, ...) (dsarray_new_lit((void **)&(((ms_Expr*){ __VA_ARGS__ , })), l, l, NULL, NULL))
-#define AST_EMPTY_EXPRLIST() (dsarray_new_cap(1, NULL, NULL))
+#define AST_UEXPR_I(uop, v)         AST_UNARY(EXPRATOM_IDENT, uop, AST_EXPRATOM_IDENT(v))
+#define AST_UEXPR_V(uop, v)         AST_UNARY(EXPRATOM_VALUE, uop, AST_EXPRATOM_VAL(v))
+#define AST_UEXPR_E(uop, v)         AST_UNARY(EXPRATOM_EXPRESSION, uop, AST_EXPRATOM_EXPR(v))
+#define AST_BEXPR_VV(lv, bop, rv)   AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
+#define AST_BEXPR_VE(lv, bop, re)   AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
+#define AST_BEXPR_VI(lv, bop, ri)   AST_BINARY(EXPRATOM_VALUE, AST_EXPRATOM_VAL(lv), bop, EXPRATOM_IDENT, AST_EXPRATOM_IDENT(ri))
+#define AST_BEXPR_EV(le, bop, rv)   AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
+#define AST_BEXPR_EE(le, bop, re)   AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
+#define AST_BEXPR_EI(le, bop, ri)   AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(le), bop, EXPRATOM_IDENT, AST_EXPRATOM_IDENT(ri))
+#define AST_BEXPR_II(li, bop, ri)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_IDENT, AST_EXPRATOM_IDENT(ri))
+#define AST_BEXPR_IE(li, bop, re)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(re))
+#define AST_BEXPR_IV(li, bop, rv)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
+#define AST_FNCALL_E(e, lst)        AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_IDENT(v)                (dsbuf_new_l(v, sizeof(v)-1)) /* subtract one to ignore the terminating NUL */
+#define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)&(((ms_Expr*){ __VA_ARGS__ , })), l, l, NULL, NULL))
+#define AST_EMPTY_EXPRLIST()        (dsarray_new_cap(1, NULL, NULL))
+
+// "Private" statement composition macros
+#define AST_STMT(tp, component)         ((ms_Stmt){ .type = tp, .cmpnt = component })
+#define AST_STMTCOMPONENT(field, memb)  ((ms_StmtComponent){ .field = &(memb) })
+#define AST_STMT_FOR(fortp, c, blk)     ((ms_StmtFor){ .type = fortp, .clause = c, .block = blk })
+#define AST_STMT_ELIF(tp, m, c)         ((ms_StmtIfElse){ .type = tp, .clause = { .m = c } })
+
+// Statement macros
+#define AST_BREAK()                 AST_STMT(STMTTYPE_BREAK, AST_STMTCOMPONENT(brk, NULL))
+#define AST_CONTINUE()              AST_STMT(STMTTYPE_CONTINUE, AST_STMTCOMPONENT(cont, NULL))
+#define AST_DEL(e)                  AST_STMT(STMTTYPE_DELETE, AST_STMTCOMPONENT(del, ((ms_StmtDelete){ .expr = &(e) })))
+#define AST_FOR_INC(id, start, stop, stp, decl, b) \
+                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_INC, ((ms_StmtForInc){ .ident = id, .init = start, .end = stop, .step = stp, .declare = decl }), b)))
+#define AST_FOR_ITER(id, expr, decl, b) \
+                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_ITER, ((ms_StmtForIter){ .ident = id, .iter = expr, .declare = decl }), b)))
+#define AST_FOR_EXPR(e, b)          AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_EXPR, ((ms_StmtForExpr){ .expr = e }), b)))
+#define AST_IF_ELIF(e, b, elseif)   AST_STMT(STMTTYPE_IF, AST_STMTCOMPONENT(ifstmt, ((ms_StmtIf){ .expr = e, .block = b, .elif = elseif })))
+#define AST_ELIF_IF(e, b, elseif)   AST_STMT_ELIF(IFELSE_IF, ifstmt, AST_IF_ELIF(e, b, elseif))
+#define AST_ELIF_ELSE(b)            AST_STMT_ELIF(IFELSE_ELSE, elstmt, ((ms_StmtElse){ .block = b }))
+#define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
+#define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
+#define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
+#define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGN, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
+#define AST_DECLARE(i, e, n)        AST_STMT(STMTTYPE_DECLARE, AST_STMTCOMPONENT(declare, ((ms_StmtDeclare){ .ident = i, .expr = &(e), .next = n })))
+#define AST_EXPR_STMT(e)            AST_STMT(STMTTYPE_EXPR, AST_STMTCOMPONENT(expr, ((ms_StmtExpression){ .expr = &(e) }))
+#define AST_STMT_BLOCK(l, ...)      (dsarray_new_lit((void **)&(((ms_Stmt*){ __VA_ARGS__ , })), l, l, NULL, NULL))
 
 // VM type and bytecode macros
 #define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
@@ -1597,6 +1648,58 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "del @global",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global"))),
+            .bc = { 0 }
+        },
+        {
+            .val = "del local",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT("local")))
+        },
+        {
+            .val = "del name.second.third",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DEL(AST_BEXPR_EI(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), BINARY_GETATTR, AST_IDENT("third")))
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "import Sys",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IMPORT(AST_UEXPR_I(UNARY_NONE, AST_IDENT("Sys")), NULL),
+            .bc = { 0 }
+        },
+        {
+            .val = "import Http.Server",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_II(AST_IDENT("Http"), BINARY_GETATTR, AST_IDENT("Server")), NULL),
+            .bc = { 0 }
+        },
+        {
+            .val = "import Http.Server : srv",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_II(AST_IDENT("Http"), BINARY_GETATTR, AST_IDENT("Server")), AST_IDENT("srv")),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 /*
  * COMPARISON FUNCTIONS
  *
@@ -1675,7 +1778,9 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
             break;
         case STMTTYPE_IMPORT:
             CompareExpressions(stmt1->cmpnt.import->ident, stmt2->cmpnt.import->ident);
-            CompareIdent(stmt1->cmpnt.import->alias, stmt2->cmpnt.import->alias);
+            if ((stmt1->cmpnt.import->alias) || (stmt2->cmpnt.import->alias)) {
+                CompareIdent(stmt1->cmpnt.import->alias, stmt2->cmpnt.import->alias);
+            }
             break;
         case STMTTYPE_MERGE:
             CompareExpressions(stmt1->cmpnt.merge->left, stmt2->cmpnt.merge->left);

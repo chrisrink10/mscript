@@ -29,6 +29,8 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS
