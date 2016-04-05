@@ -254,10 +254,12 @@ typedef struct {
     ms_Expr *expr;
 } ms_StmtAssignment;
 
-typedef struct {
+typedef struct ms_StmtDeclaration ms_StmtDeclaration;
+struct ms_StmtDeclaration{
     ms_Ident *ident;
     ms_Expr *expr;
-} ms_StmtDeclaration;
+    ms_StmtDeclaration *next;
+};
 
 typedef enum {
     STMTTYPE_EMPTY,

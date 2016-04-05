@@ -664,5 +664,7 @@ void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
     decl->ident = NULL;
     ms_ExprDestroy(decl->expr);
     decl->expr = NULL;
+    StmtDeclarationDestroy(decl->next);
+    decl->next = NULL;
     free(decl);
 }

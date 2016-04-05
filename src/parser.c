@@ -70,7 +70,7 @@ static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport *
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
-static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
+static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, ms_StmtDeclaration **decl);
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
 static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
@@ -383,7 +383,7 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
             break;
         case KW_VAR:
             (*stmt)->type = STMTTYPE_DECLARATION;
-            res = ParserParseDeclaration(prs, &(*stmt)->cmpnt.decl);
+            res = ParserParseDeclaration(prs, true, &(*stmt)->cmpnt.decl);
             break;
         case IDENTIFIER:
             res = ParserParseAssignment(prs, stmt);
@@ -777,7 +777,7 @@ static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDecl
     return PARSE_SUCCESS;
 }
 
-static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
+static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, ms_StmtDeclaration **decl) {
     assert(prs);
     assert(decl);
 
@@ -787,7 +787,7 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration 
         return PARSE_ERROR;
     }
 
-    if (!ParserExpectToken(prs, KW_VAR)) {
+    if ((req_keyword) && (!ParserExpectToken(prs, KW_VAR))) {
         ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_VAR, prs->line, prs->col);
         return PARSE_ERROR;
     }
@@ -805,11 +805,25 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, ms_StmtDeclaration 
 
     /* allow a declaration without initialization */
     if (!ParserExpectToken(prs, OP_EQ)) {
+        /* allow multiple comma separated declarations */
+        if (ParserExpectToken(prs, COMMA)) {
+            return ParserParseDeclaration(prs, false, &(*decl)->next);
+        }
+
         return PARSE_SUCCESS;
     }
 
     ParserConsumeToken(prs);
-    return ParserParseExpression(prs, &(*decl)->expr);
+    if (ParserParseExpression(prs, &(*decl)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    /* allow multiple comma separated declarations */
+    if (ParserExpectToken(prs, COMMA)) {
+        return ParserParseDeclaration(prs, false, &(*decl)->next);
+    }
+
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
