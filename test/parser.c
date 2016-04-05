@@ -178,6 +178,30 @@ MunitTest parser_tests[] = {
         MUNIT_TEST_OPTION_NONE,
         NULL
     },
+    {
+        "/MergeStatement",
+        prs_TestParseMergeStatement,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ReturnStatement",
+        prs_TestParseReturnStatement,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/Declaration",
+        prs_TestParseDeclaration,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
@@ -284,7 +308,10 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
 #define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGN, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
-#define AST_DECLARE(i, e, n)        AST_STMT(STMTTYPE_DECLARE, AST_STMTCOMPONENT(declare, ((ms_StmtDeclare){ .ident = i, .expr = &(e), .next = n })))
+#define AST_DECL_CMPNT(i, n)        ((ms_StmtDeclaration){ .ident = i, .expr = NULL, .next = n })
+#define AST_DECL_CMPNT_V(i, e, n)   ((ms_StmtDeclaration){ .ident = i, .expr = &(e), .next = n })
+#define AST_DECLARE(i, n)           AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT(i, n)))
+#define AST_DECLARE_V(i, e, n)      AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT_V(i, e, n)))
 #define AST_EXPR_STMT(e)            AST_STMT(STMTTYPE_EXPR, AST_STMTCOMPONENT(expr, ((ms_StmtExpression){ .expr = &(e) }))
 #define AST_STMT_BLOCK(l, ...)      (dsarray_new_lit((void **)&(((ms_Stmt*){ __VA_ARGS__ , })), l, l, NULL, NULL))
 
@@ -1700,6 +1727,123 @@ MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "merge name := other",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .bc = { 0 }
+        },
+        {
+            .val = "merge name.second := other",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_MERGE(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .bc = { 0 }
+        },
+        {
+            .val = "merge @global := other",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .bc = { 0 }
+        },
+        {
+            .val = "merge @global := \"some string\"",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("\"some string\""))),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "return",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_NULL())),
+            .bc = { 0 }
+        },
+        {
+            .val = "return null",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_NULL())),
+            .bc = { 0 }
+        },
+        {
+            .val = "return 1",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_INT(1))),
+            .bc = { 0 }
+        },
+        {
+            .val = "return \"a string\"",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"a string\""))),
+            .bc = { 0 }
+        },
+        {
+            .val = "return name",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name"))),
+            .bc = { 0 }
+        },
+        {
+            .val = "return name.second",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_RETURN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second"))),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "var name",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), NULL),
+            .bc = { 0 }
+        },
+        {
+            .val = "var name := \"Gladys\"",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE_V(AST_IDENT("name"), AST_UEXPR_V(UNARY_NONE, VM_STR("\"Gladys\"")), NULL),
+            .bc = { 0 }
+        },
+        {
+            .val = "var name, second",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT(AST_IDENT("second"), NULL)),
+            .bc = { 0 }
+        },
+        {
+            .val = "var name, second, third",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT(AST_IDENT("second"), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .bc = { 0 }
+        },
+        {
+            .val = "var name, second := \"J\", third",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT_V(AST_IDENT("second"), AST_UEXPR_V(UNARY_NONE, VM_STR("\"J\"")), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 /*
  * COMPARISON FUNCTIONS
  *
@@ -1892,7 +2036,9 @@ static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms
     munit_assert_non_null(decl2);
 
     CompareIdent(decl1->ident, decl2->ident);
-    CompareExpressions(decl1->expr, decl2->expr);
+    if ((decl1->expr) || (decl2->expr)) {
+        CompareExpressions(decl1->expr, decl2->expr);
+    }
     if ((decl1->next) || (decl2->next)) {
         CompareDeclarations(decl1->next, decl2->next);
     }

@@ -31,6 +31,9 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
 MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS
