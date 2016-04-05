@@ -176,6 +176,7 @@ static MunitResult CompareArgumentList(const ms_ArgList *al1, const ms_ArgList *
 static MunitResult CompareBlocks(const ms_StmtBlock *blk1, const ms_StmtBlock *blk2);
 static MunitResult CompareForStatement(const ms_StmtFor *for1, const ms_StmtFor *for2);
 static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_StmtIfElse *elif2);
+static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms_StmtDeclaration *decl2);
 static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 static MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
 static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
@@ -1684,8 +1685,7 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
             CompareExpressions(stmt1->cmpnt.ret->expr, stmt2->cmpnt.ret->expr);
             break;
         case STMTTYPE_DECLARATION:
-            CompareIdent(stmt1->cmpnt.decl->ident, stmt2->cmpnt.decl->ident);
-            CompareExpressions(stmt1->cmpnt.decl->expr, stmt2->cmpnt.decl->expr);
+            CompareDeclarations(stmt1->cmpnt.decl, stmt2->cmpnt.decl);
             break;
         case STMTTYPE_ASSIGNMENT:
             CompareExpressions(stmt1->cmpnt.assign->ident, stmt2->cmpnt.assign->ident);
@@ -1770,11 +1770,26 @@ static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_S
         case IFELSE_IF:
             CompareExpressions(elif1->clause.ifstmt->expr, elif2->clause.ifstmt->expr);
             CompareBlocks(elif1->clause.ifstmt->block, elif2->clause.ifstmt->block);
-            CompareIfElseStatement(elif1->clause.ifstmt->elif, elif2->clause.ifstmt->elif);
+            if ((elif1->clause.ifstmt->elif) || (elif2->clause.ifstmt->elif)) {
+                CompareIfElseStatement(elif1->clause.ifstmt->elif, elif2->clause.ifstmt->elif);
+            }
             break;
         case IFELSE_ELSE:
             CompareBlocks(elif1->clause.elstmt->block, elif2->clause.elstmt->block);
             break;
+    }
+
+    return MUNIT_OK;
+}
+
+static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms_StmtDeclaration *decl2) {
+    munit_assert_non_null(decl1);
+    munit_assert_non_null(decl2);
+
+    CompareIdent(decl1->ident, decl2->ident);
+    CompareExpressions(decl1->expr, decl2->expr);
+    if ((decl1->next) || (decl2->next)) {
+        CompareDeclarations(decl1->next, decl2->next);
     }
 
     return MUNIT_OK;
