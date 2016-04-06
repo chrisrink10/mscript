@@ -623,7 +623,7 @@ static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt)
     }
 
     if (!ParserExpectToken(prs, KW_ELSE)) {
-        return PARSE_ERROR;
+        return PARSE_SUCCESS;
     }
 
     return ParserParseElseStatement(prs, &(*ifstmt)->elif);
