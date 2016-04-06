@@ -471,6 +471,7 @@ void ms_ValFuncDestroy(ms_ValFunc *fn) {
 
 void ms_ExprDestroy(ms_Expr *expr) {
     if (!expr) { return; }
+
     switch (expr->type) {
         case EXPRTYPE_UNARY:
             if (expr->cmpnt.u) {
@@ -488,6 +489,7 @@ void ms_ExprDestroy(ms_Expr *expr) {
             }
             break;
     }
+
     free(expr);
 }
 
@@ -563,6 +565,9 @@ void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
             if (atom->val.type == MSVAL_FUNC) {
                 ms_ValFuncDestroy(atom->val.val.fn);
                 atom->val.val.fn = NULL;
+            } else if (atom->val.type == MSVAL_STR) {
+                dsbuf_destroy(atom->val.val.s);
+                atom->val.val.s = NULL;
             }
             break;
         case EXPRATOM_EMPTY:    /* no free required */
@@ -579,6 +584,7 @@ void StmtDeleteDestroy(ms_StmtDelete *del) {
 
 void StmtForDestroy(ms_StmtFor *forstmt) {
     if (!forstmt) { return; }
+
     switch (forstmt->type) {
         case FORSTMT_INCREMENT:
             if (forstmt->clause.inc) {
@@ -610,15 +616,20 @@ void StmtForDestroy(ms_StmtFor *forstmt) {
             }
             break;
     }
+
+    dsarray_destroy(forstmt->block);
+    forstmt->block = NULL;
     free(forstmt);
 }
 
 void StmtIfDestroy(ms_StmtIf *ifstmt) {
     if (!ifstmt) { return; }
+
     ms_ExprDestroy(ifstmt->expr);
     ifstmt->expr = NULL;
     dsarray_destroy(ifstmt->block);
     ifstmt->block = NULL;
+
     if (ifstmt->elif) {
         switch (ifstmt->elif->type) {
             case IFELSE_IF:
@@ -630,7 +641,9 @@ void StmtIfDestroy(ms_StmtIf *ifstmt) {
                 ifstmt->elif->clause.elstmt = NULL;
                 break;
         }
+        free(ifstmt->elif);
     }
+
     free(ifstmt);
 }
 

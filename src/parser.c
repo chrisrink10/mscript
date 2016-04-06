@@ -228,6 +228,8 @@ void ms_ParserDestroy(ms_Parser *prs) {
     prs->lex = NULL;
     ms_TokenDestroy(prs->cur);
     prs->cur = NULL;
+    ms_TokenDestroy(prs->nxt);
+    prs->nxt = NULL;
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
     ParseErrorDestroy(prs->err);
@@ -419,14 +421,17 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
     ParserConsumeNewlines(prs);
 
     while ((prs->cur) && (!ParserExpectToken(prs, RBRACE))) {
-        ms_Stmt *stmt;
+        ms_Stmt *stmt = NULL;
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
+            ms_StmtDestroy(stmt);
             return PARSE_ERROR;
         }
         if (ParserExpectToken(prs, RBRACE)) {
+            ms_StmtDestroy(stmt);
             break;
         }
         if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
+            ms_StmtDestroy(stmt);
             ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
             return PARSE_ERROR;
         }
@@ -844,6 +849,7 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
     /* some sort of assignment (simple or compound) */
     if (ParserExpectToken(prs, OP_EQ)) {
         if (!ms_ExprIsQualifiedIdent(name)) {
+            ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
         }
@@ -862,6 +868,7 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
                ParserExpectToken(prs, OP_MODULO_EQUALS)) {
 
         if (!ms_ExprIsQualifiedIdent(name)) {
+            ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
         }
@@ -962,8 +969,9 @@ static ms_ParseResult ParserParseOrExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseAndExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -978,13 +986,16 @@ static ms_ParseResult ParserParseOrExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseAndExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -999,8 +1010,9 @@ static ms_ParseResult ParserParseAndExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseEqualityExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1015,13 +1027,16 @@ static ms_ParseResult ParserParseAndExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseEqualityExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1036,8 +1051,9 @@ static ms_ParseResult ParserParseEqualityExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseComparisonExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1053,13 +1069,16 @@ static ms_ParseResult ParserParseEqualityExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseComparisonExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1074,8 +1093,9 @@ static ms_ParseResult ParserParseComparisonExpr(ms_Parser *prs, ms_Expr **expr) 
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseBitwiseOrExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1093,13 +1113,16 @@ static ms_ParseResult ParserParseComparisonExpr(ms_Parser *prs, ms_Expr **expr) 
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseBitwiseOrExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1114,8 +1137,9 @@ static ms_ParseResult ParserParseBitwiseOrExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseBitwiseXorExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1130,13 +1154,16 @@ static ms_ParseResult ParserParseBitwiseOrExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseBitwiseXorExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1153,6 +1180,7 @@ static ms_ParseResult ParserParseBitwiseXorExpr(ms_Parser *prs, ms_Expr **expr) 
     ms_ParseResult res;
     ms_Expr *left;
     if ((res = ParserParseBitwiseAndExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1188,8 +1216,9 @@ static ms_ParseResult ParserParseBitwiseAndExpr(ms_Parser *prs, ms_Expr **expr) 
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseBitShiftExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1204,13 +1233,16 @@ static ms_ParseResult ParserParseBitwiseAndExpr(ms_Parser *prs, ms_Expr **expr) 
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseBitShiftExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1225,8 +1257,9 @@ static ms_ParseResult ParserParseBitShiftExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseArithmeticExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1242,13 +1275,16 @@ static ms_ParseResult ParserParseBitShiftExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseArithmeticExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1263,8 +1299,9 @@ static ms_ParseResult ParserParseArithmeticExpr(ms_Parser *prs, ms_Expr **expr) 
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseTermExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1280,13 +1317,16 @@ static ms_ParseResult ParserParseArithmeticExpr(ms_Parser *prs, ms_Expr **expr) 
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseTermExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1301,8 +1341,9 @@ static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParsePowerExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1320,13 +1361,16 @@ static ms_ParseResult ParserParseTermExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParsePowerExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1341,8 +1385,9 @@ static ms_ParseResult ParserParsePowerExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseUnaryExpr(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1357,13 +1402,16 @@ static ms_ParseResult ParserParsePowerExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ParserConsumeToken(prs);
-        ms_Expr *right;
+        ms_Expr *right = NULL;
         if ((res = ParserParseTermExpr(prs, &right)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
+            ms_ExprDestroy(right);
             return res;
         }
         left = combined;
@@ -1397,11 +1445,13 @@ static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr) {
 
         ParserConsumeToken(prs);
 
-        ms_Expr *inner;
+        ms_Expr *inner = NULL;
         if ((res = ParserParseUnaryExpr(prs, &inner)) == PARSE_ERROR) {
+            ms_ExprDestroy(inner);
             return res;
         }
         if ((res = ParserExprCombineUnary(prs, inner, op, expr)) == PARSE_ERROR) {
+            ms_ExprDestroy(inner);
             return res;
         }
     }
@@ -1419,8 +1469,9 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
     assert(expr);
 
     ms_ParseResult res;
-    ms_Expr *left;
+    ms_Expr *left = NULL;
     if ((res = ParserParseAtom(prs, &left)) == PARSE_ERROR) {
+        *expr = left;
         return res;
     }
 
@@ -1430,11 +1481,14 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
         ms_ExprBinaryOp op;
         ms_Expr *right;
         if ((res = ParserParseAccessor(prs, &right, &op)) == PARSE_ERROR) {
+            ms_ExprDestroy(left);
             return res;
         }
 
         ms_Expr *combined;
         if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+            ms_ExprDestroy(right);
+            ms_ExprDestroy(left);
             return res;
         }
         left = combined;
