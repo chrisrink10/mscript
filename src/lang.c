@@ -21,16 +21,17 @@
 #include "bytecode.h"
 #include "lang.h"
 
-void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type);
-void StmtDeleteDestroy(ms_StmtDelete *del);
-void StmtForDestroy(ms_StmtFor *forstmt);
-void StmtIfDestroy(ms_StmtIf *ifstmt);
-void StmtImportDestroy(ms_StmtImport *import);
-void StmtElseDestroy(ms_StmtElse *elstmt);
-void StmtMergeDestroy(ms_StmtMerge *merge);
-void StmtReturnDestroy(ms_StmtReturn *ret);
-void StmtAssignmentDestroy(ms_StmtAssignment *assign);
-void StmtDeclarationDestroy(ms_StmtDeclaration *decl);
+static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomType type);
+static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type);
+static void StmtDeleteDestroy(ms_StmtDelete *del);
+static void StmtForDestroy(ms_StmtFor *forstmt);
+static void StmtIfDestroy(ms_StmtIf *ifstmt);
+static void StmtImportDestroy(ms_StmtImport *import);
+static void StmtElseDestroy(ms_StmtElse *elstmt);
+static void StmtMergeDestroy(ms_StmtMerge *merge);
+static void StmtReturnDestroy(ms_StmtReturn *ret);
+static void StmtAssignmentDestroy(ms_StmtAssignment *assign);
+static void StmtDeclarationDestroy(ms_StmtDeclaration *decl);
 
 /*
  * PUBLIC FUNCTIONS
@@ -186,51 +187,8 @@ ms_Expr *ms_ExprDup(const ms_Expr *src) {
             assert(src->cmpnt.u);
             expr->cmpnt.u->type = src->cmpnt.u->type;
             expr->cmpnt.u->op = src->cmpnt.u->op;
-            switch(src->cmpnt.u->type) {
-                case EXPRATOM_EXPRESSION:
-                    expr->cmpnt.u->atom.expr = ms_ExprDup(src->cmpnt.u->atom.expr);
-                    if (!expr->cmpnt.u->atom.expr) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_IDENT:
-                    expr->cmpnt.u->atom.ident = dsbuf_dup(src->cmpnt.u->atom.ident);
-                    if (!expr->cmpnt.u->atom.ident) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_EXPRLIST: {
-                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.u->atom.list),
-                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
-                    if (!exprlist) {
-                        goto expr_dup_fail;
-                    }
-
-                    size_t len = dsarray_len(src->cmpnt.u->atom.list);
-                    for (size_t i = 0; i < len; i++) {
-                        const ms_Expr *e = dsarray_get(src->cmpnt.u->atom.list, i);
-                        ms_Expr *e2 = ms_ExprDup(e);
-                        if (!e2) {
-                            goto expr_dup_fail;
-                        }
-
-                        dsarray_append(exprlist, e2);
-                    }
-
-                    expr->cmpnt.u->atom.list = exprlist;
-                    }
-                    break;
-                case EXPRATOM_VALUE:
-                    expr->cmpnt.u->atom.val = src->cmpnt.u->atom.val;
-                    if (expr->cmpnt.u->atom.val.type == MSVAL_STR) {
-                        expr->cmpnt.u->atom.val.val.s = dsbuf_dup(expr->cmpnt.u->atom.val.val.s);
-                        if (!expr->cmpnt.u->atom.val.val.s) {
-                            goto expr_dup_fail;
-                        }
-                    }
-                    break;
-                case EXPRATOM_EMPTY:
-                    break;
+            if (!ExprAtomDup(&src->cmpnt.u->atom, &expr->cmpnt.u->atom, expr->cmpnt.u->type)) {
+                goto expr_dup_fail;
             }
             break;
         case EXPRTYPE_BINARY:
@@ -238,97 +196,11 @@ ms_Expr *ms_ExprDup(const ms_Expr *src) {
             expr->cmpnt.b->ltype = src->cmpnt.b->ltype;
             expr->cmpnt.b->op = src->cmpnt.b->op;
             expr->cmpnt.b->rtype = src->cmpnt.b->rtype;
-            switch (src->cmpnt.b->ltype) {
-                case EXPRATOM_EXPRESSION:
-                    expr->cmpnt.b->latom.expr = ms_ExprDup(src->cmpnt.b->latom.expr);
-                    if (!expr->cmpnt.b->latom.expr) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_IDENT:
-                    expr->cmpnt.b->latom.ident = dsbuf_dup(src->cmpnt.b->latom.ident);
-                    if (!expr->cmpnt.b->latom.ident) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_EXPRLIST: {
-                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.b->latom.list),
-                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
-                    if (!exprlist) {
-                        goto expr_dup_fail;
-                    }
-
-                    size_t len = dsarray_len(src->cmpnt.b->latom.list);
-                    for (size_t i = 0; i < len; i++) {
-                        const ms_Expr *e = dsarray_get(src->cmpnt.b->latom.list, i);
-                        ms_Expr *e2 = ms_ExprDup(e);
-                        if (!e2) {
-                            goto expr_dup_fail;
-                        }
-
-                        dsarray_append(exprlist, e2);
-                    }
-
-                    expr->cmpnt.b->latom.list = exprlist;
-                }
-                    break;
-                case EXPRATOM_VALUE:
-                    expr->cmpnt.b->latom.val = src->cmpnt.b->latom.val;
-                    if (expr->cmpnt.b->latom.val.type == MSVAL_STR) {
-                        expr->cmpnt.b->latom.val.val.s = dsbuf_dup(expr->cmpnt.b->latom.val.val.s);
-                        if (!expr->cmpnt.b->latom.val.val.s) {
-                            goto expr_dup_fail;
-                        }
-                    }
-                    break;
-                case EXPRATOM_EMPTY:
-                    break;
+            if (!ExprAtomDup(&src->cmpnt.b->latom, &expr->cmpnt.b->latom, expr->cmpnt.b->ltype)) {
+                goto expr_dup_fail;
             }
-            switch(src->cmpnt.b->rtype) {
-                case EXPRATOM_EXPRESSION:
-                    expr->cmpnt.b->ratom.expr = ms_ExprDup(src->cmpnt.b->ratom.expr);
-                    if (!expr->cmpnt.b->ratom.expr) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_IDENT:
-                    expr->cmpnt.b->ratom.ident = dsbuf_dup(src->cmpnt.b->ratom.ident);
-                    if (!expr->cmpnt.b->ratom.ident) {
-                        goto expr_dup_fail;
-                    }
-                    break;
-                case EXPRATOM_EXPRLIST: {
-                    DSArray *exprlist = dsarray_new_cap(dsarray_cap(expr->cmpnt.b->ratom.list),
-                                                        NULL, (dsarray_free_fn) ms_ExprDestroy);
-                    if (!exprlist) {
-                        goto expr_dup_fail;
-                    }
-
-                    size_t len = dsarray_len(src->cmpnt.b->ratom.list);
-                    for (size_t i = 0; i < len; i++) {
-                        const ms_Expr *e = dsarray_get(src->cmpnt.b->ratom.list, i);
-                        ms_Expr *e2 = ms_ExprDup(e);
-                        if (!e2) {
-                            goto expr_dup_fail;
-                        }
-
-                        dsarray_append(exprlist, e2);
-                    }
-
-                    expr->cmpnt.b->ratom.list = exprlist;
-                }
-                    break;
-                case EXPRATOM_VALUE:
-                    expr->cmpnt.b->ratom.val = src->cmpnt.b->ratom.val;
-                    if (expr->cmpnt.b->ratom.val.type == MSVAL_STR) {
-                        expr->cmpnt.b->ratom.val.val.s = dsbuf_dup(expr->cmpnt.b->ratom.val.val.s);
-                        if (!expr->cmpnt.b->ratom.val.val.s) {
-                            goto expr_dup_fail;
-                        }
-                    }
-                    break;
-                case EXPRATOM_EMPTY:
-                    break;
+            if (!ExprAtomDup(&src->cmpnt.b->ratom, &expr->cmpnt.b->ratom, expr->cmpnt.b->rtype)) {
+                goto expr_dup_fail;
             }
             break;
     }
@@ -546,7 +418,65 @@ void ms_StmtDestroy(ms_Stmt *stmt) {
  * PRIVATE FUNCTIONS
  */
 
-void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
+static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomType type) {
+    assert(src);
+    assert(dest);
+
+    switch(type) {
+        case EXPRATOM_EXPRESSION:
+            dest->expr = ms_ExprDup(src->expr);
+            if (!dest->expr) {
+                goto expr_atom_dup_fail;
+            }
+            break;
+        case EXPRATOM_IDENT:
+            dest->ident = dsbuf_dup(src->ident);
+            if (!dest->ident) {
+                goto expr_atom_dup_fail;
+            }
+            break;
+        case EXPRATOM_EXPRLIST: {
+            size_t srclen = dsarray_cap(src->list);
+            DSArray *exprlist = dsarray_new_cap(srclen, NULL, (dsarray_free_fn) ms_ExprDestroy);
+            if (!exprlist) {
+                goto expr_atom_dup_fail;
+            }
+
+            size_t len = dsarray_len(src->list);
+            for (size_t i = 0; i < len; i++) {
+                const ms_Expr *e = dsarray_get(src->list, i);
+                ms_Expr *e2 = ms_ExprDup(e);
+                if (!e2) {
+                    goto expr_atom_dup_fail;
+                }
+
+                dsarray_append(exprlist, e2);
+            }
+
+            dest->list = exprlist;
+            break;
+        }
+        case EXPRATOM_VALUE:
+            dest->val = src->val;
+            if (dest->val.type == MSVAL_STR) {
+                dest->val.val.s = dsbuf_dup(src->val.val.s);
+                if (!dest->val.val.s) {
+                    goto expr_atom_dup_fail;
+                }
+            }
+            break;
+        case EXPRATOM_EMPTY:
+            assert(false && "expression atom should have a type");
+            break;
+    }
+
+    return true;
+
+expr_atom_dup_fail:
+    return false;
+}
+
+static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
     if (!atom) { return; }
     switch(type) {
         case EXPRATOM_EXPRESSION:
@@ -575,14 +505,14 @@ void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
     }
 }
 
-void StmtDeleteDestroy(ms_StmtDelete *del) {
+static void StmtDeleteDestroy(ms_StmtDelete *del) {
     if (!del) { return; }
     ms_ExprDestroy(del->expr);
     del->expr = NULL;
     free(del);
 }
 
-void StmtForDestroy(ms_StmtFor *forstmt) {
+static void StmtForDestroy(ms_StmtFor *forstmt) {
     if (!forstmt) { return; }
 
     switch (forstmt->type) {
@@ -622,7 +552,7 @@ void StmtForDestroy(ms_StmtFor *forstmt) {
     free(forstmt);
 }
 
-void StmtIfDestroy(ms_StmtIf *ifstmt) {
+static void StmtIfDestroy(ms_StmtIf *ifstmt) {
     if (!ifstmt) { return; }
 
     ms_ExprDestroy(ifstmt->expr);
@@ -647,7 +577,7 @@ void StmtIfDestroy(ms_StmtIf *ifstmt) {
     free(ifstmt);
 }
 
-void StmtImportDestroy(ms_StmtImport *import) {
+static void StmtImportDestroy(ms_StmtImport *import) {
     if (!import) { return; }
     ms_ExprDestroy(import->ident);
     import->ident = NULL;
@@ -656,14 +586,14 @@ void StmtImportDestroy(ms_StmtImport *import) {
     free(import);
 }
 
-void StmtElseDestroy(ms_StmtElse *elstmt) {
+static void StmtElseDestroy(ms_StmtElse *elstmt) {
     if (!elstmt) { return; }
     dsarray_destroy(elstmt->block);
     elstmt->block = NULL;
     free(elstmt);
 }
 
-void StmtMergeDestroy(ms_StmtMerge *merge) {
+static void StmtMergeDestroy(ms_StmtMerge *merge) {
     if (!merge) { return; }
     ms_ExprDestroy(merge->left);
     merge->left = NULL;
@@ -672,14 +602,14 @@ void StmtMergeDestroy(ms_StmtMerge *merge) {
     free(merge);
 }
 
-void StmtReturnDestroy(ms_StmtReturn *ret) {
+static void StmtReturnDestroy(ms_StmtReturn *ret) {
     if (!ret) { return; }
     ms_ExprDestroy(ret->expr);
     ret->expr = NULL;
     free(ret);
 }
 
-void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
+static void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
     if (!assign) { return; }
     ms_ExprDestroy(assign->ident);
     assign->ident = NULL;
@@ -688,7 +618,7 @@ void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
     free(assign);
 }
 
-void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
+static void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
     if (!decl) { return; }
     dsbuf_destroy(decl->ident);
     decl->ident = NULL;

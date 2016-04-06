@@ -105,6 +105,8 @@ static char* bad_code[] = {
     "func { }",
     "var := 10",
     "var name :=",
+    "10 :=",
+    "10 := 12",
     NULL
 };
 
@@ -197,6 +199,14 @@ MunitTest parser_tests[] = {
     {
         "/Declaration",
         prs_TestParseDeclaration,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/Assignment",
+        prs_TestParseAssignment,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -307,7 +317,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
 #define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
-#define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGN, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
+#define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGNMENT, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
 #define AST_DECL_CMPNT(i, n)        ((ms_StmtDeclaration){ .ident = i, .expr = NULL, .next = n })
 #define AST_DECL_CMPNT_V(i, e, n)   ((ms_StmtDeclaration){ .ident = i, .expr = &(e), .next = n })
 #define AST_DECLARE(i, n)           AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT(i, n)))
@@ -1835,6 +1845,33 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
             .val = "var name, second := \"J\", third",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT_V(AST_IDENT("second"), AST_UEXPR_V(UNARY_NONE, VM_STR("\"J\"")), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "name := 10",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .bc = { 0 }
+        },
+        {
+            .val = "name.second := 10",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .bc = { 0 }
+        },
+        {
+            .val = "name.second += 10",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_BEXPR_EV(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), BINARY_PLUS, VM_INT(10))),
             .bc = { 0 }
         },
     };
