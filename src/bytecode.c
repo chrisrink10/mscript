@@ -23,6 +23,7 @@ static const int EXPR_OPCODE_STACK_LEN = 50;
 static const int EXPR_VALUE_STACK_LEN = 50;
 static const int EXPR_IDENT_STACK_LEN = 50;
 
+static ms_VMByteCode *VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents);
 static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void ExprComponentToOpCodes(ms_ExprAtom *a, ms_ExprAtomType type, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void ExprOpToOpCode(ms_Expr *expr, DSArray *opcodes);
@@ -56,16 +57,90 @@ ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr) {
     }
 
     ExprToOpCodes(expr, opcodes, values, idents);
-    ms_VMByteCode *bc = ms_VMByteCodeNew(opcodes, values, idents);
+    ms_VMByteCode *bc = VMByteCodeNew(opcodes, values, idents);
     dsarray_destroy(opcodes);
     dsarray_destroy(values);
     dsarray_destroy(idents);
     return bc;
 }
 
+void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
+    if (!bc) { return; }
+    free(bc->code);
+    bc->code = NULL;
+    free(bc->values);
+    bc->values = NULL;
+    for (size_t i = 0; i < bc->nidents; i++) {
+        dsbuf_destroy(bc->idents[i]);
+        bc->idents[i] = NULL;
+    }
+    free(bc->idents);
+    bc->idents = NULL;
+    free(bc);
+}
+
+ms_VMOpCode ms_VMOpCodeWithArg(ms_VMOpCodeType c, int arg) {
+    return (c | (arg << 16));
+}
+
+int ms_VMOpCodeGetArg(ms_VMOpCode c) {
+    return (c >> 16);
+}
+
+ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c) {
+    return (ms_VMOpCodeType)(c & ((1 << 16) - 1));
+}
+
 /*
  * PRIVATE FUNCTIONS
  */
+
+static ms_VMByteCode *VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents) {
+    if (!opcodes) { return NULL; }
+
+    ms_VMByteCode *bc = malloc(sizeof(ms_VMByteCode));
+    if (!bc) {
+        return NULL;
+    }
+
+    bc->nops = dsarray_len((DSArray *)opcodes);
+    bc->code = malloc(sizeof(ms_VMOpCode) * (bc->nops));
+    if (!bc->code) {
+        free(bc);
+        return NULL;
+    }
+
+    bc->nvals = dsarray_len((DSArray *)values);
+    bc->values = malloc(sizeof(ms_Value) * (bc->nvals));
+    if (!bc->values) {
+        free(bc->code);
+        free(bc);
+        return NULL;
+    }
+
+    bc->nidents = dsarray_len((DSArray *)idents);
+    bc->idents = malloc(sizeof(ms_Ident *) * (bc->nidents));
+    if (!bc->idents) {
+        free(bc->values);
+        free(bc->code);
+        free(bc);
+        return NULL;
+    }
+
+    for (size_t i = 0; i < bc->nops; i++) {
+        bc->code[i] = *(ms_VMOpCode *)dsarray_get((DSArray *)opcodes, i);
+    }
+
+    for (size_t i = 0; i < bc->nvals; i++) {
+        bc->values[i] = *(ms_Value *)dsarray_get((DSArray *)values, i);
+    }
+
+    for (size_t i = 0; i < bc->nidents; i++) {
+        bc->idents[i] = dsarray_get((DSArray *)idents, i);
+    }
+
+    return bc;
+}
 
 static void ExprToOpCodes(ms_Expr *expr, DSArray *opcodes, DSArray *values, DSArray *idents) {
     assert(expr);

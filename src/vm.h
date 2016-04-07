@@ -165,37 +165,4 @@ void ms_VMDestroy(ms_VM *vm);
 */
 bool ms_VMFloatIsInt(ms_ValFloat f, ms_ValInt *l);
 
-/**
-* @brief Encode an opcode with a numeric argument.
-*/
-ms_VMOpCode ms_VMOpCodeWithArg(ms_VMOpCodeType c, int arg);
-
-/**
-* @brief Decode the opcode argument from a full opcode
-*/
-int ms_VMOpCodeGetArg(ms_VMOpCode c);
-
-/**
-* @brief Decode the opcode type from a full opcode.
-*/
-ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c);
-
-/**
-* @brief Convert a stack consisting of ms_VMOpCodes into a single
-* @c ms_VMByteCode container.
-*
-* @param opcodes a @c DSArray with all @c ms_VMOpCode objects
-* @param values a @c DSArray with all @c ms_Values
-* @param idents a @c DSArray with all @c ms_Ident
-* @returns an @c ms_VMByteCode container suitable for execution by the VM
-*/
-ms_VMByteCode *ms_VMByteCodeNew(const DSArray *opcodes, const DSArray *values, const DSArray *idents);
-
-/**
-* @brief Destroy the memory held by byte code.
-*
-* @param bc a @c ms_VMByteCode object
-*/
-void ms_VMByteCodeDestroy(ms_VMByteCode *bc);
-
 #endif //MSCRIPT_VM_H

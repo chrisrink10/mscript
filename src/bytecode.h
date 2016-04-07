@@ -77,4 +77,26 @@ typedef struct {
 */
 ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
 
+/**
+* @brief Destroy the memory held by byte code.
+*
+* @param bc a @c ms_VMByteCode object
+*/
+void ms_VMByteCodeDestroy(ms_VMByteCode *bc);
+
+/**
+* @brief Encode an opcode with a numeric argument.
+*/
+ms_VMOpCode ms_VMOpCodeWithArg(ms_VMOpCodeType c, int arg);
+
+/**
+* @brief Decode the opcode argument from a full opcode
+*/
+int ms_VMOpCodeGetArg(ms_VMOpCode c);
+
+/**
+* @brief Decode the opcode type from a full opcode.
+*/
+ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c);
+
 #endif //MSCRIPT_BYTECODE_H
