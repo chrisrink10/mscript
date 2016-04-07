@@ -21,27 +21,17 @@
 #include "bytecode.h"
 #include "lang.h"
 
-/**
-* @brief Parser object
-*/
 typedef struct ms_Parser ms_Parser;
 
-/**
-*
-*/
 typedef enum ms_ParseResult {
-    PARSE_SUCCESS,
-    PARSE_WARNINGS,
-    PARSE_ERROR
+    PARSE_SUCCESS,          /** Parsing succeeded */
+    PARSE_WARNINGS,         /** Parsing succeeded but there may be some issues */
+    PARSE_ERROR             /** Parsing could not be completed */
 } ms_ParseResult;
 
-/**
-* @brief Error type returned from @c ms_Parser objects when
-* there is an error parsing the code.
-*/
 typedef struct ms_ParseError {
-    char *msg;
-    ms_Token *tok;
+    char *msg;              /** Error message returned from the parser */
+    ms_Token *tok;          /** Token potentially associated with the error */
 } ms_ParseError;
 
 /**
