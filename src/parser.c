@@ -428,7 +428,7 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
             return PARSE_ERROR;
         }
         if (ParserExpectToken(prs, RBRACE)) {
-            ms_StmtDestroy(stmt);
+            dsarray_append(*block, stmt);
             break;
         }
         if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
