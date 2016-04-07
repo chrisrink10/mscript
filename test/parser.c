@@ -173,6 +173,14 @@ MunitTest parser_tests[] = {
         NULL
     },
     {
+        "/IfStatement",
+        prs_TestParseIfStatements,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/ImportStatement",
         prs_TestParseImportStatement,
         NULL,
@@ -300,7 +308,9 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_STMT(tp, component)         ((ms_Stmt){ .type = tp, .cmpnt = component })
 #define AST_STMTCOMPONENT(field, memb)  ((ms_StmtComponent){ .field = &(memb) })
 #define AST_STMT_FOR(fortp, c, blk)     ((ms_StmtFor){ .type = fortp, .clause = c, .block = blk })
-#define AST_STMT_ELIF(tp, m, c)         ((ms_StmtIfElse){ .type = tp, .clause = { .m = c } })
+#define AST_STMT_IF(e, b, elseif)       ((ms_StmtIf){ .expr = &(e), .block = b, .elif = elseif })
+#define AST_STMT_ELSE(b)                ((ms_StmtElse){ .block = b })
+#define AST_STMT_ELIF(tp, m, c)         &((ms_StmtIfElse){ .type = tp, .clause = { .m = &(c) } })
 
 // Statement macros
 #define AST_BREAK()                 AST_STMT(STMTTYPE_BREAK, AST_STMTCOMPONENT(brk, NULL))
@@ -311,9 +321,9 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_FOR_ITER(id, expr, decl, b) \
                                     AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_ITER, ((ms_StmtForIter){ .ident = id, .iter = expr, .declare = decl }), b)))
 #define AST_FOR_EXPR(e, b)          AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_EXPR, ((ms_StmtForExpr){ .expr = e }), b)))
-#define AST_IF_ELIF(e, b, elseif)   AST_STMT(STMTTYPE_IF, AST_STMTCOMPONENT(ifstmt, ((ms_StmtIf){ .expr = e, .block = b, .elif = elseif })))
-#define AST_ELIF_IF(e, b, elseif)   AST_STMT_ELIF(IFELSE_IF, ifstmt, AST_IF_ELIF(e, b, elseif))
-#define AST_ELIF_ELSE(b)            AST_STMT_ELIF(IFELSE_ELSE, elstmt, ((ms_StmtElse){ .block = b }))
+#define AST_IF_ELIF(e, b, elseif)   AST_STMT(STMTTYPE_IF, AST_STMTCOMPONENT(ifstmt, AST_STMT_IF(e, b, elseif)))
+#define AST_ELIF_IF(e, b, elseif)   AST_STMT_ELIF(IFELSE_IF, ifstmt, AST_STMT_IF(e, b, elseif))
+#define AST_ELIF_ELSE(b)            AST_STMT_ELIF(IFELSE_ELSE, elstmt, AST_STMT_ELSE(b))
 #define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
 #define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
@@ -324,6 +334,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_DECLARE_V(i, e, n)      AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT_V(i, e, n)))
 #define AST_EXPR_STMT(e)            AST_STMT(STMTTYPE_EXPR, AST_STMTCOMPONENT(expr, ((ms_StmtExpression){ .expr = &(e) }))
 #define AST_STMT_BLOCK(l, ...)      (dsarray_new_lit((void **)&(((ms_Stmt*){ __VA_ARGS__ , })), l, l, NULL, NULL))
+#define AST_EMPTY_STMT_BLOCK()      (dsarray_new_cap(1, NULL, NULL))
 
 // VM type and bytecode macros
 #define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
@@ -1710,6 +1721,87 @@ MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "if cost >= money { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IF_ELIF(AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")), AST_EMPTY_STMT_BLOCK(), NULL),
+            .bc = { 0 }
+        },
+        {
+            .val = "if cost >= money { \n"
+                   "    // do nothing\n"
+                   "} else { \n"
+                   "    // also do nothing\n"
+                   "}",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IF_ELIF(
+                AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")),
+                AST_EMPTY_STMT_BLOCK(),
+                AST_ELIF_ELSE(
+                    AST_EMPTY_STMT_BLOCK()
+                )
+            ),
+            .bc = { 0 }
+        },
+        {
+            .val = "if cost >= money { \n"
+                   "    // freak out\n"
+                   "} else if cost == money { \n"
+                   "    // sigh a breath of relief\n"
+                   "} else { \n"
+                   "    // all good\n"
+                   "}",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IF_ELIF(
+                AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")),
+                AST_EMPTY_STMT_BLOCK(),
+                AST_ELIF_IF(
+                    AST_BEXPR_II(AST_IDENT("cost"), BINARY_EQ, AST_IDENT("money")),
+                    AST_EMPTY_STMT_BLOCK(),
+                    AST_ELIF_ELSE(
+                        AST_EMPTY_STMT_BLOCK()
+                    )
+                )
+            ),
+            .bc = { 0 }
+        },
+        {
+            .val = "if pct >= 0.9 { \n"
+                   "    return \"A\"\n"
+                   "} else if pct >= 0.8 { \n"
+                   "    return \"B\"\n"
+                   "} else if pct >= 0.7 { \n"
+                   "    return \"C\"\n"
+                   "} else {\n"
+                   "    return \"F\"\n"
+                   "}",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_IF_ELIF(
+                AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.9)),
+                AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"A\"")))),
+                AST_ELIF_IF(
+                    AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.8)),
+                    AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"B\"")))),
+                    AST_ELIF_IF(
+                        AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.7)),
+                        AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"C\"")))),
+                        AST_ELIF_ELSE(
+                            AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"F\""))))
+                        )
+                    )
+                )
+            ),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
@@ -1955,7 +2047,9 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
         case STMTTYPE_IF:
             CompareExpressions(stmt1->cmpnt.ifstmt->expr, stmt2->cmpnt.ifstmt->expr);
             CompareBlocks(stmt1->cmpnt.ifstmt->block, stmt2->cmpnt.ifstmt->block);
-            CompareIfElseStatement(stmt1->cmpnt.ifstmt->elif, stmt2->cmpnt.ifstmt->elif);
+            if ((stmt1->cmpnt.ifstmt->elif) || (stmt1->cmpnt.ifstmt->elif)) {
+                CompareIfElseStatement(stmt1->cmpnt.ifstmt->elif, stmt2->cmpnt.ifstmt->elif);
+            }
             break;
         case STMTTYPE_IMPORT:
             CompareExpressions(stmt1->cmpnt.import->ident, stmt2->cmpnt.import->ident);
