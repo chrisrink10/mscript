@@ -231,6 +231,14 @@ MunitTest parser_tests[] = {
         NULL
     },
     {
+        "/FuncDeclaration",
+        prs_TestParseFuncDeclaration,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/Declaration",
         prs_TestParseDeclaration,
         NULL,
@@ -327,7 +335,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_FNCALL_E(e, lst)        AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_IDENT(v)                (dsbuf_new_l(v, sizeof(v)-1)) /* subtract one to ignore the terminating NUL */
-#define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)&(((ms_Expr*){ __VA_ARGS__ , })), l, l, NULL, NULL))
+#define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)(((ms_Expr*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 #define AST_EMPTY_EXPRLIST()        (dsarray_new_cap(1, NULL, NULL))
 
 // "Private" statement composition macros
@@ -364,16 +372,18 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_DECLARE(i, n)           AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT(i, n)))
 #define AST_DECLARE_V(i, e, n)      AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT_V(i, e, n)))
 #define AST_EXPR_STMT(e)            AST_STMT(STMTTYPE_EXPR, AST_STMTCOMPONENT(expr, ((ms_StmtExpression){ .expr = &(e) }))
-#define AST_STMT_BLOCK(l, ...)      (dsarray_new_lit((void **)&(((ms_Stmt*){ __VA_ARGS__ , })), l, l, NULL, NULL))
+#define AST_STMT_BLOCK(l, ...)      (dsarray_new_lit((void **)(((ms_Stmt*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 #define AST_EMPTY_STMT_BLOCK()      (dsarray_new_cap(1, NULL, NULL))
 
 // VM type and bytecode macros
-#define VM_OPC(opc, arg) ms_VMOpCodeWithArg(opc, arg)
-#define VM_FLOAT(v) ((ms_Value){ .type = MSVAL_FLOAT, .val = (ms_ValData){ .f = v } })
-#define VM_INT(v)   ((ms_Value){ .type = MSVAL_INT,   .val = (ms_ValData){ .i = v } })
-#define VM_STR(v)   ((ms_Value){ .type = MSVAL_STR,   .val = (ms_ValData){ .s = dsbuf_new_l(v, sizeof(v)-1) } })
-#define VM_BOOL(v)  ((ms_Value){ .type = MSVAL_BOOL,  .val = (ms_ValData){ .b = v } })
-#define VM_NULL()   ((ms_Value){ .type = MSVAL_NULL,  .val = (ms_ValData){ .n = MS_VM_NULL_POINTER } })
+#define VM_OPC(opc, arg)            ms_VMOpCodeWithArg(opc, arg)
+#define VM_FLOAT(v)                 ((ms_Value){ .type = MSVAL_FLOAT, .val = (ms_ValData){ .f = v } })
+#define VM_INT(v)                   ((ms_Value){ .type = MSVAL_INT,   .val = (ms_ValData){ .i = v } })
+#define VM_STR(v)                   ((ms_Value){ .type = MSVAL_STR,   .val = (ms_ValData){ .s = dsbuf_new_l(v, sizeof(v)-1) } })
+#define VM_BOOL(v)                  ((ms_Value){ .type = MSVAL_BOOL,  .val = (ms_ValData){ .b = v } })
+#define VM_NULL()                   ((ms_Value){ .type = MSVAL_NULL,  .val = (ms_ValData){ .n = MS_VM_NULL_POINTER } })
+#define VM_FUNC(id, arglist, b)     ((ms_Value){ .type = MSVAL_FUNC,  .val = (ms_ValData){ .fn = &((ms_ValFunc){ .ident = id, .args = (arglist), .block = b }) } })
+#define AST_ARGLIST(l, ...)         (dsarray_new_lit((void **)(((ms_Ident*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 
 /*
  * TEST CASE FUNCTIONS
@@ -2039,6 +2049,55 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "func Sum(a, b) { return a + b }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE_V(
+                AST_IDENT("Sum"),
+                AST_UEXPR_V(
+                    UNARY_NONE,
+                    VM_FUNC(
+                        AST_IDENT("Sum"),
+                        AST_ARGLIST(2, AST_IDENT("a"), AST_IDENT("b")),
+                        AST_STMT_BLOCK(
+                            1,
+                            &AST_RETURN(AST_BEXPR_II(AST_IDENT("a"), BINARY_PLUS, AST_IDENT("b")))
+                        )
+                    )
+                ),
+                NULL
+            ),
+            .bc = { 0 }
+        },
+        {
+            .val = "var Sum := func (a, b) { return a + b }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_DECLARE_V(
+                AST_IDENT("Sum"),
+                AST_UEXPR_V(
+                    UNARY_NONE,
+                    VM_FUNC(
+                        NULL,
+                        AST_ARGLIST(2, AST_IDENT("a"), AST_IDENT("b")),
+                        AST_STMT_BLOCK(
+                            1,
+                            &AST_RETURN(AST_BEXPR_II(AST_IDENT("a"), BINARY_PLUS, AST_IDENT("b")))
+                        )
+                    )
+                ),
+                NULL
+            ),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
@@ -2435,7 +2494,9 @@ static MunitResult CompareFunctions(const ms_ValFunc *fn1, const ms_ValFunc *fn2
     munit_assert_non_null(fn1);
     munit_assert_non_null(fn2);
 
-    CompareIdent(fn1->ident, fn2->ident);
+    if ((fn1->ident) || (fn2->ident)) {
+        CompareIdent(fn1->ident, fn2->ident);
+    }
     CompareArgumentList(fn1->args, fn2->args);
     CompareBlocks(fn1->block, fn2->block);
 
@@ -2455,6 +2516,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
         ms_VMByteCode *code;
         const ms_ParseError *err;
         ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
+        if (err) { munit_logf(MUNIT_LOG_INFO, "err = %s", err->msg); }
 
         munit_assert_cmp_int(pres, !=, PARSE_ERROR);
         //munit_assert_non_null(code);
@@ -2647,6 +2709,7 @@ static void CleanFunction(ms_ValFunc *func) {
         ms_Ident *ident = dsarray_get(func->args, i);
         dsbuf_destroy(ident);
     }
+    dsarray_destroy(func->args);
 }
 
 static void CleanExpressionList(ms_ExprList *el) {

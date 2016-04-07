@@ -37,6 +37,7 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
 MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data);
 
