@@ -75,11 +75,13 @@ static char* bad_code[] = {
     "for var := 10 { }",
     "for var 10 := true { }",
     "for var x := { }",
+    "for var x := 1 { }",
     "for var x := 1 : { }",
     "for var x := 1 : 10 : { }",
     "for 10 := true { }",
     "for := true { }",
     "for x := { }",
+    "for x := 1 { }",
     "for x := 1 : { }",
     "for x := 1 : 10 : { }",
     "for x += 1 { }",
@@ -167,6 +169,30 @@ MunitTest parser_tests[] = {
     {
         "/DeleteStatement",
         prs_TestParseDeleteStatement,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ForIncrStatements",
+        prs_TestParseForIncStatements,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ForIterStatements",
+        prs_TestParseForIterStatements,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ForExprStatements",
+        prs_TestParseForExprStatements,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -307,7 +333,11 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 // "Private" statement composition macros
 #define AST_STMT(tp, component)         ((ms_Stmt){ .type = tp, .cmpnt = component })
 #define AST_STMTCOMPONENT(field, memb)  ((ms_StmtComponent){ .field = &(memb) })
-#define AST_STMT_FOR(fortp, c, blk)     ((ms_StmtFor){ .type = fortp, .clause = c, .block = blk })
+#define AST_STMT_FOR(fortp, c, f, blk)  ((ms_StmtFor){ .type = fortp, .clause = ((ms_StmtForClause){ .f = &(c) }), .block = blk })
+#define AST_STMT_FOR_INC(id, start, stop, incr, decl) \
+                                        ((ms_StmtForIncrement){ .ident = &(id), .init = &(start), .end = &(stop), .step = &(incr), .declare = decl })
+#define AST_STMT_FOR_ITER(id, e, d)     ((ms_StmtForIterator){ .ident = &(id), .iter = &(e), .declare = d })
+#define AST_STMT_FOR_EXPR(e)            ((ms_StmtForExpr){ .expr = &(e) })
 #define AST_STMT_IF(e, b, elseif)       ((ms_StmtIf){ .expr = &(e), .block = b, .elif = elseif })
 #define AST_STMT_ELSE(b)                ((ms_StmtElse){ .block = b })
 #define AST_STMT_ELIF(tp, m, c)         &((ms_StmtIfElse){ .type = tp, .clause = { .m = &(c) } })
@@ -316,11 +346,12 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_BREAK()                 AST_STMT(STMTTYPE_BREAK, AST_STMTCOMPONENT(brk, NULL))
 #define AST_CONTINUE()              AST_STMT(STMTTYPE_CONTINUE, AST_STMTCOMPONENT(cont, NULL))
 #define AST_DEL(e)                  AST_STMT(STMTTYPE_DELETE, AST_STMTCOMPONENT(del, ((ms_StmtDelete){ .expr = &(e) })))
-#define AST_FOR_INC(id, start, stop, stp, decl, b) \
-                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_INC, ((ms_StmtForInc){ .ident = id, .init = start, .end = stop, .step = stp, .declare = decl }), b)))
-#define AST_FOR_ITER(id, expr, decl, b) \
-                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_ITER, ((ms_StmtForIter){ .ident = id, .iter = expr, .declare = decl }), b)))
-#define AST_FOR_EXPR(e, b)          AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_EXPR, ((ms_StmtForExpr){ .expr = e }), b)))
+#define AST_FOR_INC(id, start, stop, incr, decl, b) \
+                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_INCREMENT, AST_STMT_FOR_INC(id, start, stop, incr, decl), inc, b)))
+#define AST_FOR_INC_1(id, start, stop, decl, b) \
+                                    AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_INCREMENT, AST_STMT_FOR_INC(id, start, stop, AST_UEXPR_V(UNARY_NONE, VM_INT(1)), decl), inc, b)))
+#define AST_FOR_ITER(id, e, d, b)   AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_ITERATOR, AST_STMT_FOR_ITER(id, e, d), iter, b)))
+#define AST_FOR_EXPR(e, b)          AST_STMT(STMTTYPE_FOR, AST_STMTCOMPONENT(forstmt, AST_STMT_FOR(FORSTMT_EXPR, AST_STMT_FOR_EXPR(e), expr, b)))
 #define AST_IF_ELIF(e, b, elseif)   AST_STMT(STMTTYPE_IF, AST_STMTCOMPONENT(ifstmt, AST_STMT_IF(e, b, elseif)))
 #define AST_ELIF_IF(e, b, elseif)   AST_STMT_ELIF(IFELSE_IF, ifstmt, AST_STMT_IF(e, b, elseif))
 #define AST_ELIF_ELSE(b)            AST_STMT_ELIF(IFELSE_ELSE, elstmt, AST_STMT_ELSE(b))
@@ -1721,6 +1752,107 @@ MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
+MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "for var i := 0 : lim { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_INC_1(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                true,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+        {
+            .val = "for var i := 0 : lim : 2 { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_INC(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(2)),
+                true,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+        {
+            .val = "for i := 0 : lim { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_INC_1(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                false,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+        {
+            .val = "for i := 0 : lim : 2 { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_INC(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_V(UNARY_NONE, VM_INT(2)),
+                false,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "for var i in range { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_ITER(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("range")),
+                true,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+        {
+            .val = "for i in range { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_ITER(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("range")),
+                false,
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "for cond { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_EXPR(
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT("cond")),
+                AST_EMPTY_STMT_BLOCK()),
+            .bc = { 0 }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
 MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
@@ -2124,12 +2256,8 @@ static MunitResult CompareForStatement(const ms_StmtFor *for1, const ms_StmtFor 
             munit_assert(for1->clause.inc->declare == for2->clause.inc->declare);
             CompareExpressions(for1->clause.inc->ident, for2->clause.inc->ident);
             CompareExpressions(for1->clause.inc->init, for2->clause.inc->init);
-            if ((for1->clause.inc->end) || (for2->clause.inc->end)) {
-                CompareExpressions(for1->clause.inc->end, for2->clause.inc->end);
-            }
-            if ((for1->clause.inc->end) || (for2->clause.inc->end)) {
-                CompareExpressions(for1->clause.inc->step, for2->clause.inc->step);
-            }
+            CompareExpressions(for1->clause.inc->end, for2->clause.inc->end);
+            CompareExpressions(for1->clause.inc->step, for2->clause.inc->step);
             break;
         case FORSTMT_EXPR:
             CompareExpressions(for1->clause.expr->expr, for2->clause.expr->expr);
