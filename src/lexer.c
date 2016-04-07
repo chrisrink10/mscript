@@ -59,6 +59,7 @@ static KeywordTuple KEYWORDS[] = {
     { "while", RESERVED_KW }, { "except", RESERVED_KW }, { "num", RESERVED_KW },
     { "str", RESERVED_KW }, { "bool", RESERVED_KW }, { "datetime", RESERVED_KW },
     { "obj", RESERVED_KW }, { "as", RESERVED_KW }, { "package", RESERVED_KW },
+    { "with", RESERVED_KW }, { "using", RESERVED_KW }
 };
 
 /*
@@ -578,7 +579,7 @@ static ms_Token *LexerLexNumber(ms_Lexer *lex, int prev) {
     }
 
     // Accept basic digits
-    ms_TokenType type = INT_NUMBER;
+    ms_TokenType type = (prev == '.') ? FLOAT_NUMBER : INT_NUMBER;
     LexerAcceptRun(lex, BASE_10_DIGITS);
 
     // Accept standard decimal digits

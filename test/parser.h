@@ -29,6 +29,17 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS

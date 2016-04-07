@@ -99,7 +99,7 @@ DSBuffer *dsbuf_dup(const DSBuffer *str) {
 
     s->len = str->len;
     s->cap = str->cap;
-    s->str = malloc(s->cap);
+    s->str = calloc(s->cap, 1);
     if (!s->str) {
         goto cleanup_dsbuf_dup;
     }

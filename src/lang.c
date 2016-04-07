@@ -21,6 +21,18 @@
 #include "bytecode.h"
 #include "lang.h"
 
+static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomType type);
+static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type);
+static void StmtDeleteDestroy(ms_StmtDelete *del);
+static void StmtForDestroy(ms_StmtFor *forstmt);
+static void StmtIfDestroy(ms_StmtIf *ifstmt);
+static void StmtImportDestroy(ms_StmtImport *import);
+static void StmtElseDestroy(ms_StmtElse *elstmt);
+static void StmtMergeDestroy(ms_StmtMerge *merge);
+static void StmtReturnDestroy(ms_StmtReturn *ret);
+static void StmtAssignmentDestroy(ms_StmtAssignment *assign);
+static void StmtDeclarationDestroy(ms_StmtDeclaration *decl);
+
 /*
  * PUBLIC FUNCTIONS
  */
@@ -105,6 +117,19 @@ ms_Expr *ms_ExprNewWithList(ms_ExprList *list) {
     return expr;
 }
 
+ms_Expr *ms_ExprNewWithFunc(ms_ValFunc *fn) {
+    ms_Expr *expr = ms_ExprNew(EXPRTYPE_UNARY);
+    if (!expr) {
+        return NULL;
+    }
+
+    expr->cmpnt.u->atom.val.type = MSVAL_FUNC;
+    expr->cmpnt.u->atom.val.val.fn = fn;
+    expr->cmpnt.u->type = EXPRATOM_VALUE;
+    expr->cmpnt.u->op = UNARY_NONE;
+    return expr;
+}
+
 ms_Expr *ms_ExprFloatFromString(const char *str) {
     assert(str);
 
@@ -147,6 +172,44 @@ ms_Expr *ms_ExprIntFromString(const char *str) {
     expr->cmpnt.u->type = EXPRATOM_VALUE;
     expr->cmpnt.u->op = UNARY_NONE;
     return expr;
+}
+
+ms_Expr *ms_ExprDup(const ms_Expr *src) {
+    if (!src) { return NULL; }
+
+    ms_Expr *expr = ms_ExprNew(src->type);
+    if (!expr) {
+        return NULL;
+    }
+
+    switch (src->type) {
+        case EXPRTYPE_UNARY:
+            assert(src->cmpnt.u);
+            expr->cmpnt.u->type = src->cmpnt.u->type;
+            expr->cmpnt.u->op = src->cmpnt.u->op;
+            if (!ExprAtomDup(&src->cmpnt.u->atom, &expr->cmpnt.u->atom, expr->cmpnt.u->type)) {
+                goto expr_dup_fail;
+            }
+            break;
+        case EXPRTYPE_BINARY:
+            assert(expr->cmpnt.b);
+            expr->cmpnt.b->ltype = src->cmpnt.b->ltype;
+            expr->cmpnt.b->op = src->cmpnt.b->op;
+            expr->cmpnt.b->rtype = src->cmpnt.b->rtype;
+            if (!ExprAtomDup(&src->cmpnt.b->latom, &expr->cmpnt.b->latom, expr->cmpnt.b->ltype)) {
+                goto expr_dup_fail;
+            }
+            if (!ExprAtomDup(&src->cmpnt.b->ratom, &expr->cmpnt.b->ratom, expr->cmpnt.b->rtype)) {
+                goto expr_dup_fail;
+            }
+            break;
+    }
+
+    return expr;
+
+expr_dup_fail:
+    ms_ExprDestroy(expr);
+    return NULL;
 }
 
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
@@ -211,69 +274,357 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     return outer;
 }
 
+bool ms_ExprIsIdent(const ms_Expr *expr) {
+    if (!expr) {
+        return false;
+    }
+
+    if (expr->type != EXPRTYPE_UNARY) {
+        return false;
+    }
+
+    if (!expr->cmpnt.u) {
+        return false;
+    }
+
+    if (expr->cmpnt.u->op != UNARY_NONE) {
+        return false;
+    }
+
+    if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    return true;
+}
+
+bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
+    if (!expr) {
+        return false;
+    }
+
+    if (expr->type == EXPRTYPE_UNARY) {
+        return ms_ExprIsIdent(expr);
+    }
+
+    if (!expr->cmpnt.b) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
+        if (!ms_ExprIsQualifiedIdent(expr->cmpnt.b->latom.expr)) {
+            return false;
+        }
+    } else if (expr->cmpnt.b->ltype != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->rtype != EXPRATOM_IDENT) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->op != BINARY_GETATTR) {
+        return false;
+    }
+
+    return true;
+}
+
+void ms_ValFuncDestroy(ms_ValFunc *fn) {
+    if (!fn) { return; }
+    dsbuf_destroy(fn->ident);
+    fn->ident = NULL;
+    dsarray_destroy(fn->args);
+    fn->args = NULL;
+    dsarray_destroy(fn->block);
+    fn->block = NULL;
+    free(fn);
+}
+
 void ms_ExprDestroy(ms_Expr *expr) {
     if (!expr) { return; }
+
     switch (expr->type) {
         case EXPRTYPE_UNARY:
             if (expr->cmpnt.u) {
-                switch(expr->cmpnt.u->type) {
-                    case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->cmpnt.u->atom.expr);
-                        break;
-                    case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->cmpnt.u->atom.ident);
-                        expr->cmpnt.u->atom.ident = NULL;
-                        break;
-                    case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->cmpnt.u->atom.list);
-                        expr->cmpnt.u->atom.list = NULL;
-                        break;
-                    case EXPRATOM_VALUE:    /* no free required */
-                    case EXPRATOM_EMPTY:    /* no free required */
-                        break;
-                }
+                ExprAtomDestroy(&expr->cmpnt.u->atom, expr->cmpnt.u->type);
                 free(expr->cmpnt.u);
                 expr->cmpnt.u = NULL;
             }
             break;
         case EXPRTYPE_BINARY:
             if (expr->cmpnt.b) {
-                switch (expr->cmpnt.b->ltype) {
-                    case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->cmpnt.b->latom.expr);
-                        break;
-                    case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->cmpnt.b->latom.ident);
-                        expr->cmpnt.b->latom.ident = NULL;
-                        break;
-                    case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->cmpnt.b->latom.list);
-                        expr->cmpnt.b->latom.list = NULL;
-                        break;
-                    case EXPRATOM_VALUE:    /* no free required */
-                    case EXPRATOM_EMPTY:    /* no free required */
-                        break;
-                }
-                switch(expr->cmpnt.b->rtype) {
-                    case EXPRATOM_EXPRESSION:
-                        ms_ExprDestroy(expr->cmpnt.b->ratom.expr);
-                        break;
-                    case EXPRATOM_IDENT:
-                        dsbuf_destroy(expr->cmpnt.b->ratom.ident);
-                        expr->cmpnt.b->ratom.ident = NULL;
-                        break;
-                    case EXPRATOM_EXPRLIST:
-                        dsarray_destroy(expr->cmpnt.b->ratom.list);
-                        expr->cmpnt.b->ratom.list = NULL;
-                        break;
-                    case EXPRATOM_VALUE:    /* no free required */
-                    case EXPRATOM_EMPTY:    /* no free required */
-                        break;
-                }
+                ExprAtomDestroy(&expr->cmpnt.b->latom, expr->cmpnt.b->ltype);
+                ExprAtomDestroy(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype);
                 free(expr->cmpnt.b);
                 expr->cmpnt.b = NULL;
             }
             break;
     }
+
     free(expr);
+}
+
+void ms_StmtDestroy(ms_Stmt *stmt) {
+    if (!stmt) { return; }
+
+    switch (stmt->type) {
+        case STMTTYPE_EMPTY:        // Fall through
+        case STMTTYPE_BREAK:        // Fall through
+        case STMTTYPE_CONTINUE:
+            break;
+        case STMTTYPE_DELETE:
+            StmtDeleteDestroy(stmt->cmpnt.del);
+            stmt->cmpnt.del = NULL;
+            break;
+        case STMTTYPE_FOR:
+            StmtForDestroy(stmt->cmpnt.forstmt);
+            stmt->cmpnt.forstmt = NULL;
+            break;
+        case STMTTYPE_IF:
+            StmtIfDestroy(stmt->cmpnt.ifstmt);
+            stmt->cmpnt.ifstmt = NULL;
+            break;
+        case STMTTYPE_IMPORT:
+            StmtImportDestroy(stmt->cmpnt.import);
+            stmt->cmpnt.import = NULL;
+            break;
+        case STMTTYPE_MERGE:
+            StmtMergeDestroy(stmt->cmpnt.merge);
+            stmt->cmpnt.merge = NULL;
+            break;
+        case STMTTYPE_RETURN:
+            StmtReturnDestroy(stmt->cmpnt.ret);
+            stmt->cmpnt.ret = NULL;
+            break;
+        case STMTTYPE_ASSIGNMENT:
+            StmtAssignmentDestroy(stmt->cmpnt.assign);
+            stmt->cmpnt.assign = NULL;
+            break;
+        case STMTTYPE_DECLARATION:
+            StmtDeclarationDestroy(stmt->cmpnt.decl);
+            stmt->cmpnt.decl = NULL;
+            break;
+        case STMTTYPE_EXPRESSION:
+            ms_ExprDestroy(stmt->cmpnt.expr);
+            stmt->cmpnt.expr = NULL;
+            break;
+    }
+
+    free(stmt);
+}
+
+/*
+ * PRIVATE FUNCTIONS
+ */
+
+static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomType type) {
+    assert(src);
+    assert(dest);
+
+    switch(type) {
+        case EXPRATOM_EXPRESSION:
+            dest->expr = ms_ExprDup(src->expr);
+            if (!dest->expr) {
+                goto expr_atom_dup_fail;
+            }
+            break;
+        case EXPRATOM_IDENT:
+            dest->ident = dsbuf_dup(src->ident);
+            if (!dest->ident) {
+                goto expr_atom_dup_fail;
+            }
+            break;
+        case EXPRATOM_EXPRLIST: {
+            size_t srclen = dsarray_cap(src->list);
+            DSArray *exprlist = dsarray_new_cap(srclen, NULL, (dsarray_free_fn) ms_ExprDestroy);
+            if (!exprlist) {
+                goto expr_atom_dup_fail;
+            }
+
+            size_t len = dsarray_len(src->list);
+            for (size_t i = 0; i < len; i++) {
+                const ms_Expr *e = dsarray_get(src->list, i);
+                ms_Expr *e2 = ms_ExprDup(e);
+                if (!e2) {
+                    goto expr_atom_dup_fail;
+                }
+
+                dsarray_append(exprlist, e2);
+            }
+
+            dest->list = exprlist;
+            break;
+        }
+        case EXPRATOM_VALUE:
+            dest->val = src->val;
+            if (dest->val.type == MSVAL_STR) {
+                dest->val.val.s = dsbuf_dup(src->val.val.s);
+                if (!dest->val.val.s) {
+                    goto expr_atom_dup_fail;
+                }
+            }
+            break;
+        case EXPRATOM_EMPTY:
+            assert(false && "expression atom should have a type");
+            break;
+    }
+
+    return true;
+
+expr_atom_dup_fail:
+    return false;
+}
+
+static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
+    if (!atom) { return; }
+    switch(type) {
+        case EXPRATOM_EXPRESSION:
+            ms_ExprDestroy(atom->expr);
+            atom->expr = NULL;
+            break;
+        case EXPRATOM_IDENT:
+            dsbuf_destroy(atom->ident);
+            atom->ident = NULL;
+            break;
+        case EXPRATOM_EXPRLIST:
+            dsarray_destroy(atom->list);
+            atom->list = NULL;
+            break;
+        case EXPRATOM_VALUE:
+            if (atom->val.type == MSVAL_FUNC) {
+                ms_ValFuncDestroy(atom->val.val.fn);
+                atom->val.val.fn = NULL;
+            } else if (atom->val.type == MSVAL_STR) {
+                dsbuf_destroy(atom->val.val.s);
+                atom->val.val.s = NULL;
+            }
+            break;
+        case EXPRATOM_EMPTY:    /* no free required */
+            break;
+    }
+}
+
+static void StmtDeleteDestroy(ms_StmtDelete *del) {
+    if (!del) { return; }
+    ms_ExprDestroy(del->expr);
+    del->expr = NULL;
+    free(del);
+}
+
+static void StmtForDestroy(ms_StmtFor *forstmt) {
+    if (!forstmt) { return; }
+
+    switch (forstmt->type) {
+        case FORSTMT_INCREMENT:
+            if (forstmt->clause.inc) {
+                ms_ExprDestroy(forstmt->clause.inc->ident);
+                forstmt->clause.inc->ident = NULL;
+                ms_ExprDestroy(forstmt->clause.inc->init);
+                forstmt->clause.inc->init = NULL;
+                ms_ExprDestroy(forstmt->clause.inc->end);
+                forstmt->clause.inc->end = NULL;
+                ms_ExprDestroy(forstmt->clause.inc->step);
+                forstmt->clause.inc->step = NULL;
+                free(forstmt->clause.inc);
+            }
+            break;
+        case FORSTMT_ITERATOR:
+            if (forstmt->clause.iter) {
+                ms_ExprDestroy(forstmt->clause.iter->ident);
+                forstmt->clause.iter->ident = NULL;
+                ms_ExprDestroy(forstmt->clause.iter->iter);
+                forstmt->clause.iter->iter = NULL;
+                free(forstmt->clause.iter);
+            }
+            break;
+        case FORSTMT_EXPR:
+            if (forstmt->clause.expr) {
+                ms_ExprDestroy(forstmt->clause.expr->expr);
+                forstmt->clause.expr->expr = NULL;
+                free(forstmt->clause.expr);
+            }
+            break;
+    }
+
+    dsarray_destroy(forstmt->block);
+    forstmt->block = NULL;
+    free(forstmt);
+}
+
+static void StmtIfDestroy(ms_StmtIf *ifstmt) {
+    if (!ifstmt) { return; }
+
+    ms_ExprDestroy(ifstmt->expr);
+    ifstmt->expr = NULL;
+    dsarray_destroy(ifstmt->block);
+    ifstmt->block = NULL;
+
+    if (ifstmt->elif) {
+        switch (ifstmt->elif->type) {
+            case IFELSE_IF:
+                StmtIfDestroy(ifstmt->elif->clause.ifstmt);
+                ifstmt->elif->clause.ifstmt = NULL;
+                break;
+            case IFELSE_ELSE:
+                StmtElseDestroy(ifstmt->elif->clause.elstmt);
+                ifstmt->elif->clause.elstmt = NULL;
+                break;
+        }
+        free(ifstmt->elif);
+    }
+
+    free(ifstmt);
+}
+
+static void StmtImportDestroy(ms_StmtImport *import) {
+    if (!import) { return; }
+    ms_ExprDestroy(import->ident);
+    import->ident = NULL;
+    dsbuf_destroy(import->alias);
+    import->alias = NULL;
+    free(import);
+}
+
+static void StmtElseDestroy(ms_StmtElse *elstmt) {
+    if (!elstmt) { return; }
+    dsarray_destroy(elstmt->block);
+    elstmt->block = NULL;
+    free(elstmt);
+}
+
+static void StmtMergeDestroy(ms_StmtMerge *merge) {
+    if (!merge) { return; }
+    ms_ExprDestroy(merge->left);
+    merge->left = NULL;
+    ms_ExprDestroy(merge->right);
+    merge->right = NULL;
+    free(merge);
+}
+
+static void StmtReturnDestroy(ms_StmtReturn *ret) {
+    if (!ret) { return; }
+    ms_ExprDestroy(ret->expr);
+    ret->expr = NULL;
+    free(ret);
+}
+
+static void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
+    if (!assign) { return; }
+    ms_ExprDestroy(assign->ident);
+    assign->ident = NULL;
+    ms_ExprDestroy(assign->expr);
+    assign->expr = NULL;
+    free(assign);
+}
+
+static void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
+    if (!decl) { return; }
+    dsbuf_destroy(decl->ident);
+    decl->ident = NULL;
+    ms_ExprDestroy(decl->expr);
+    decl->expr = NULL;
+    StmtDeclarationDestroy(decl->next);
+    decl->next = NULL;
+    free(decl);
 }

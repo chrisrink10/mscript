@@ -21,63 +21,60 @@
 #include "libds/buffer.h"
 #include "lexer.h"
 
-/**
-* @brief Expression syntax tree object
-*/
 typedef struct ms_Expr ms_Expr;
 
-/**
-* @brief Identifier
-*/
-typedef DSBuffer ms_Ident;
+/*
+ * MISCELLANEOUS LANGUAGE COMPONENTS
+ */
 
-/**
-* @brief Expression list object
-*/
+typedef DSArray ms_StmtBlock;
+typedef DSBuffer ms_Ident;
 typedef DSArray ms_ExprList;
+typedef DSArray ms_ArgList;
 
 /*
-* @brief Typedefs of mscript values
-*/
+ * VALUE LANGUAGE COMPONENTS
+ */
+
 typedef double ms_ValFloat;
 typedef long long ms_ValInt;
 typedef DSBuffer ms_ValStr;
 typedef bool ms_ValBool;
 typedef const void ms_ValNull;
 
-/**
-* @brief Enumeration of data value types in mscript
-*/
+typedef struct {
+    ms_Ident *ident;
+    ms_ArgList *args;
+    ms_StmtBlock *block;
+} ms_ValFunc;
+
 typedef enum {
     MSVAL_FLOAT,
     MSVAL_INT,
     MSVAL_STR,
     MSVAL_BOOL,
     MSVAL_NULL,
+    MSVAL_FUNC,
 } ms_ValDataType;
 
-/**
-* @brief Union of data types in mscript
-*/
 typedef union {
     ms_ValFloat f;
     ms_ValInt i;
     ms_ValStr *s;
     ms_ValBool b;
     ms_ValNull *n;
+    ms_ValFunc *fn;
 } ms_ValData;
 
-/**
-* @brief Structure of any value within mscript
-*/
 typedef struct {
     ms_ValDataType type;
     ms_ValData val;
 } ms_Value;
 
-/**
-* @brief Expression atom union
-*/
+/*
+ * EXPRESSION LANGUAGE COMPONENTS
+ */
+
 typedef union {
     ms_Expr *expr;
     ms_Value val;
@@ -85,9 +82,6 @@ typedef union {
     ms_ExprList *list;
 } ms_ExprAtom;
 
-/**
-* @brief Type of expression atom
-*/
 typedef enum {
     EXPRATOM_EMPTY,
     EXPRATOM_EXPRESSION,
@@ -96,9 +90,6 @@ typedef enum {
     EXPRATOM_EXPRLIST,
 } ms_ExprAtomType;
 
-/**
-* @brief Type of operation for this binary expression
-*/
 typedef enum {
     UNARY_NONE,
     UNARY_MINUS,
@@ -106,18 +97,12 @@ typedef enum {
     UNARY_BITWISE_NOT,
 } ms_ExprUnaryOp;
 
-/*
-* @brief Unary expression object
-*/
 typedef struct {
     ms_ExprAtom atom;
     ms_ExprAtomType type;
     ms_ExprUnaryOp op;
 } ms_ExprUnary;
 
-/**
-* @brief Type of operation for this binary expression
-*/
 typedef enum {
     BINARY_EMPTY,
     BINARY_PLUS,
@@ -141,11 +126,9 @@ typedef enum {
     BINARY_AND,
     BINARY_OR,
     BINARY_CALL,
+    BINARY_GETATTR,
 } ms_ExprBinaryOp;
 
-/**
-* @brief Binary expression object
-*/
 typedef struct {
     ms_ExprAtom latom;
     ms_ExprAtomType ltype;
@@ -154,44 +137,171 @@ typedef struct {
     ms_ExprAtomType rtype;
 } ms_ExprBinary;
 
-/*
-* @brief Union of binary or unary expression
-*/
 typedef union {
     ms_ExprBinary *b;
     ms_ExprUnary *u;
 } ms_ExprComponent;
 
-/*
-* @brief Type of expression (binary or unary)
-*/
 typedef enum {
     EXPRTYPE_BINARY,
     EXPRTYPE_UNARY
 } ms_ExprType;
 
-/**
-* @brief Expression object
-*/
 struct ms_Expr {
     ms_ExprComponent cmpnt;
     ms_ExprType type;
 };
 
-/**
-* @brief Enumeration used to indicate which part of an expression to flatten
-* into the outer/containing expression.
-*/
+/* Enumeration used to indicate which part of an expression to flatten
+ * into the outer/containing expression. */
 typedef enum {
     EXPRLOC_UNARY,
     EXPRLOC_LEFT,
     EXPRLOC_RIGHT,
 } ms_ExprLocation;
 
-/**
-* @brief Placeholder for a more sophisticated AST object.
-*/
-typedef ms_Expr ms_AST;
+/*
+ * STATEMENT LANGUAGE COMPONENTS
+ */
+
+typedef struct ms_StmtBreak ms_StmtBreak;           /* dummy types required to be declared */
+typedef struct ms_StmtContinue ms_StmtContinue;     /* as pointers (which will have to be NULL) */
+
+typedef enum {
+    FORSTMT_INCREMENT,
+    FORSTMT_ITERATOR,
+    FORSTMT_EXPR,
+} ms_StmtForType;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Expr *init;
+    ms_Expr *end;
+    ms_Expr *step;
+    bool declare;
+} ms_StmtForIncrement;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Expr *iter;
+    bool declare;
+} ms_StmtForIterator;
+
+typedef struct {
+    ms_Expr *expr;
+} ms_StmtForExpr;
+
+typedef union {
+    ms_StmtForIncrement *inc;
+    ms_StmtForIterator *iter;
+    ms_StmtForExpr *expr;
+} ms_StmtForClause;
+
+typedef struct {
+    ms_StmtForClause clause;
+    ms_StmtForType type;
+    ms_StmtBlock *block;
+} ms_StmtFor;
+
+typedef struct ms_StmtIf ms_StmtIf;
+typedef struct ms_StmtElse ms_StmtElse;
+
+typedef union {
+    ms_StmtIf *ifstmt;
+    ms_StmtElse *elstmt;
+} ms_StmtIfElseClause;
+
+typedef enum {
+    IFELSE_IF,
+    IFELSE_ELSE,
+} ms_StmtIfElseType;
+
+typedef struct {
+    ms_StmtIfElseClause clause;
+    ms_StmtIfElseType type;
+} ms_StmtIfElse;
+
+struct ms_StmtIf {
+    ms_Expr *expr;
+    ms_StmtBlock *block;
+    ms_StmtIfElse *elif;
+};
+
+struct ms_StmtElse {
+    ms_StmtBlock *block;
+};
+
+typedef struct {
+    ms_Expr *expr;
+} ms_StmtDelete;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Ident *alias;
+} ms_StmtImport;
+
+typedef struct {
+    ms_Expr *left;
+    ms_Expr *right;
+} ms_StmtMerge;
+
+typedef struct {
+    ms_Expr *expr;
+} ms_StmtReturn;
+
+typedef struct {
+    ms_Expr *ident;
+    ms_Expr *expr;
+} ms_StmtAssignment;
+
+typedef struct ms_StmtDeclaration ms_StmtDeclaration;
+struct ms_StmtDeclaration{
+    ms_Ident *ident;
+    ms_Expr *expr;
+    ms_StmtDeclaration *next;
+};
+
+typedef enum {
+    STMTTYPE_EMPTY,
+    STMTTYPE_BREAK,
+    STMTTYPE_CONTINUE,
+    STMTTYPE_DELETE,
+    STMTTYPE_FOR,
+    STMTTYPE_IF,
+    STMTTYPE_IMPORT,
+    STMTTYPE_MERGE,
+    STMTTYPE_RETURN,
+    STMTTYPE_ASSIGNMENT,
+    STMTTYPE_DECLARATION,
+    STMTTYPE_EXPRESSION,
+} ms_StmtType;
+
+typedef union {
+    ms_StmtBreak *brk;
+    ms_StmtContinue *cont;
+    ms_StmtDelete *del;
+    ms_StmtFor *forstmt;
+    ms_StmtIf *ifstmt;
+    ms_StmtImport *import;
+    ms_StmtMerge *merge;
+    ms_StmtReturn *ret;
+    ms_StmtAssignment *assign;
+    ms_StmtDeclaration *decl;
+    ms_Expr *expr;
+} ms_StmtComponent;
+
+typedef struct {
+    ms_StmtComponent cmpnt;
+    ms_StmtType type;
+} ms_Stmt;
+
+typedef DSArray ms_Module;
+
+/*
+ * ABSTRACT SYNTAX TREE ROOT
+ */
+
+typedef ms_Module ms_AST;
 
 /**
 * @brief Create a new @c ms_Expr object.
@@ -214,6 +324,11 @@ ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len);
 ms_Expr *ms_ExprNewWithList(ms_ExprList *list);
 
 /**
+* @brief Create a new @c ms_Expr object for containing a function expression.
+*/
+ms_Expr *ms_ExprNewWithFunc(ms_ValFunc *fn);
+
+/**
 * @brief Create a new unary @c ms_Expr object containing a floating point
 * number from a string.
 */
@@ -224,6 +339,11 @@ ms_Expr *ms_ExprFloatFromString(const char *str);
 * number from a string.
 */
 ms_Expr *ms_ExprIntFromString(const char *str);
+
+/**
+* @brief Duplicate the given expression.
+*/
+ms_Expr *ms_ExprDup(const ms_Expr *src);
 
 /**
 * @brief Flatten two expressions such that the expression tree does not
@@ -243,13 +363,34 @@ ms_Expr *ms_ExprIntFromString(const char *str);
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
+* @brief Determine if an expression contains _only_ a single identifier.
+*/
+bool ms_ExprIsIdent(const ms_Expr *expr);
+
+/**
+* @brief Determine if an expression contains _only_ a qualified identifier.
+* Qualified identifiers are in the form: IDENTIFIER ('.' IDENTIFIER)*
+*/
+bool ms_ExprIsQualifiedIdent(const ms_Expr *expr);
+
+/**
+* @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.
+*/
+void ms_ValFuncDestroy(ms_ValFunc *fn);
+
+/**
 * @brief Destroy the given @c ms_Expr and any nested expressions.
 */
 void ms_ExprDestroy(ms_Expr *expr);
 
+/**
+* @brief Destroy the given @c ms_Stmt and nested AST elements.
+*/
+void ms_StmtDestroy(ms_Stmt *stmt);
+
 /*
 * @brief Placeholder for real AST destroy function.
 */
-#define ms_ASTDestroy(ast) ms_ExprDestroy(ast)
+#define ms_ASTDestroy(ast) dsarray_destroy(ast)
 
 #endif //MSCRIPT_LANG_H
