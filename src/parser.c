@@ -56,6 +56,7 @@ static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: 
 static const char *const ERR_MUST_ASSIGN_TO_IDENT = "Assignment target must be identifier (ln: %d, col: %d)";
 static const char *const ERR_MUST_ASSIGN_TO_QIDENT = "Assignment target must be identifier or qualified identifier (ln: %d, col: %d)";
 static const char *const ERR_MUST_IMPORT_QIDENT = "Imported module must be identifier or qualified identifier (ln: %d, col: %d)";
+static const char *const ERR_FOR_LOOP_MUST_END = "For loop must have a start expression and end expression (ln: %d, col: %d)";
 
 static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module);
 static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt);
@@ -248,7 +249,7 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
  *                  import_stmt | merge_stmt | ret_stmt | func_decl |
  *                  declare | assign | expr
- * for_stmt:        'for' ('var') expr ':=' expr (':' expr (':' expr)) |
+ * for_stmt:        'for' ('var') expr ':=' expr ':' expr (':' expr) |
  *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
  * if_stmt:         'if' expr block (else_stmt)
@@ -558,16 +559,26 @@ static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bo
     }
 
     if (!ParserExpectToken(prs, COLON)) {
-        return PARSE_SUCCESS;
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_COLON, prs->line, prs->col);
+        return PARSE_ERROR;
     }
     ParserConsumeToken(prs);
 
     if (ParserParseExpression(prs, &(*inc)->end) == PARSE_ERROR) {
+        ParserErrorSet(prs, ERR_FOR_LOOP_MUST_END, prs->cur, prs->line, prs->col);
         return PARSE_ERROR;
     }
 
     if (!ParserExpectToken(prs, COLON)) {
-        return PARSE_SUCCESS;
+        /* set the default step value of 1 if none is specified */
+        ms_ValData p = { .i = 1 };
+        (*inc)->step = ms_ExprNewWithVal(MSVAL_INT, p);
+        if (!(*inc)->step) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return PARSE_ERROR;
+        }
+
+        goto parse_for_inc_block;
     }
     ParserConsumeToken(prs);
 
@@ -575,6 +586,7 @@ static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bo
         return PARSE_ERROR;
     }
 
+parse_for_inc_block:
     return ParserParseBlock(prs, block);
 }
 
