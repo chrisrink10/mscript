@@ -1753,7 +1753,7 @@ MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *us
         {
             .val = "del name.second.third",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DEL(AST_BEXPR_EI(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), BINARY_GETATTR, AST_IDENT("third")))
+            .cmpnt.stmt = AST_DEL(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")))
         },
     };
 
@@ -1955,13 +1955,13 @@ MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *us
         {
             .val = "import Http.Server",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_II(AST_IDENT("Http"), BINARY_GETATTR, AST_IDENT("Server")), NULL),
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT("Http"), BINARY_GETATTR, VM_STR("Server")), NULL),
             .bc = { 0 }
         },
         {
             .val = "import Http.Server : srv",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_II(AST_IDENT("Http"), BINARY_GETATTR, AST_IDENT("Server")), AST_IDENT("srv")),
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT("Http"), BINARY_GETATTR, VM_STR("Server")), AST_IDENT("srv")),
             .bc = { 0 }
         },
     };
@@ -1982,7 +1982,7 @@ MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *use
         {
             .val = "merge name.second := other",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .cmpnt.stmt = AST_MERGE(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
             .bc = { 0 }
         },
         {
@@ -2039,7 +2039,7 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
         {
             .val = "return name.second",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_RETURN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second"))),
+            .cmpnt.stmt = AST_RETURN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second"))),
             .bc = { 0 }
         },
     };
@@ -2148,13 +2148,13 @@ MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_da
         {
             .val = "name.second := 10",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
             .bc = { 0 }
         },
         {
             .val = "name.second += 10",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), AST_BEXPR_EV(AST_BEXPR_II(AST_IDENT("name"), BINARY_GETATTR, AST_IDENT("second")), BINARY_PLUS, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
             .bc = { 0 }
         },
     };

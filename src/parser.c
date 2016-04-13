@@ -1530,7 +1530,10 @@ static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr, ms_Exp
             return PARSE_ERROR;
         }
 
-        *expr = ms_ExprNewWithIdent(dsbuf_char_ptr(prs->cur->value), dsbuf_len(prs->cur->value));
+        ms_ValData p;
+        p.s = prs->cur->value;
+        prs->cur->value = NULL;
+        *expr = ms_ExprNewWithVal(MSVAL_STR, p);
         if (!(*expr)) {
             ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
             return PARSE_ERROR;

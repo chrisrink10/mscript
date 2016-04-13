@@ -265,6 +265,12 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
                 inner->cmpnt.u->atom.ident = NULL;
                 break;
             case EXPRATOM_VALUE:
+                if (inner->cmpnt.u->atom.val.type == MSVAL_FUNC) {
+                    inner->cmpnt.u->atom.val.val.fn = NULL;
+                } else if (inner->cmpnt.u->atom.val.type == MSVAL_STR) {
+                    inner->cmpnt.u->atom.val.val.s = NULL;
+                }
+                break;
             case EXPRATOM_EMPTY:
                 break;
         }
@@ -319,7 +325,11 @@ bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
         return false;
     }
 
-    if (expr->cmpnt.b->rtype != EXPRATOM_IDENT) {
+    if (expr->cmpnt.b->rtype != EXPRATOM_VALUE) {
+        return false;
+    }
+
+    if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
         return false;
     }
 
