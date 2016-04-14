@@ -20,49 +20,67 @@
 #include <stddef.h>
 #include "lang.h"
 
-/**
-* @brief Enumeration of mscript VM opcodes
-*/
 typedef enum {
-    OPC_PRINT,
-    OPC_PUSH,
-    OPC_POP,
-    OPC_SWAP,
-    OPC_ADD,
-    OPC_SUBTRACT,
-    OPC_MULTIPLY,
-    OPC_DIVIDE,
-    OPC_IDIVIDE,
-    OPC_MODULO,
-    OPC_EXPONENTIATE,
-    OPC_NEGATE,
-    OPC_SHIFT_LEFT,
-    OPC_SHIFT_RIGHT,
-    OPC_BITWISE_AND,
-    OPC_BITWISE_XOR,
-    OPC_BITWISE_OR,
-    OPC_BITWISE_NOT,
-    OPC_LE,
-    OPC_LT,
-    OPC_GE,
-    OPC_GT,
-    OPC_EQ,
-    OPC_NOT_EQ,
-    OPC_NOT,
-    OPC_AND,
-    OPC_OR,
-    OPC_CALL,
-    OPC_LOAD_NAME,
+    /*----------------------------------------------------------------------------------
+    name                    arg         action
+    ------------------------------------------------------------------------------------*/
+    OPC_PRINT,          /*              print $str(TOS)                                 */
+    OPC_PUSH,           /*  req         push values[i] to TOS                           */
+    OPC_POP,            /*              pop TOS                                         */
+    OPC_SWAP,           /*              TOS, TOS1 := TOS1, TOS                          */
+    OPC_DUP,            /*              duplicate TOS, push duplicate to TOS            */
+    OPC_ADD,            /*              TOS := TOS1 + TOS                               */
+    OPC_SUBTRACT,       /*              TOS := TOS1 - TOS                               */
+    OPC_MULTIPLY,       /*              TOS := TOS1 * TOS                               */
+    OPC_DIVIDE,         /*              TOS := TOS1 / TOS                               */
+    OPC_IDIVIDE,        /*              TOS := TOS1 \ TOS                               */
+    OPC_MODULO,         /*              TOS := TOS1 % TOS                               */
+    OPC_EXPONENTIATE,   /*              TOS := TOS1 ** TOS                              */
+    OPC_NEGATE,         /*              TOS := -TOS                                     */
+    OPC_SHIFT_LEFT,     /*              TOS := TOS1 << TOS                              */
+    OPC_SHIFT_RIGHT,    /*              TOS := TOS1 >> TOS                              */
+    OPC_BITWISE_AND,    /*              TOS := TOS1 & TOS                               */
+    OPC_BITWISE_XOR,    /*              TOS := TOS1 ^ TOS                               */
+    OPC_BITWISE_OR,     /*              TOS := TOS1 | TOS                               */
+    OPC_BITWISE_NOT,    /*              TOS := ~TOS                                     */
+    OPC_LE,             /*              TOS := TOS1 <= TOS                              */
+    OPC_LT,             /*              TOS := TOS1 < TOS                               */
+    OPC_GE,             /*              TOS := TOS1 >= TOS                              */
+    OPC_GT,             /*              TOS := TOS1 > TOS                               */
+    OPC_EQ,             /*              TOS := TOS1 == TOS                              */
+    OPC_NOT_EQ,         /*              TOS := TOS1 != TOS                              */
+    OPC_NOT,            /*              TOS := !TOS                                     */
+    OPC_AND,            /*              TOS := TOS1 && TOS                              */
+    OPC_OR,             /*              TOS := TOS1 || TOS                              */
+    OPC_CALL,           /*  req         call TOS with arg # arguments                   */
+    OPC_PUSH_BLOCK,     /*              push a new block context onto the frame         */
+    OPC_POP_BLOCK,      /*              pop the top block context from the stack        */
+    OPC_RETURN,         /*              return TOS to calling context                   */
+    OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                           */
+    OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOS2                          */
+    OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                            */
+    OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                           */
+    OPC_DEL_NAME,       /*              delete env[TOS]                                 */
+    OPC_MERGE,          /*              merge TOS1 := TOS                               */
+    OPC_IMPORT,         /*              ???                                             */
+    OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                             */
+    OPC_GOTO,           /*  req         ip := arg                                       */
+    OPC_BREAK,          /*  req         break innermost loop (e.g. goto)                */
+    OPC_CONTINUE,       /*  req         continue loop from start (e.g. goto)            */
 } ms_VMOpCodeType;
 
-/**
-* @brief Opcode value
-*/
 typedef int ms_VMOpCode;
 
-/**
-* @brief Container for a full mscript bytecode script
-*/
+#ifndef NDEBUG
+/* LLDB Type Summary:
+ * type summary add --summary-string "(${var.type}, ${var.arg})" ms_VMOpCodeDebug
+ */
+typedef struct {
+    ms_VMOpCodeType type    : 16;
+    int arg                 : 16;
+} ms_VMOpCodeDebug;
+#endif
+
 typedef struct {
     ms_VMOpCode *code;                              /* array of opcodes */
     ms_Value *values;                               /* array of VM values */
@@ -73,9 +91,9 @@ typedef struct {
 } ms_VMByteCode;
 
 /**
-* @brief Generate mscript VM bytecode from the given expression value.
+* @brief Generate mscript VM bytecode from the given abstract syntax tree.
 */
-ms_VMByteCode *ms_ExprToOpCodes(ms_Expr *expr);
+ms_VMByteCode *ms_ASTToOpCodes(ms_AST *ast);
 
 /**
 * @brief Destroy the memory held by byte code.
