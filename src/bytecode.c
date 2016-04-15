@@ -265,8 +265,17 @@ static void StmtDeleteToOpCodes(const ms_StmtDelete *del, DSArray *opcodes, DSAr
     assert(values);
     assert(idents);
 
-    ExprToOpCodes(del->expr, opcodes, values, idents);
-    PushOpCode(OPC_DEL_NAME, 0, opcodes);
+    if (ms_ExprIsIdent(del->expr)) {
+        int index;
+        IdentExprToOpCodes(del->expr, &index, idents);
+        PushOpCode(OPC_DEL_NAME, index, opcodes);
+    } else if (ms_ExprIsQualifiedIdent(del->expr)) {
+        int nsubscripts = 0;
+        QualifiedIdentExprToOpCodes(del->expr, &nsubscripts, opcodes, values, idents);
+        PushOpCode(OPC_DEL_ATTR, nsubscripts, opcodes);
+    } else {
+        assert(false && "assignment identifier is not an identifier");
+    }
 }
 
 static void StmtForToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents) {

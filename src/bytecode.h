@@ -58,9 +58,10 @@ typedef enum {
     OPC_RETURN,         /*              return TOS to calling context                   */
     OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                           */
     OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOS2                          */
+    OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                           */
     OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                            */
     OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                           */
-    OPC_DEL_NAME,       /*              delete env[TOS]                                 */
+    OPC_DEL_NAME,       /*  req         delete env[names[i]]                            */
     OPC_MERGE,          /*              merge TOS1 := TOS                               */
     OPC_IMPORT,         /*              ???                                             */
     OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                             */
