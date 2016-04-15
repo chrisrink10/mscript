@@ -325,11 +325,11 @@ bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
         return false;
     }
 
-    if (expr->cmpnt.b->rtype != EXPRATOM_VALUE) {
-        return false;
-    }
-
-    if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
+    if (expr->cmpnt.b->rtype == EXPRATOM_VALUE) {
+        if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
+            return false;
+        }
+    } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
         return false;
     }
 
