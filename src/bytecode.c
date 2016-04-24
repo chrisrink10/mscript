@@ -538,7 +538,9 @@ static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, DSArray *op
     ExprToOpCodes(decl->expr, opcodes, values, idents);
     PushIdent(decl->ident, &index, idents);
     PushOpCode(OPC_SET_NAME, index, opcodes);
-    StmtDeclarationToOpCodes(decl->next, opcodes, values, idents);
+    if (decl->next) {
+        StmtDeclarationToOpCodes(decl->next, opcodes, values, idents);
+    }
 }
 
 static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *values, DSArray *idents) {
