@@ -814,8 +814,9 @@ static void PushValue(const ms_Value *val, int *index, DSArray *values) {
 
     dsarray_append(values, v);
     size_t nvals = dsarray_len(values);
+    assert(nvals != 0);
     assert(nvals <= OPC_ARG_MAX);
-    *index = (int)nvals;
+    *index = (int)(nvals - 1);
 }
 
 static void PushIdent(const ms_Ident *ident, int *index, DSArray *idents) {
@@ -830,8 +831,9 @@ static void PushIdent(const ms_Ident *ident, int *index, DSArray *idents) {
 
     dsarray_append(idents, id);
     size_t nidents = dsarray_len(idents);
+    assert(nidents != 0);
     assert(nidents <= OPC_ARG_MAX);
-    *index = (int)nidents;
+    *index = (int)(nidents - 1);
 }
 
 static void PushOpCode(ms_VMOpCodeType type, int arg, DSArray *opcodes) {
