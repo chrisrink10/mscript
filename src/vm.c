@@ -32,21 +32,34 @@
 #define VM_FRAME_STACK_LIMIT_L (256)
 static const size_t FRAME_DATA_STACK_LIMIT = FRAME_DATA_STACK_LIMIT_L;
 static const size_t VM_FRAME_STACK_LIMIT = VM_FRAME_STACK_LIMIT_L;
+static const size_t VM_FRAME_BLOCK_STACK_CAP = 10;
 static const ms_Value EMPTY_STACK_VAL;
 
 static const int MS_VM_NULL = 0;
 const void *MS_VM_NULL_POINTER = &MS_VM_NULL;
 
+static const char *const ERR_IF_EXPR_NOT_BOOL = "if statement expressions must be bool";
+static const char *const ERR_NAME_NOT_DEFINED = "name '%s' not defined in the current scope";
+static const char *const ERR_NOT_IMPLEMENTED = "not implemented";
+static const char *const ERR_OUT_OF_MEMORY = "out of memory";
+
+typedef struct {
+    DSDict *env;                                    /* block level symbol table */
+} ms_VMBlock;
+
 typedef struct {
     size_t ip;                                      /* instruction pointer */
     size_t dp;                                      /* data stack pointer (points to index of NEXT push), current top is always (dp-1) */
     ms_VMByteCode *code;                            /* byte code for current frame */
-    ms_Value data[FRAME_DATA_STACK_LIMIT_L];      /* frame data stack */
+    ms_Value data[FRAME_DATA_STACK_LIMIT_L];        /* frame data stack */
+    DSArray *blocks;                                /* stack of frame blocks */
 } ms_VMFrame;
 
 struct ms_VM {
     DSArray *fstack;                                /* call stack frame */
     ms_VMError err;                                 /* current VM error */
+
+    DSDict *env;                                    /* global namespace */
 
     DSDict *float_;                                 /* float primitive prototype */
     DSDict *int_;                                   /* int primitive prototype */
@@ -59,17 +72,27 @@ struct ms_VM {
 static bool VMGeneratePrototypes(ms_VM *vm);
 static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc);
 static void VMFrameDestroy(ms_VMFrame *f);
+static ms_VMBlock *VMBlockNew(void);
+static void VMBlockDestroy(ms_VMBlock *blk);
 static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
-static ms_Value *VMPeek(ms_VM *vm, int index);
+static ms_Value *VMPeek(const ms_VM *vm, int index);
+static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm);
+static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Ident *ident);
 
 static inline size_t VMPrint(ms_VM *vm);
 static inline size_t VMPush(ms_VM *vm, int val);
 static inline size_t VMPop(ms_VM *vm);
 static inline size_t VMSwap(ms_VM *vm);
+static inline size_t VMDup(ms_VM *vm);
 static inline size_t VMDoBinaryOp(ms_VM *vm, const char *name);
 static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name);
+static inline size_t VMPushBlock(ms_VM *vm);
+static inline size_t VMPopBlock(ms_VM *vm);
 static inline size_t VMCallFunction(ms_VM *vm);
+static inline bool VMJumpIfFalse(ms_VM *vm, int arg, size_t ip, size_t *dest);
 static inline size_t VMLoadName(ms_VM *vm, int arg);
+static inline size_t VMSetName(ms_VM *vm, int arg);
+static inline size_t VMDelName(ms_VM *vm, int arg);
 
 /*
  * PUBLIC FUNCTIONS
@@ -88,8 +111,18 @@ ms_VM *ms_VMNew(void) {
         return NULL;
     }
 
+    vm->env = dsdict_new((dsdict_hash_fn)dsbuf_hash,
+                         (dsdict_compare_fn)dsbuf_compare,
+                         (dsdict_free_fn)dsbuf_destroy, NULL);
+    if (!vm->env) {
+        dsarray_destroy(vm->fstack);
+        free(vm);
+        return NULL;
+    }
+
     if (!VMGeneratePrototypes(vm)) {
         dsarray_destroy(vm->fstack);
+        dsdict_destroy(vm->env);
         free(vm);
         return NULL;
     }
@@ -127,6 +160,7 @@ ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMEr
 
     ms_VMExecResult res = VMFrameExecute(vm, newf);
     if (res != VMEXEC_ERROR) {
+        // TODO: don't print something if there is nothing to print
         (void) VMPrint(vm);
     }
     *err = &vm->err;
@@ -366,26 +400,63 @@ static bool VMGeneratePrototypes(ms_VM *vm) {
     return true;
 }
 
-// Create a new VM stack frame
 static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc) {
-    ms_VMFrame *f = malloc(sizeof(ms_VMFrame));
+    ms_VMFrame *f = calloc(1, sizeof(ms_VMFrame));
     if (!f) {
         return NULL;
     }
 
-    memset(f, 0, sizeof(ms_VMFrame));
     f->code = bc;
+    f->blocks = dsarray_new_cap(VM_FRAME_BLOCK_STACK_CAP, NULL,
+                                (dsarray_free_fn)VMBlockDestroy);
+    if (!f->blocks) {
+        VMFrameDestroy(f);
+        return NULL;
+    }
+
+    ms_VMBlock *blk = VMBlockNew();
+    if (!blk) {
+        VMFrameDestroy(f);
+        return NULL;
+    }
+
+    dsarray_append(f->blocks, blk);
     return f;
 }
 
-// Destroy the memory from a VM stack frame
 static void VMFrameDestroy(ms_VMFrame *f) {
     if (!f) { return; }
     ms_VMByteCodeDestroy(f->code);  /* TODO: probably eventually cache bytecode */
+    f->code = NULL;
+    dsarray_destroy(f->blocks);
+    f->blocks = NULL;
     free(f);
 }
 
-// Execute the code in the current VM frame
+static ms_VMBlock *VMBlockNew(void) {
+    ms_VMBlock *blk = malloc(sizeof(ms_VMBlock));
+    if (!blk) {
+        return NULL;
+    }
+
+    blk->env = dsdict_new((dsdict_hash_fn)dsbuf_hash,
+                          (dsdict_compare_fn)dsbuf_compare,
+                          (dsdict_free_fn)dsbuf_destroy, NULL);     // TODO: this should have a free function that decrements the (future) reference counter
+    if (!blk->env) {
+        free(blk);
+        return NULL;
+    }
+
+    return blk;
+}
+
+static void VMBlockDestroy(ms_VMBlock *blk) {
+    if (!blk) { return; }
+    dsdict_destroy(blk->env);
+    blk->env = NULL;
+    free(blk);
+}
+
 static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
     assert(vm);
     assert(f);
@@ -407,6 +478,9 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 break;
             case OPC_SWAP:
                 inc = VMSwap(vm);
+                break;
+            case OPC_DUP:
+                inc = VMDup(vm);
                 break;
             case OPC_ADD:
                 inc = VMDoBinaryOp(vm, "__add__");
@@ -480,9 +554,54 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_CALL:
                 inc = VMCallFunction(vm);
                 break;
+            case OPC_PUSH_BLOCK:
+                inc = VMPushBlock(vm);
+                break;
+            case OPC_POP_BLOCK:
+                inc = VMPopBlock(vm);
+                break;
+            case OPC_RETURN:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                break;
+            case OPC_GET_ATTR:
+                inc = VMDoBinaryOp(vm, "__getattr__");
+                break;
+            case OPC_SET_ATTR:
+                inc = VMDoBinaryOp(vm, "__setattr__");
+                break;
+            case OPC_DEL_ATTR:
+                inc = VMDoBinaryOp(vm, "__delattr__");
+                break;
             case OPC_LOAD_NAME:
                 inc = VMLoadName(vm, arg);
                 break;
+            case OPC_SET_NAME:
+                inc = VMSetName(vm, arg);
+                break;
+            case OPC_DEL_NAME:
+                inc = VMDelName(vm, arg);
+                break;
+            case OPC_MERGE:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
+            case OPC_IMPORT:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
+            case OPC_JUMP_IF_FALSE: {
+                size_t dest;
+                if (VMJumpIfFalse(vm, arg, f->ip, &dest)) {
+                    f->ip = dest;
+                    continue;
+                }
+                return VMEXEC_ERROR;
+            }
+            case OPC_GOTO:              /* fall through */
+            case OPC_BREAK:             /* fall through */
+            case OPC_CONTINUE:
+                f->ip = (size_t)arg;
+                continue;
         }
         if (inc == 0) { return VMEXEC_ERROR; }
         f->ip += inc;
@@ -494,7 +613,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
 // Peek at a value a certain index of the stack without changing the pointer
 // Negative values are relative to the top with (-1) indicating top, non-zero
 // values indicate actual stack indices from the bottom (0)
-static ms_Value *VMPeek(ms_VM *vm, int index) {
+static ms_Value *VMPeek(const ms_VM *vm, int index) {
     assert(vm);
     assert(vm->fstack);
     ms_VMFrame *f = dsarray_top(vm->fstack);
@@ -507,6 +626,33 @@ static ms_Value *VMPeek(ms_VM *vm, int index) {
         assert((size_t)index < f->dp);
         return &f->data[index];
     }
+}
+
+static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm) {
+    assert(vm);
+    assert(vm->fstack);
+    return dsarray_top(vm->fstack);
+}
+
+static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Ident *ident) {
+    assert(vm);
+    assert(f);
+
+    size_t nblocks = dsarray_len(f->blocks);
+    for (size_t i = nblocks - 1; i < nblocks; i--) {        /* loop (nblocks - 1) to 0 with*/
+        ms_VMBlock *blk = dsarray_get(f->blocks, i);
+        ms_Value *v = dsdict_get(blk->env, ident);
+        if (v) {
+            return blk->env;
+        }
+    }
+
+    ms_Value *v = dsdict_get(vm->env, ident);
+    if (v) {
+        return vm->env;
+    }
+
+    return NULL;
 }
 
 /*
@@ -543,8 +689,7 @@ static inline size_t VMPrint(ms_VM *vm) {
 
 static inline size_t VMPush(ms_VM *vm, int arg) {
     assert(vm);
-    assert(vm->fstack);
-    ms_VMFrame *f = dsarray_top(vm->fstack);
+    ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     f->data[f->dp] = f->code->values[arg];
     f->dp++;
@@ -553,8 +698,7 @@ static inline size_t VMPush(ms_VM *vm, int arg) {
 
 static inline size_t VMPop(ms_VM *vm) {
     assert(vm);
-    assert(vm->fstack);
-    ms_VMFrame *f = dsarray_top(vm->fstack);
+    ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     assert((f->dp - 1) != SIZE_MAX);
     f->data[f->dp - 1] = EMPTY_STACK_VAL;
@@ -568,6 +712,15 @@ static inline size_t VMSwap(ms_VM *vm) {
     ms_Value v1 = ms_VMPop(vm);
     ms_VMPush(vm, v2);
     ms_VMPush(vm, v1);
+    return 1;
+}
+
+static inline size_t VMDup(ms_VM *vm) {
+    assert(vm);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    ms_Value v = *ms_VMTop(vm);
+    ms_VMPush(vm, v);
     return 1;
 }
 
@@ -595,6 +748,27 @@ static inline size_t VMDoUnaryOp(ms_VM *vm, const char *name) {
     return (size_t)res;
 }
 
+static inline size_t VMPushBlock(ms_VM *vm) {
+    assert(vm);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    assert(f->blocks);
+    ms_VMBlock *blk = VMBlockNew();
+    assert(blk);
+    dsarray_append(f->blocks, blk);
+    return 1;
+}
+
+static inline size_t VMPopBlock(ms_VM *vm) {
+    assert(vm);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    assert(f->blocks);
+    ms_VMBlock *blk = dsarray_pop(f->blocks);
+    VMBlockDestroy(blk);
+    return 1;
+}
+
 static inline size_t VMCallFunction(ms_VM *vm) {
     assert(vm);
     ms_Value *l = VMPeek(vm, -1);
@@ -607,12 +781,85 @@ static inline size_t VMCallFunction(ms_VM *vm) {
     return (size_t)res;
 }
 
+static inline bool VMJumpIfFalse(ms_VM *vm, int arg, size_t ip, size_t *dest) {
+    assert(vm);
+
+    ms_Value *l = VMPeek(vm, -1);
+    if (l->type != MSVAL_BOOL) {
+        ms_VMErrorSet(vm, ERR_IF_EXPR_NOT_BOOL);
+        return false;
+    }
+
+    if (l->val.b) {
+        *dest = ip;
+    } else {
+        *dest = (size_t)arg;
+    }
+
+    return true;
+}
+
 static inline size_t VMLoadName(ms_VM *vm, int arg) {
     assert(vm);
-    assert(vm->fstack);
-    ms_VMFrame *f = dsarray_top(vm->fstack);
+    assert(arg >= 0);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
     assert(f->code);
     ms_Ident *id = f->code->idents[arg];
     assert(id);
+
+    DSDict *env = VMFindIdentEnv(vm, f, id);
+    if (!env) {
+        ms_VMErrorSet(vm, ERR_NAME_NOT_DEFINED, dsbuf_char_ptr(id));
+        return 0;
+    }
+
+    ms_Value *v = dsdict_get(env, id);
+    ms_VMPush(vm, *v);
+    return 1;
+}
+
+static inline size_t VMSetName(ms_VM *vm, int arg) {
+    assert(vm);
+    assert(arg >= 0);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    assert(f->code);
+    ms_Ident *id = f->code->idents[arg];
+    assert(id);
+
+    DSDict *env = VMFindIdentEnv(vm, f, id);
+    if (!env) {
+        ms_VMBlock *blk = dsarray_top(f->blocks);
+        env = blk->env;
+    }
+
+    ms_Value *v = malloc(sizeof(ms_Value));
+    if (!v) {
+        ms_VMErrorSet(vm, ERR_OUT_OF_MEMORY);
+        return 0;
+    }
+
+    *v = ms_VMPop(vm);
+    dsdict_put(env, id, v);
+    return 1;
+}
+
+static inline size_t VMDelName(ms_VM *vm, int arg) {
+    assert(vm);
+    assert(arg >= 0);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    assert(f->code);
+    ms_Ident *id = f->code->idents[arg];
+    assert(id);
+
+    DSDict *env = VMFindIdentEnv(vm, f, id);
+    if (!env) {
+        ms_VMErrorSet(vm, ERR_NAME_NOT_DEFINED, dsbuf_char_ptr(id));
+        return 0;
+    }
+
+    dsdict_del(env, id);
     return 1;
 }
