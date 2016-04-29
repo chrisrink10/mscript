@@ -405,6 +405,7 @@ ms_Token *ms_TokenNew(ms_TokenType type, const char *value, size_t len, size_t l
         goto cleanup_token;
     }
 
+    len = (len == 0) ? 1 : len;             /* guarantee that empty strings have a length since len must be >= 1 */
     tok->value = dsbuf_new_l(value, len);
     if (!tok->value) {
         goto cleanup_token_value;
@@ -634,14 +635,12 @@ static ms_Token *LexerLexString(ms_Lexer *lex, int first) {
 
     int n;
     int prev = EOF;
-    LexerAddToBuffer(lex, first);
 
     // Accept every next character but:
     // - an escaped version of the opening quotation mark
     // - a new line (this is an error)
     while ((n = LexerNextChar(lex)) != EOF) {
         if ((n == first) && (prev != '\\')) {
-            LexerAddToBuffer(lex, n);
             break;
         }
         if ((n == '\n') || (n == '\r')) {

@@ -1658,10 +1658,10 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "$len(\"string\")",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"string\"")))),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
             .bc = {
                 .values = (ms_Value[]){
-                    VM_STR("\"string\""),
+                    VM_STR("string"),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -1677,10 +1677,10 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "foo(\"string\")",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"string\"")))),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
             .bc = {
                 .values = (ms_Value[]){
-                    VM_STR("\"string\""),
+                    VM_STR("string"),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -1713,10 +1713,10 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "bar(\"baz\")()",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("\"baz\"")))), AST_EMPTY_EXPRLIST()),
+            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("baz")))), AST_EMPTY_EXPRLIST()),
             .bc = {
                 .values = (ms_Value[]){
-                    VM_STR("\"baz\""),
+                    VM_STR("baz"),
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
@@ -1922,15 +1922,15 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IF_ELIF(
                 AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.9)),
-                AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"A\"")))),
+                AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("A")))),
                 AST_ELIF_IF(
                     AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.8)),
-                    AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"B\"")))),
+                    AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("B")))),
                     AST_ELIF_IF(
                         AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.7)),
-                        AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"C\"")))),
+                        AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("C")))),
                         AST_ELIF_ELSE(
-                            AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"F\""))))
+                            AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("F"))))
                         )
                     )
                 )
@@ -1994,7 +1994,7 @@ MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *use
         {
             .val = "merge @global := \"some string\"",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("\"some string\""))),
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("some string"))),
             .bc = { 0 }
         },
     };
@@ -2027,7 +2027,7 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
         {
             .val = "return \"a string\"",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("\"a string\""))),
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("a string"))),
             .bc = { 0 }
         },
         {
@@ -2109,7 +2109,7 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
         {
             .val = "var name := \"Gladys\"",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE_V(AST_IDENT("name"), AST_UEXPR_V(UNARY_NONE, VM_STR("\"Gladys\"")), NULL),
+            .cmpnt.stmt = AST_DECLARE_V(AST_IDENT("name"), AST_UEXPR_V(UNARY_NONE, VM_STR("Gladys")), NULL),
             .bc = { 0 }
         },
         {
@@ -2127,7 +2127,7 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
         {
             .val = "var name, second := \"J\", third",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT_V(AST_IDENT("second"), AST_UEXPR_V(UNARY_NONE, VM_STR("\"J\"")), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT_V(AST_IDENT("second"), AST_UEXPR_V(UNARY_NONE, VM_STR("J")), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
             .bc = { 0 }
         },
     };

@@ -290,6 +290,7 @@ MunitTest lexer_tests[] = {
  * FORWARD DECLARATIONS
  */
 
+MunitResult LexCompareStrings(const char *param, const char *val);
 MunitResult LexExpect(const char *param, ms_TokenType type);
 MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len);
 
@@ -439,6 +440,16 @@ MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_
  * PRIVATE FUNCTIONS
  */
 
+MunitResult LexCompareStrings(const char *param, const char *val) {
+    /* `param` is the input string surrounded by single or double quotes, so
+     * we need to only compare that string to the lexed value which will
+     * exclude the surrounding quotes*/
+    size_t len = strlen(param);
+    munit_assert_cmp_size(len, >, 1);
+    int cmp = strncmp(val, &param[1], len-2);
+    munit_assert_cmp_int(cmp, ==, 0);
+}
+
 MunitResult LexExpect(const char *param, ms_TokenType type) {
     ms_Lexer *lex = ms_LexerNew();
     munit_assert_non_null(lex);
@@ -447,7 +458,9 @@ MunitResult LexExpect(const char *param, ms_TokenType type) {
     ms_Token *tok = ms_LexerNextToken(lex);
     munit_assert_non_null(tok);
     munit_assert_cmp_int(tok->type, ==, type);
-    if (type != ERROR) {
+    if (type == STRING) {
+        LexCompareStrings(param, dsbuf_char_ptr(tok->value));
+    } else if (type != ERROR) {
         munit_assert_string_equal(dsbuf_char_ptr(tok->value), param);
     }
     munit_assert_string_equal(ms_TokenName(tok), ms_TokenTypeName(type));
