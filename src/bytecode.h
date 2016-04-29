@@ -60,6 +60,7 @@ typedef enum {
     OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOS2                          */
     OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                           */
     OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                            */
+    OPC_NEW_NAME,       /*  req         env[names[i]] := null                           */
     OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                           */
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                            */
     OPC_MERGE,          /*              merge TOS1 := TOS                               */

@@ -91,6 +91,7 @@ static inline size_t VMPopBlock(ms_VM *vm);
 static inline size_t VMCallFunction(ms_VM *vm);
 static inline bool VMJumpIfFalse(ms_VM *vm, int arg, size_t ip, size_t *dest);
 static inline size_t VMLoadName(ms_VM *vm, int arg);
+static inline size_t VMNewName(ms_VM *vm, int arg);
 static inline size_t VMSetName(ms_VM *vm, int arg);
 static inline size_t VMDelName(ms_VM *vm, int arg);
 
@@ -575,6 +576,9 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_LOAD_NAME:
                 inc = VMLoadName(vm, arg);
                 break;
+            case OPC_NEW_NAME:
+                inc = VMNewName(vm, arg);
+                break;
             case OPC_SET_NAME:
                 inc = VMSetName(vm, arg);
                 break;
@@ -816,6 +820,28 @@ static inline size_t VMLoadName(ms_VM *vm, int arg) {
 
     ms_Value *v = dsdict_get(env, id);
     ms_VMPush(vm, *v);
+    return 1;
+}
+
+static inline size_t VMNewName(ms_VM *vm, int arg) {
+    assert(vm);
+    assert(arg >= 0);
+    ms_VMFrame *f = VMCurrentFrame(vm);
+    assert(f);
+    assert(f->code);
+    ms_Ident *id = f->code->idents[arg];
+    assert(id);
+
+    ms_Value *v = malloc(sizeof(ms_Value));
+    if (!v) {
+        ms_VMErrorSet(vm, ERR_OUT_OF_MEMORY);
+        return 0;
+    }
+    v->type = MSVAL_NULL;
+    v->val.n = MS_VM_NULL_POINTER;
+
+    ms_VMBlock *blk = dsarray_top(f->blocks);
+    dsdict_put(blk->env, id, v);
     return 1;
 }
 
