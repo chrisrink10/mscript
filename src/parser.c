@@ -214,8 +214,11 @@ ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST
         *err = prs->err;
         *code = NULL;
     } else {
-        //*code = ms_ExprToOpCodes(prs->ast);
-        *code = NULL;
+        *code = ms_ASTToOpCodes(prs->ast);
+#ifndef NDEBUG
+        /* bitfield type structure to easily examine generated opcodes and args */
+        ms_VMOpCodeDebug *dbg = (ms_VMOpCodeDebug *)(*code)->code;
+#endif
         if (ast) {
             *ast = prs->ast;
         }
