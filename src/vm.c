@@ -76,6 +76,7 @@ static ms_VMBlock *VMBlockNew(void);
 static void VMBlockDestroy(ms_VMBlock *blk);
 static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
 static ms_Value *VMPeek(const ms_VM *vm, int index);
+static bool VMStackIsEmpty(const ms_VM *vm);
 static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm);
 static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Ident *ident);
 
@@ -161,8 +162,9 @@ ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMEr
 
     ms_VMExecResult res = VMFrameExecute(vm, newf);
     if (res != VMEXEC_ERROR) {
-        // TODO: don't print something if there is nothing to print
-        (void) VMPrint(vm);
+        if (!VMStackIsEmpty(vm)) {
+            (void) VMPrint(vm);
+        }
     }
     *err = &vm->err;
     return res;
@@ -442,7 +444,8 @@ static ms_VMBlock *VMBlockNew(void) {
 
     blk->env = dsdict_new((dsdict_hash_fn)dsbuf_hash,
                           (dsdict_compare_fn)dsbuf_compare,
-                          (dsdict_free_fn)dsbuf_destroy, NULL);     // TODO: this should have a free function that decrements the (future) reference counter
+                          NULL,      /* keys are stored in ms_VMByteCode structure and are freed by a separate function */
+                          NULL);     // TODO: this should have a free function that decrements the (future) reference counter
     if (!blk->env) {
         free(blk);
         return NULL;
@@ -632,6 +635,14 @@ static ms_Value *VMPeek(const ms_VM *vm, int index) {
     }
 }
 
+static bool VMStackIsEmpty(const ms_VM *vm) {
+    assert(vm);
+    assert(vm->fstack);
+    ms_VMFrame *f = dsarray_top(vm->fstack);
+    assert(f);
+    return (f->dp == 0);
+}
+
 static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm) {
     assert(vm);
     assert(vm->fstack);
@@ -651,12 +662,7 @@ static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Id
         }
     }
 
-    ms_Value *v = dsdict_get(vm->env, ident);
-    if (v) {
-        return vm->env;
-    }
-
-    return NULL;
+    return vm->env;
 }
 
 /*
@@ -855,10 +861,7 @@ static inline size_t VMSetName(ms_VM *vm, int arg) {
     assert(id);
 
     DSDict *env = VMFindIdentEnv(vm, f, id);
-    if (!env) {
-        ms_VMBlock *blk = dsarray_top(f->blocks);
-        env = blk->env;
-    }
+    assert(env);
 
     ms_Value *v = malloc(sizeof(ms_Value));
     if (!v) {
@@ -867,6 +870,7 @@ static inline size_t VMSetName(ms_VM *vm, int arg) {
     }
 
     *v = ms_VMPop(vm);
+    // TODO: decrement reference count on the previous value
     dsdict_put(env, id, v);
     return 1;
 }
