@@ -40,6 +40,7 @@ static void StmtForToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArra
 static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents);
+static void StmtForFixBreakAndContinue(DSArray *opcodes, size_t start, size_t end, int break_arg, int cont_arg);
 static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtElseIfToOpCodes(const ms_StmtIfElse *elif, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtImportToOpCodes(const ms_StmtImport *import, DSArray *opcodes, DSArray *values, DSArray *idents);
@@ -347,7 +348,9 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSA
     PushOpCode(OPC_JUMP_IF_FALSE, 0, opcodes);
 
     /* load up the block */
+    size_t start = dsarray_len(opcodes);
     BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, opcodes, values, idents);
+    size_t end = dsarray_len(opcodes);
 
     /* reload the identifier, increment it, and go back */
     ExprToOpCodes(inc->ident, opcodes, values, idents);
@@ -363,6 +366,9 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSA
     size_t pop = dsarray_len(opcodes) - 1;
     ms_VMOpCode *opcif = dsarray_get(opcodes, j);
     *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
+
+    /* update the BREAK and CONTINUE opcodes with the correct gotos */
+    StmtForFixBreakAndContinue(opcodes, start, end, (int)pop, (int)i);
 }
 
 static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents) {
@@ -405,7 +411,9 @@ static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DS
     size_t j = dsarray_len(opcodes);
     PushOpCode(OPC_JUMP_IF_FALSE, 0, opcodes);
 
+    size_t start = dsarray_len(opcodes);
     BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, opcodes, values, idents);
+    size_t end = dsarray_len(opcodes);
 
     PushOpCode(OPC_GOTO, (int)i, opcodes);
     PushOpCode(OPC_POP_BLOCK, 0, opcodes);
@@ -414,6 +422,31 @@ static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DS
     size_t pop = dsarray_len(opcodes) - 1;
     ms_VMOpCode *opcif = dsarray_get(opcodes, j);
     *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
+
+    /* update the BREAK and CONTINUE opcodes with the correct gotos */
+    StmtForFixBreakAndContinue(opcodes, start, end, (int)pop, (int)i);
+}
+
+static void StmtForFixBreakAndContinue(DSArray *opcodes, size_t start, size_t end, int break_arg, int cont_arg) {
+    assert(opcodes);
+    assert(start <= end);
+
+    /* update BREAK and CONTINUE goto arguments in for loop blocks */
+    for (size_t i = start; i < end; i++) {
+        ms_VMOpCode *opc = dsarray_get(opcodes, i);
+        ms_VMOpCodeType type = ms_VMOpCodeGetCode((*opc));
+
+        switch(type) {
+            case OPC_BREAK:
+                *opc = ms_VMOpCodeWithArg(OPC_GOTO, break_arg);
+                break;
+            case OPC_CONTINUE:
+                *opc = ms_VMOpCodeWithArg(OPC_GOTO, cont_arg);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, DSArray *opcodes, DSArray *values, DSArray *idents) {
