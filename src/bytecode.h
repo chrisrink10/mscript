@@ -63,6 +63,7 @@ typedef enum {
     OPC_NEW_NAME,       /*  req         env[names[i]] := null                           */
     OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                           */
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                            */
+    OPC_NEXT,           /*              TOS := $next(TOS)                               */
     OPC_MERGE,          /*              merge TOS1 := TOS                               */
     OPC_IMPORT,         /*              ???                                             */
     OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                             */

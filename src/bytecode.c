@@ -48,7 +48,7 @@ static void StmtMergeToOpCodes(const ms_StmtMerge *merge, DSArray *opcodes, DSAr
 static void StmtReturnToOpCodes(const ms_StmtReturn *ret, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, DSArray *opcodes, DSArray *values, DSArray *idents);
-static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *values, DSArray *idents);
+static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *values, DSArray *idents, bool new_name);
 static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, DSArray *opcodes, DSArray *values, DSArray *idents);
 static void IdentExprToOpCodes(const ms_Expr *ident, int *index, DSArray *idents);
 static void ExprToOpCodes(const ms_Expr *expr, DSArray *opcodes, DSArray *values, DSArray *idents);
@@ -314,11 +314,12 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSA
      * ...          PUSH_BLOCK                  <--- push a new block so everything is evaluated in that context
      * ...          (expr)          init        <--- initial value expression
      * ...          (expr)          ident       <--- identifier
+     * ...          [NEW_NAME]      ident       <--- if the name was declared in the block, new it
      * ...          SET_NAME/ATTR   ident       <--- duplicate that value
      * i            LOAD_NAME       ident       <--- set that value to the name
      * ...          PUSH            end         <--- push the end value on the stack
      * ...          LT                          <--- compare current value and end value
-     * j            IF              j+n+1       <--- if TOS evaluated to false, jump to end-of-block
+     * j            IF              n           <--- if TOS evaluated to false, jump to end-of-block
      * ...          (block)
      * ...          LOAD_NAME       ident       <--- load back up our increment variable
      * ...          PUSH            step        <--- push the step value onto the stack
@@ -336,7 +337,8 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSA
     ExprToOpCodes(inc->init, opcodes, values, idents);
 
     /* save the initial value to the loop identifier */
-    IdentSetToOpCodes(inc->ident, opcodes, values, idents);
+    bool should_new_name = inc->declare;
+    IdentSetToOpCodes(inc->ident, opcodes, values, idents, should_new_name);
 
     /* load up the expression value and compare it to the end
      * to make sure we're still within the valid range */
@@ -356,7 +358,7 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSA
     ExprToOpCodes(inc->ident, opcodes, values, idents);
     ExprToOpCodes(inc->step, opcodes, values, idents);
     PushOpCode(OPC_ADD, 0, opcodes);
-    IdentSetToOpCodes(inc->ident, opcodes, values, idents);
+    IdentSetToOpCodes(inc->ident, opcodes, values, idents, false);
 
     /* go back to the comparison at the beginning of the loop */
     PushOpCode(OPC_GOTO, (int)i, opcodes);
@@ -379,7 +381,91 @@ static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DS
     assert(values);
     assert(idents);
 
-    // TODO: this
+    /***************************************************************************
+     * FOR iterator statements should end up looking like this in bytecode:
+     *
+     * index        instruction     arg
+     * -----        -----------     ----
+     * ...          PUSH_BLOCK                  <--- push a new block so everything is evaluated in that context
+     * ...          [NEW_NAME]      ident       <--- if the name was declared in the block, new it
+     * i            (expr)          iter        <--- iterable expression
+     * ...          NEXT                        <--- call $next on the expression
+     * ...          (expr)          ident       <--- identifier
+     * ...          SET_NAME/ATTR   ident       <--- duplicate that value
+     * ...          LOAD_NAME       ident       <--- set that value to the name
+     * ...          PUSH            null        <--- push a null onto the stack
+     * ...          EQ                          <--- compare the next result with null
+     * j            IF              n           <--- if TOS evaluated to null, jump to end-of-block
+     * ...          (block)
+     * ...          GOTO            i           <--- go back to compare the value again
+     * n            POP_BLOCK                   <--- always pop the block
+     ***************************************************************************/
+
+    const ms_StmtForIterator *iter = forstmt->clause.iter;
+
+    PushOpCode(OPC_PUSH_BLOCK, 0, opcodes);
+
+    /* make sure we declare the name at the top of the block, so we can
+     * jump back to an instruction after this one and don't renew the
+     * name on each iteration */
+    size_t new_index = 0;
+    if (iter->declare) {
+        new_index = dsarray_len(opcodes);
+        PushOpCode(OPC_NEW_NAME, 0, opcodes);
+    }
+
+    size_t i = dsarray_len(opcodes);
+    ExprToOpCodes(iter->iter, opcodes, values, idents);
+    PushOpCode(OPC_NEXT, 0, opcodes);
+
+    /* update the NEW_NAME opcode with the index of the identifier to new */
+    if (iter->declare) {
+        int index;
+        IdentExprToOpCodes(iter->ident, &index, idents);
+        PushOpCode(OPC_SET_NAME, index, opcodes);
+
+        ms_VMOpCode *opc = dsarray_get(opcodes, new_index);
+        *opc = ms_VMOpCodeWithArg(OPC_NEW_NAME, index);
+    } else {
+        IdentSetToOpCodes(iter->ident, opcodes, values, idents, false);
+    }
+
+    /* reload the expression value */
+    ExprToOpCodes(iter->ident, opcodes, values, idents);
+
+    /* compare to null */
+    ms_Value *v = malloc(sizeof(ms_Value));
+    if (!v) {
+        return;
+    }
+    v->type = MSVAL_NULL;
+    v->val.n = MS_VM_NULL_POINTER;
+
+    int val_index;
+    PushValue(v, &val_index, values);
+    PushOpCode(OPC_PUSH, val_index, opcodes);
+    PushOpCode(OPC_EQ, 0, opcodes);
+
+    /* jump before the block if no value was returned from next */
+    size_t j = dsarray_len(opcodes);
+    PushOpCode(OPC_JUMP_IF_FALSE, 0, opcodes);
+
+    /* load up the block */
+    size_t start = dsarray_len(opcodes);
+    BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, opcodes, values, idents);
+    size_t end = dsarray_len(opcodes);
+
+    /* go back to the comparison at the beginning of the loop */
+    PushOpCode(OPC_GOTO, (int)i, opcodes);
+    PushOpCode(OPC_POP_BLOCK, 0, opcodes);
+
+    /* update the conditional instruction with the index of the POP_BLOCK instruction */
+    size_t pop = dsarray_len(opcodes) - 1;
+    ms_VMOpCode *opc = dsarray_get(opcodes, j);
+    *opc = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
+
+    /* update the BREAK and CONTINUE opcodes with the correct gotos */
+    StmtForFixBreakAndContinue(opcodes, start, end, (int)pop, (int)i);
 }
 
 static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DSArray *values, DSArray *idents) {
@@ -558,7 +644,7 @@ static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, DSArray *op
     assert(idents);
 
     ExprToOpCodes(assign->expr, opcodes, values, idents);
-    IdentSetToOpCodes(assign->ident, opcodes, values, idents);
+    IdentSetToOpCodes(assign->ident, opcodes, values, idents, false);
 }
 
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, DSArray *opcodes, DSArray *values, DSArray *idents) {
@@ -581,7 +667,7 @@ static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, DSArray *op
     }
 }
 
-static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *values, DSArray *idents) {
+static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *values, DSArray *idents, bool new_name) {
     assert(ident);
     assert(opcodes);
     assert(values);
@@ -590,6 +676,9 @@ static void IdentSetToOpCodes(const ms_Expr *ident, DSArray *opcodes, DSArray *v
     if (ms_ExprIsIdent(ident)) {
         int index;
         IdentExprToOpCodes(ident, &index, idents);
+        if (new_name) {
+            PushOpCode(OPC_NEW_NAME, index, opcodes);
+        }
         PushOpCode(OPC_SET_NAME, index, opcodes);
     } else if (ms_ExprIsQualifiedIdent(ident)) {
         int nsubscripts = 0;
