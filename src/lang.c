@@ -90,8 +90,16 @@ ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len) {
         return NULL;
     }
 
-    expr->cmpnt.u->atom.ident = dsbuf_new_l(name, len);
+    expr->cmpnt.u->atom.ident = malloc(sizeof(ms_Ident));
     if (!expr->cmpnt.u->atom.ident) {
+        free(expr);
+        return NULL;
+    }
+
+    expr->cmpnt.u->atom.ident->name = dsbuf_new_l(name, len);
+    expr->cmpnt.u->atom.ident->type = ms_IdentGetType(name);
+    if (!expr->cmpnt.u->atom.ident->name) {
+        free(expr->cmpnt.u->atom.ident);
         free(expr);
         return NULL;
     }
@@ -340,9 +348,29 @@ bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
     return true;
 }
 
+ms_IdentType ms_IdentGetType(const char *ident) {
+    assert(ident);
+
+    switch (ident[0]) {
+        case '$':
+            return IDENT_BUILTIN;
+        case '@':
+            return IDENT_GLOBAL;
+        default:
+            return IDENT_NAME;
+    }
+}
+
+void ms_IdentDestroy(ms_Ident *ident) {
+    if (!ident) { return; }
+    dsbuf_destroy(ident->name);
+    ident->name = NULL;
+    free(ident);
+}
+
 void ms_ValFuncDestroy(ms_ValFunc *fn) {
     if (!fn) { return; }
-    dsbuf_destroy(fn->ident);
+    ms_IdentDestroy(fn->ident);
     fn->ident = NULL;
     dsarray_destroy(fn->args);
     fn->args = NULL;
@@ -440,8 +468,14 @@ static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomTy
             }
             break;
         case EXPRATOM_IDENT:
-            dest->ident = dsbuf_dup(src->ident);
+            dest->ident = malloc(sizeof(ms_Ident));
             if (!dest->ident) {
+                goto expr_atom_dup_fail;
+            }
+
+            dest->ident->type = src->ident->type;
+            dest->ident->name = dsbuf_dup(src->ident->name);
+            if (!dest->ident->name) {
                 goto expr_atom_dup_fail;
             }
             break;
@@ -494,7 +528,7 @@ static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
             atom->expr = NULL;
             break;
         case EXPRATOM_IDENT:
-            dsbuf_destroy(atom->ident);
+            ms_IdentDestroy(atom->ident);
             atom->ident = NULL;
             break;
         case EXPRATOM_EXPRLIST:
@@ -591,7 +625,7 @@ static void StmtImportDestroy(ms_StmtImport *import) {
     if (!import) { return; }
     ms_ExprDestroy(import->ident);
     import->ident = NULL;
-    dsbuf_destroy(import->alias);
+    ms_IdentDestroy(import->alias);
     import->alias = NULL;
     free(import);
 }
@@ -630,7 +664,7 @@ static void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
 
 static void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
     if (!decl) { return; }
-    dsbuf_destroy(decl->ident);
+    ms_IdentDestroy(decl->ident);
     decl->ident = NULL;
     ms_ExprDestroy(decl->expr);
     decl->expr = NULL;

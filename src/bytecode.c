@@ -434,7 +434,7 @@ static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, DSArray *opcodes, DS
     ExprToOpCodes(iter->ident, opcodes, values, idents);
 
     /* compare to null */
-    ms_Value *v = malloc(sizeof(ms_Value));
+    ms_Value *v = malloc(sizeof(ms_Value));     /* TODO: this leaks memory for now */
     if (!v) {
         return;
     }
@@ -953,12 +953,12 @@ static void PushIdent(const ms_Ident *ident, int *index, DSArray *idents) {
     assert(index);
     assert(idents);
 
-    ms_Ident *id = dsbuf_dup(ident);
-    if (!id) {
+    DSBuffer *name = dsbuf_dup(ident->name);
+    if (!name) {
         return;
     }
 
-    dsarray_append(idents, id);
+    dsarray_append(idents, name);
     size_t nidents = dsarray_len(idents);
     assert(nidents != 0);
     assert(nidents <= OPC_ARG_MAX);

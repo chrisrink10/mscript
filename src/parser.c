@@ -712,7 +712,14 @@ static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport *
     }
 
     /* steal the identifier from the token */
-    (*import)->alias = prs->cur->value;
+    (*import)->alias = malloc(sizeof(ms_Ident));
+    if (!(*import)->alias) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    (*import)->alias->name = prs->cur->value;
+    (*import)->alias->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
     prs->cur->value = NULL;
     ParserConsumeToken(prs);
     return PARSE_SUCCESS;
@@ -794,9 +801,15 @@ static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDecl
         return PARSE_ERROR;
     }
 
-    const ms_Ident *name = (*decl)->expr->cmpnt.u->atom.val.val.fn->ident;  /* just... lol */
-    (*decl)->ident = dsbuf_dup(name);
+    const ms_Ident *ident = (*decl)->expr->cmpnt.u->atom.val.val.fn->ident;  /* just... lol */
+    (*decl)->ident = malloc(sizeof(ms_Ident));
     if (!(*decl)->ident) {
+        return PARSE_ERROR;
+    }
+
+    (*decl)->ident->name = dsbuf_dup(ident->name);
+    (*decl)->ident->type = ident->type;
+    if (!(*decl)->ident->name) {
         return PARSE_ERROR;
     }
 
@@ -825,7 +838,14 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, m
     }
 
     /* take the identifier from the current token so the buffer isn't destroyed */
-    (*decl)->ident = prs->cur->value;
+    (*decl)->ident = malloc(sizeof(ms_Ident));
+    if (!(*decl)->ident) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+
+    (*decl)->ident->name = prs->cur->value;
+    (*decl)->ident->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
     prs->cur->value = NULL;
     ParserConsumeToken(prs);
 
@@ -1449,7 +1469,7 @@ static ms_ParseResult ParserParseUnaryExpr(ms_Parser *prs, ms_Expr **expr) {
         switch (cur->type) {
             case OP_BITWISE_NOT:        op = UNARY_BITWISE_NOT;     break;
             case OP_NOT:                op = UNARY_NOT;             break;
-            case OP_MINUS:              // fallthrough
+            case OP_MINUS:              /* fallthrough */
             case OP_UMINUS:             op = UNARY_MINUS;           break;
             default:
                 if ((res = ParserParseAtomExpr(prs, expr)) == PARSE_ERROR) {
@@ -1773,7 +1793,14 @@ static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require
 
     /* steal the identifier for the declaration */
     if (has_name) {
-        fn->ident = prs->cur->value;
+        fn->ident = malloc(sizeof(ms_Ident));
+        if (!fn->ident) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return PARSE_ERROR;
+        }
+
+        fn->ident->name = prs->cur->value;
+        fn->ident->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
         prs->cur->value = NULL;
         ParserConsumeToken(prs);
     }
@@ -1786,7 +1813,7 @@ static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require
     ParserConsumeToken(prs);
 
     fn->args = dsarray_new_cap(ARGUMENT_LIST_DEFAULT_CAP, NULL,
-                                  (dsarray_free_fn)dsbuf_destroy);
+                                  (dsarray_free_fn)ms_IdentDestroy);
     if (!fn->args) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return PARSE_ERROR;
@@ -1799,7 +1826,14 @@ static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require
             return PARSE_ERROR;
         }
 
-        ms_Ident *ident = prs->cur->value;
+        ms_Ident *ident = malloc(sizeof(ms_Ident));
+        if (!ident) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return PARSE_ERROR;
+        }
+
+        ident->name = prs->cur->value;
+        ident->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
         prs->cur->value = NULL;
         dsarray_append(fn->args, ident);
         ParserConsumeToken(prs);
@@ -1860,11 +1894,11 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_
     return PARSE_SUCCESS;
 }
 
-// Move the pointer to the next token in the lexer stream without
-// discarding the previous token.
-//
-// BE CAREFUL WITH THIS FUNCTION. Abusing this function will cause memory
-// leaks since token objects are not freed by this function.
+/* Move the pointer to the next token in the lexer stream without
+ * discarding the previous token.
+ *
+ * BE CAREFUL WITH THIS FUNCTION. Abusing this function will cause memory
+ * leaks since token objects are not freed by this function. */
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs) {
     assert(prs);
     assert(prs->lex);
@@ -1878,13 +1912,13 @@ static inline ms_Token *ParserAdvanceToken(ms_Parser *prs) {
     return old;
 }
 
-// Consume the next token in the stream.
+/* Consume the next token in the stream. */
 static inline void ParserConsumeToken(ms_Parser *prs) {
     assert(prs);
     ms_TokenDestroy(ParserAdvanceToken(prs));
 }
 
-// Consume newlines until there are none remaining
+/* Consume newlines until there are none remaining */
 static inline void ParserConsumeNewlines(ms_Parser *prs) {
     assert(prs);
     while (ParserExpectToken(prs, NEWLINE_TOK)) {
@@ -1892,7 +1926,7 @@ static inline void ParserConsumeNewlines(ms_Parser *prs) {
     }
 }
 
-// Check if the next token to see if it matches our expected next token.
+/* Check if the next token to see if it matches our expected next token. */
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
     assert(prs);
 
@@ -1903,8 +1937,8 @@ static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
     return true;
 }
 
-// Check if the next token to see if it matches our expected next token or if
-// there are NO tokens left.
+/* Check the next token to see if it matches our expected next token or if
+ * there are NO tokens left. */
 static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type) {
     assert(prs);
 
@@ -1919,7 +1953,7 @@ static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type) {
     return true;
 }
 
-// Generate a new ParseError object attached to the Parser.
+/* Generate a new ParseError object attached to the Parser. */
 static void ParserErrorSet(ms_Parser *prs, const char *msg, const ms_Token *tok, ...) {
     assert(prs);
 
@@ -1952,7 +1986,7 @@ static void ParserErrorSet(ms_Parser *prs, const char *msg, const ms_Token *tok,
     return;
 }
 
-// Clean up a Parse Error object.
+/* Clean up a Parse Error object. */
 static void ParseErrorDestroy(ms_ParseError *err) {
     if (!err) { return; }
     ms_TokenDestroy(err->tok);

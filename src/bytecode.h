@@ -87,7 +87,7 @@ typedef struct {
 typedef struct {
     ms_VMOpCode *code;                              /* array of opcodes */
     ms_Value *values;                               /* array of VM values */
-    ms_Ident **idents;                              /* array of identifiers */
+    DSBuffer **idents;                              /* array of identifiers */
     size_t nops;                                    /* number of opcodes */
     size_t nvals;                                   /* number of values */
     size_t nidents;                                 /* number of idents */

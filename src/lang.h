@@ -28,9 +28,19 @@ typedef struct ms_Expr ms_Expr;
  */
 
 typedef DSArray ms_StmtBlock;
-typedef DSBuffer ms_Ident;
 typedef DSArray ms_ExprList;
 typedef DSArray ms_ArgList;
+
+typedef enum {
+    IDENT_NAME,
+    IDENT_BUILTIN,
+    IDENT_GLOBAL,
+} ms_IdentType;
+
+typedef struct {
+    ms_IdentType type;
+    DSBuffer *name;
+} ms_Ident;
 
 /*
  * VALUE LANGUAGE COMPONENTS
@@ -372,6 +382,16 @@ bool ms_ExprIsIdent(const ms_Expr *expr);
 * Qualified identifiers are in the form: IDENTIFIER ('.' IDENTIFIER)*
 */
 bool ms_ExprIsQualifiedIdent(const ms_Expr *expr);
+
+/**
+* @brief Determine the type of identifier.
+*/
+ms_IdentType ms_IdentGetType(const char *ident);
+
+/**
+* @brief Destroy the given @c ms_Ident .
+*/
+void ms_IdentDestroy(ms_Ident *ident);
 
 /**
 * @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.

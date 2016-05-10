@@ -318,6 +318,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_UNARY(atp, uop, v)      AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
 #define AST_BINARY(latp, lv, op, ratp, rv) \
                                     AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
+#define AST_IDENT_NAME(v)           (dsbuf_new_l(v, sizeof(v)-1))
 
 // Expression macros
 #define AST_UEXPR_I(uop, v)         AST_UNARY(EXPRATOM_IDENT, uop, AST_EXPRATOM_IDENT(v))
@@ -334,7 +335,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_BEXPR_IV(li, bop, rv)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
 #define AST_FNCALL_E(e, lst)        AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_IDENT(v)                (dsbuf_new_l(v, sizeof(v)-1)) /* subtract one to ignore the terminating NUL */
+#define AST_IDENT(tp, v)            &((ms_Ident){ .type = tp, .name = AST_IDENT_NAME(v) }) /* subtract one to ignore the terminating NUL */
 #define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)(((ms_Expr*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 #define AST_EMPTY_EXPRLIST()        (dsarray_new_cap(1, NULL, NULL))
 
@@ -1626,15 +1627,15 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "$len()",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("$len"), AST_EMPTY_EXPRLIST()),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_BUILTIN, "$len"), AST_EMPTY_EXPRLIST()),
             .bc = {
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_LOAD_NAME, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("$len"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("$len"),
                 }),
                 .nops = 2, .nvals = 0, .nidents = 1
             }
@@ -1642,15 +1643,15 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "foo()",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("foo"), AST_EMPTY_EXPRLIST()),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EMPTY_EXPRLIST()),
             .bc = {
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_LOAD_NAME, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("foo"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("foo"),
                 }),
                 .nops = 2, .nvals = 0, .nidents = 1
             }
@@ -1658,7 +1659,7 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "$len(\"string\")",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_BUILTIN, "$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
             .bc = {
                 .values = (ms_Value[]){
                     VM_STR("string"),
@@ -1668,8 +1669,8 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
                     VM_OPC(OPC_LOAD_NAME, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("$len"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("$len"),
                 }),
                 .nops = 3, .nvals = 1, .nidents = 1
             }
@@ -1677,7 +1678,7 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "foo(\"string\")",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_I(AST_IDENT("foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
+            .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
             .bc = {
                 .values = (ms_Value[]){
                     VM_STR("string"),
@@ -1687,8 +1688,8 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
                     VM_OPC(OPC_LOAD_NAME, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("foo"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("foo"),
                 }),
                 .nops = 3, .nvals = 1, .nidents = 1
             }
@@ -1696,7 +1697,7 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "foo()()",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("foo"), AST_EMPTY_EXPRLIST()), AST_EMPTY_EXPRLIST()),
+            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EMPTY_EXPRLIST()), AST_EMPTY_EXPRLIST()),
             .bc = {
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
@@ -1704,8 +1705,8 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
                     VM_OPC(OPC_CALL, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("foo"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("foo"),
                 }),
                 .nops = 3, .nvals = 0, .nidents = 1
             }
@@ -1713,7 +1714,7 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
         {
             .val = "bar(\"baz\")()",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT("bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("baz")))), AST_EMPTY_EXPRLIST()),
+            .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT(IDENT_NAME, "bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("baz")))), AST_EMPTY_EXPRLIST()),
             .bc = {
                 .values = (ms_Value[]){
                     VM_STR("baz"),
@@ -1724,8 +1725,8 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
                     VM_OPC(OPC_CALL, 0),
                     VM_OPC(OPC_CALL, 0),
                 },
-                .idents = ((ms_Ident*[]){
-                    AST_IDENT("bar"),
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("bar"),
                 }),
                 .nops = 4, .nvals = 1, .nidents = 1
             }
@@ -1742,18 +1743,18 @@ MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *us
         {
             .val = "del @global",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global"))),
+            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global"))),
             .bc = { 0 }
         },
         {
             .val = "del local",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT("local")))
+            .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "local")))
         },
         {
             .val = "del name.second.third",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DEL(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")))
+            .cmpnt.stmt = AST_DEL(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")))
         },
     };
 
@@ -1768,9 +1769,9 @@ MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *u
             .val = "for var i := 0 : lim { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_INC_1(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "lim")),
                 true,
                 AST_EMPTY_STMT_BLOCK()),
             .bc = { 0 }
@@ -1779,9 +1780,9 @@ MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *u
             .val = "for var i := 0 : lim : 2 { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_INC(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "lim")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(2)),
                 true,
                 AST_EMPTY_STMT_BLOCK()),
@@ -1791,9 +1792,9 @@ MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *u
             .val = "for i := 0 : lim { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_INC_1(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "lim")),
                 false,
                 AST_EMPTY_STMT_BLOCK()),
             .bc = { 0 }
@@ -1802,9 +1803,9 @@ MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *u
             .val = "for i := 0 : lim : 2 { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_INC(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("lim")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "lim")),
                 AST_UEXPR_V(UNARY_NONE, VM_INT(2)),
                 false,
                 AST_EMPTY_STMT_BLOCK()),
@@ -1823,8 +1824,8 @@ MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *
             .val = "for var i in range { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_ITER(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("range")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "range")),
                 true,
                 AST_EMPTY_STMT_BLOCK()),
             .bc = { 0 }
@@ -1833,8 +1834,8 @@ MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *
             .val = "for i in range { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_ITER(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("i")),
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("range")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "i")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "range")),
                 false,
                 AST_EMPTY_STMT_BLOCK()),
             .bc = { 0 }
@@ -1852,7 +1853,7 @@ MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *
             .val = "for cond { }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_FOR_EXPR(
-                AST_UEXPR_I(UNARY_NONE, AST_IDENT("cond")),
+                AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "cond")),
                 AST_EMPTY_STMT_BLOCK()),
             .bc = { 0 }
         },
@@ -1868,7 +1869,7 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
         {
             .val = "if cost >= money { }",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IF_ELIF(AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")), AST_EMPTY_STMT_BLOCK(), NULL),
+            .cmpnt.stmt = AST_IF_ELIF(AST_BEXPR_II(AST_IDENT(IDENT_NAME, "cost"), BINARY_GE, AST_IDENT(IDENT_NAME, "money")), AST_EMPTY_STMT_BLOCK(), NULL),
             .bc = { 0 }
         },
         {
@@ -1879,7 +1880,7 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
                    "}",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IF_ELIF(
-                AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")),
+                AST_BEXPR_II(AST_IDENT(IDENT_NAME, "cost"), BINARY_GE, AST_IDENT(IDENT_NAME, "money")),
                 AST_EMPTY_STMT_BLOCK(),
                 AST_ELIF_ELSE(
                     AST_EMPTY_STMT_BLOCK()
@@ -1897,10 +1898,10 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
                    "}",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IF_ELIF(
-                AST_BEXPR_II(AST_IDENT("cost"), BINARY_GE, AST_IDENT("money")),
+                AST_BEXPR_II(AST_IDENT(IDENT_NAME, "cost"), BINARY_GE, AST_IDENT(IDENT_NAME, "money")),
                 AST_EMPTY_STMT_BLOCK(),
                 AST_ELIF_IF(
-                    AST_BEXPR_II(AST_IDENT("cost"), BINARY_EQ, AST_IDENT("money")),
+                    AST_BEXPR_II(AST_IDENT(IDENT_NAME, "cost"), BINARY_EQ, AST_IDENT(IDENT_NAME, "money")),
                     AST_EMPTY_STMT_BLOCK(),
                     AST_ELIF_ELSE(
                         AST_EMPTY_STMT_BLOCK()
@@ -1921,13 +1922,13 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
                    "}",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IF_ELIF(
-                AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.9)),
+                AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "pct"), BINARY_GE, VM_FLOAT(0.9)),
                 AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("A")))),
                 AST_ELIF_IF(
-                    AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.8)),
+                    AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "pct"), BINARY_GE, VM_FLOAT(0.8)),
                     AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("B")))),
                     AST_ELIF_IF(
-                        AST_BEXPR_IV(AST_IDENT("pct"), BINARY_GE, VM_FLOAT(0.7)),
+                        AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "pct"), BINARY_GE, VM_FLOAT(0.7)),
                         AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("C")))),
                         AST_ELIF_ELSE(
                             AST_STMT_BLOCK(1, &AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("F"))))
@@ -1949,19 +1950,19 @@ MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *us
         {
             .val = "import Sys",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IMPORT(AST_UEXPR_I(UNARY_NONE, AST_IDENT("Sys")), NULL),
+            .cmpnt.stmt = AST_IMPORT(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "Sys")), NULL),
             .bc = { 0 }
         },
         {
             .val = "import Http.Server",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT("Http"), BINARY_GETATTR, VM_STR("Server")), NULL),
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "Http"), BINARY_GETATTR, VM_STR("Server")), NULL),
             .bc = { 0 }
         },
         {
             .val = "import Http.Server : srv",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT("Http"), BINARY_GETATTR, VM_STR("Server")), AST_IDENT("srv")),
+            .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "Http"), BINARY_GETATTR, VM_STR("Server")), AST_IDENT(IDENT_NAME, "srv")),
             .bc = { 0 }
         },
     };
@@ -1976,25 +1977,25 @@ MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *use
         {
             .val = "merge name := other",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
             .bc = { 0 }
         },
         {
             .val = "merge name.second := other",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .cmpnt.stmt = AST_MERGE(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
             .bc = { 0 }
         },
         {
             .val = "merge @global := other",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_I(UNARY_NONE, AST_IDENT("other"))),
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
             .bc = { 0 }
         },
         {
             .val = "merge @global := \"some string\"",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT("@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("some string"))),
+            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("some string"))),
             .bc = { 0 }
         },
     };
@@ -2033,13 +2034,13 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
         {
             .val = "return name",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_RETURN(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name"))),
+            .cmpnt.stmt = AST_RETURN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name"))),
             .bc = { 0 }
         },
         {
             .val = "return name.second",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_RETURN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second"))),
+            .cmpnt.stmt = AST_RETURN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second"))),
             .bc = { 0 }
         },
     };
@@ -2055,15 +2056,15 @@ MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *us
             .val = "func Sum(a, b) { return a + b }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE_V(
-                AST_IDENT("Sum"),
+                AST_IDENT(IDENT_NAME, "Sum"),
                 AST_UEXPR_V(
                     UNARY_NONE,
                     VM_FUNC(
-                        AST_IDENT("Sum"),
-                        AST_ARGLIST(2, AST_IDENT("a"), AST_IDENT("b")),
+                        AST_IDENT(IDENT_NAME, "Sum"),
+                        AST_ARGLIST(2, AST_IDENT(IDENT_NAME, "a"), AST_IDENT(IDENT_NAME, "b")),
                         AST_STMT_BLOCK(
                             1,
-                            &AST_RETURN(AST_BEXPR_II(AST_IDENT("a"), BINARY_PLUS, AST_IDENT("b")))
+                            &AST_RETURN(AST_BEXPR_II(AST_IDENT(IDENT_NAME, "a"), BINARY_PLUS, AST_IDENT(IDENT_NAME, "b")))
                         )
                     )
                 ),
@@ -2075,15 +2076,15 @@ MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *us
             .val = "var Sum := func (a, b) { return a + b }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE_V(
-                AST_IDENT("Sum"),
+                AST_IDENT(IDENT_NAME, "Sum"),
                 AST_UEXPR_V(
                     UNARY_NONE,
                     VM_FUNC(
                         NULL,
-                        AST_ARGLIST(2, AST_IDENT("a"), AST_IDENT("b")),
+                        AST_ARGLIST(2, AST_IDENT(IDENT_NAME, "a"), AST_IDENT(IDENT_NAME, "b")),
                         AST_STMT_BLOCK(
                             1,
-                            &AST_RETURN(AST_BEXPR_II(AST_IDENT("a"), BINARY_PLUS, AST_IDENT("b")))
+                            &AST_RETURN(AST_BEXPR_II(AST_IDENT(IDENT_NAME, "a"), BINARY_PLUS, AST_IDENT(IDENT_NAME, "b")))
                         )
                     )
                 ),
@@ -2103,31 +2104,31 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
         {
             .val = "var name",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), NULL),
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), NULL),
             .bc = { 0 }
         },
         {
             .val = "var name := \"Gladys\"",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE_V(AST_IDENT("name"), AST_UEXPR_V(UNARY_NONE, VM_STR("Gladys")), NULL),
+            .cmpnt.stmt = AST_DECLARE_V(AST_IDENT(IDENT_NAME, "name"), AST_UEXPR_V(UNARY_NONE, VM_STR("Gladys")), NULL),
             .bc = { 0 }
         },
         {
             .val = "var name, second",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT(AST_IDENT("second"), NULL)),
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "second"), NULL)),
             .bc = { 0 }
         },
         {
             .val = "var name, second, third",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT(AST_IDENT("second"), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "second"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "third"), NULL))),
             .bc = { 0 }
         },
         {
             .val = "var name, second := \"J\", third",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_DECLARE(AST_IDENT("name"), &AST_DECL_CMPNT_V(AST_IDENT("second"), AST_UEXPR_V(UNARY_NONE, VM_STR("J")), &AST_DECL_CMPNT(AST_IDENT("third"), NULL))),
+            .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT_V(AST_IDENT(IDENT_NAME, "second"), AST_UEXPR_V(UNARY_NONE, VM_STR("J")), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "third"), NULL))),
             .bc = { 0 }
         },
     };
@@ -2142,19 +2143,19 @@ MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_da
         {
             .val = "name := 10",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT("name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
             .bc = { 0 }
         },
         {
             .val = "name.second := 10",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
             .bc = { 0 }
         },
         {
             .val = "name.second += 10",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT("name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
             .bc = { 0 }
         },
     };
@@ -2427,7 +2428,11 @@ static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode
     }
 
     for (size_t i = 0; i < bc1->nidents; i++) {
-        CompareIdent(bc1->idents[i], bc2->idents[i]);
+        const char *s1 = dsbuf_char_ptr(bc1->idents[i]);
+        const char *s2 = dsbuf_char_ptr(bc2->idents[i]);
+        munit_logf(MUNIT_LOG_INFO, "  ident1='%s'", s1);
+        munit_logf(MUNIT_LOG_INFO, "  ident2='%s'", s2);
+        munit_assert_string_equal(s1, s2);
     }
 
     return MUNIT_OK;
@@ -2452,8 +2457,9 @@ static MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2) {
     munit_assert_non_null(id1);
     munit_assert_non_null(id1);
 
-    const char *s1 = dsbuf_char_ptr(id1);
-    const char *s2 = dsbuf_char_ptr(id2);
+    munit_assert_cmp_int(id1->type, ==, id2->type);
+    const char *s1 = dsbuf_char_ptr(id1->name);
+    const char *s2 = dsbuf_char_ptr(id2->name);
     munit_logf(MUNIT_LOG_INFO, "  ident1='%s'", s1);
     munit_logf(MUNIT_LOG_INFO, "  ident2='%s'", s2);
     munit_assert_string_equal(s1, s2);
@@ -2578,7 +2584,10 @@ static void CleanStatement(ms_Stmt *stmt) {
             break;
         case STMTTYPE_IMPORT:
             CleanExpression(stmt->cmpnt.import->ident);
-            dsbuf_destroy(stmt->cmpnt.import->alias);
+            if (stmt->cmpnt.import->alias) {
+                dsbuf_destroy(stmt->cmpnt.import->alias->name);
+                stmt->cmpnt.import->alias->name = NULL;
+            }
             break;
         case STMTTYPE_MERGE:
             CleanExpression(stmt->cmpnt.merge->left);
@@ -2652,7 +2661,8 @@ static void CleanIfElseStatement(ms_StmtIfElse *elif) {
 
 static void CleanDeclaration(ms_StmtDeclaration *decl) {
     if (!decl) { return; }
-    dsbuf_destroy(decl->ident);
+    dsbuf_destroy(decl->ident->name);
+    decl->ident->name = NULL;
     CleanExpression(decl->expr);
     CleanDeclaration(decl->next);
 }
@@ -2686,8 +2696,8 @@ static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom) {
             }
             break;
         case EXPRATOM_IDENT:
-            dsbuf_destroy(atom->ident);
-            atom->ident = NULL;
+            dsbuf_destroy(atom->ident->name);
+            atom->ident->name = NULL;
             break;
         case EXPRATOM_EXPRLIST:
             CleanExpressionList(atom->list);
@@ -2701,13 +2711,18 @@ static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom) {
 static void CleanFunction(ms_ValFunc *func) {
     if (!func) { return; }
 
-    dsbuf_destroy(func->ident);
+    if (func->ident) {
+        dsbuf_destroy(func->ident->name);
+        func->ident->name = NULL;
+    }
+
     CleanBlock(func->block);
 
     size_t len = dsarray_len(func->args);
     for (size_t i = 0; i < len; i++) {
         ms_Ident *ident = dsarray_get(func->args, i);
-        dsbuf_destroy(ident);
+        dsbuf_destroy(ident->name);
+        ident->name = NULL;
     }
     dsarray_destroy(func->args);
 }

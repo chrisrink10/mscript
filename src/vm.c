@@ -78,7 +78,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
 static ms_Value *VMPeek(const ms_VM *vm, int index);
 static bool VMStackIsEmpty(const ms_VM *vm);
 static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm);
-static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Ident *ident);
+static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, DSBuffer *ident);
 
 static inline size_t VMPrint(ms_VM *vm);
 static inline size_t VMPush(ms_VM *vm, int val);
@@ -653,7 +653,7 @@ static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm) {
     return dsarray_top(vm->fstack);
 }
 
-static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, ms_Ident *ident) {
+static inline DSDict *VMFindIdentEnv(const ms_VM *vm, const ms_VMFrame *f, DSBuffer *ident) {
     assert(vm);
     assert(f);
 
@@ -695,7 +695,7 @@ static inline size_t VMPrint(ms_VM *vm) {
             printf("%s\n", dsbuf_char_ptr(v->val.s));
             break;
         case MSVAL_FUNC:
-            printf("%s\n", dsbuf_char_ptr(v->val.fn->ident));
+            printf("%s\n", dsbuf_char_ptr(v->val.fn->ident->name));
             break;
     }
     return 1;
@@ -819,7 +819,7 @@ static inline size_t VMLoadName(ms_VM *vm, int arg) {
     ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     assert(f->code);
-    ms_Ident *id = f->code->idents[arg];
+    DSBuffer *id = f->code->idents[arg];
     assert(id);
 
     DSDict *env = VMFindIdentEnv(vm, f, id);
@@ -839,7 +839,7 @@ static inline size_t VMNewName(ms_VM *vm, int arg) {
     ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     assert(f->code);
-    ms_Ident *id = f->code->idents[arg];
+    DSBuffer *id = f->code->idents[arg];
     assert(id);
 
     ms_Value *v = malloc(sizeof(ms_Value));
@@ -861,7 +861,7 @@ static inline size_t VMSetName(ms_VM *vm, int arg) {
     ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     assert(f->code);
-    ms_Ident *id = f->code->idents[arg];
+    DSBuffer *id = f->code->idents[arg];
     assert(id);
 
     DSDict *env = VMFindIdentEnv(vm, f, id);
@@ -885,7 +885,7 @@ static inline size_t VMDelName(ms_VM *vm, int arg) {
     ms_VMFrame *f = VMCurrentFrame(vm);
     assert(f);
     assert(f->code);
-    ms_Ident *id = f->code->idents[arg];
+    DSBuffer *id = f->code->idents[arg];
     assert(id);
 
     DSDict *env = VMFindIdentEnv(vm, f, id);
