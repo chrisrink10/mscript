@@ -448,6 +448,7 @@ MunitResult LexCompareStrings(const char *param, const char *val) {
     munit_assert_cmp_size(len, >, 1);
     int cmp = strncmp(val, &param[1], len-2);
     munit_assert_cmp_int(cmp, ==, 0);
+    return MUNIT_OK;
 }
 
 MunitResult LexExpect(const char *param, ms_TokenType type) {
