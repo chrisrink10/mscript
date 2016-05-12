@@ -44,7 +44,6 @@ static const int EXPR_OPCODE_STACK_LEN = 50;
 static const int EXPR_VALUE_STACK_LEN = 50;
 static const int EXPR_IDENT_STACK_LEN = 50;
 
-static const char *VMOpCodeToString(ms_VMOpCode c);
 static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i);
 static char *ByteCodeValueToString(const ms_VMByteCode *bc, size_t i);
 static char *ByteCodeIdentToString(const ms_VMByteCode *bc, size_t i);
@@ -126,7 +125,7 @@ void ms_VMByteCodePrint(const ms_VMByteCode *bc) {
     FILE *outfile = stdout;
     for (size_t i = 0; i < bc->nops; i++) {
         ms_VMOpCode opc = bc->code[i];
-        const char *name = VMOpCodeToString(opc);
+        const char *name = ms_VMOpCodeToString(opc);
         char *strarg = OpCodeArgToString(bc, i);
         fprintf(outfile, "%5zu %-20s %s\n", i, name, (strarg) ? (strarg) : "");
     }
@@ -142,6 +141,64 @@ int ms_VMOpCodeGetArg(ms_VMOpCode c) {
 
 ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c) {
     return (ms_VMOpCodeType)(c & ((1 << OPC_BITS) - 1));
+}
+
+const char *ms_VMOpCodeToString(ms_VMOpCode c) {
+    ms_VMOpCodeType type = ms_VMOpCodeGetCode(c);
+    switch (type) {
+        case OPC_PRINT:             return "PRINT";
+        case OPC_PUSH:              return "PUSH";
+        case OPC_POP:               return "POP";
+        case OPC_SWAP:              return "SWAP";
+        case OPC_DUP:               return "DUP";
+        case OPC_ADD:               return "ADD";
+        case OPC_SUBTRACT:          return "SUBTRACT";
+        case OPC_MULTIPLY:          return "MULTIPLY";
+        case OPC_DIVIDE:            return "DIVIDE";
+        case OPC_IDIVIDE:           return "IDIVIDE";
+        case OPC_MODULO:            return "MODULO";
+        case OPC_EXPONENTIATE:      return "EXPONENTIATE";
+        case OPC_NEGATE:            return "NEGATE";
+        case OPC_SHIFT_LEFT:        return "SHIFT_LEFT";
+        case OPC_SHIFT_RIGHT:       return "SHIFT_RIGHT";
+        case OPC_BITWISE_AND:       return "BITWISE_AND";
+        case OPC_BITWISE_XOR:       return "BITWISE_XOR";
+        case OPC_BITWISE_OR:        return "BITWISE_OR";
+        case OPC_BITWISE_NOT:       return "BITWISE_NOT";
+        case OPC_LE:                return "LE";
+        case OPC_LT:                return "LT";
+        case OPC_GE:                return "GE";
+        case OPC_GT:                return "GT";
+        case OPC_EQ:                return "EQ";
+        case OPC_NOT_EQ:            return "NOT_EQ";
+        case OPC_NOT:               return "NOT";
+        case OPC_AND:               return "AND";
+        case OPC_OR:                return "OR";
+        case OPC_CALL:              return "CALL";
+        case OPC_PUSH_BLOCK:        return "PUSH_BLOCK";
+        case OPC_POP_BLOCK:         return "POP_BLOCK";
+        case OPC_RETURN:            return "RETURN";
+        case OPC_GET_ATTR:          return "GET_ATTR";
+        case OPC_SET_ATTR:          return "SET_ATTR";
+        case OPC_DEL_ATTR:          return "DEL_ATTR";
+        case OPC_GET_GLO:           return "GET_GLO";
+        case OPC_SET_GLO:           return "SET_GLO";
+        case OPC_DEL_GLO:           return "DEL_GLO";
+        case OPC_NEW_NAME:          return "NEW_NAME";
+        case OPC_GET_NAME:          return "GET_NAME";
+        case OPC_SET_NAME:          return "SET_NAME";
+        case OPC_DEL_NAME:          return "DEL_NAME";
+        case OPC_NEXT:              return "NEXT";
+        case OPC_MERGE:             return "MERGE";
+        case OPC_IMPORT:            return "IMPORT";
+        case OPC_JUMP_IF_FALSE:     return "JUMP_IF_FALSE";
+        case OPC_GOTO:              return "GOTO";
+        case OPC_BREAK:             return "BREAK";
+        case OPC_CONTINUE:          return "CONTINUE";
+        default:
+            assert(false && "invalid opcode given");
+            return "invalidopc";
+    }
 }
 
 /*
@@ -224,64 +281,6 @@ static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx) {
     }
 
     return bc;
-}
-
-static const char *VMOpCodeToString(ms_VMOpCode c) {
-    ms_VMOpCodeType type = ms_VMOpCodeGetCode(c);
-    switch (type) {
-        case OPC_PRINT:             return "PRINT";
-        case OPC_PUSH:              return "PUSH";
-        case OPC_POP:               return "POP";
-        case OPC_SWAP:              return "SWAP";
-        case OPC_DUP:               return "DUP";
-        case OPC_ADD:               return "ADD";
-        case OPC_SUBTRACT:          return "SUBTRACT";
-        case OPC_MULTIPLY:          return "MULTIPLY";
-        case OPC_DIVIDE:            return "DIVIDE";
-        case OPC_IDIVIDE:           return "IDIVIDE";
-        case OPC_MODULO:            return "MODULO";
-        case OPC_EXPONENTIATE:      return "EXPONENTIATE";
-        case OPC_NEGATE:            return "NEGATE";
-        case OPC_SHIFT_LEFT:        return "SHIFT_LEFT";
-        case OPC_SHIFT_RIGHT:       return "SHIFT_RIGHT";
-        case OPC_BITWISE_AND:       return "BITWISE_AND";
-        case OPC_BITWISE_XOR:       return "BITWISE_XOR";
-        case OPC_BITWISE_OR:        return "BITWISE_OR";
-        case OPC_BITWISE_NOT:       return "BITWISE_NOT";
-        case OPC_LE:                return "LE";
-        case OPC_LT:                return "LT";
-        case OPC_GE:                return "GE";
-        case OPC_GT:                return "GT";
-        case OPC_EQ:                return "EQ";
-        case OPC_NOT_EQ:            return "NOT_EQ";
-        case OPC_NOT:               return "NOT";
-        case OPC_AND:               return "AND";
-        case OPC_OR:                return "OR";
-        case OPC_CALL:              return "CALL";
-        case OPC_PUSH_BLOCK:        return "PUSH_BLOCK";
-        case OPC_POP_BLOCK:         return "POP_BLOCK";
-        case OPC_RETURN:            return "RETURN";
-        case OPC_GET_ATTR:          return "GET_ATTR";
-        case OPC_SET_ATTR:          return "SET_ATTR";
-        case OPC_DEL_ATTR:          return "DEL_ATTR";
-        case OPC_GET_GLO:           return "GET_GLO";
-        case OPC_SET_GLO:           return "SET_GLO";
-        case OPC_DEL_GLO:           return "DEL_GLO";
-        case OPC_NEW_NAME:          return "NEW_NAME";
-        case OPC_GET_NAME:          return "GET_NAME";
-        case OPC_SET_NAME:          return "SET_NAME";
-        case OPC_DEL_NAME:          return "DEL_NAME";
-        case OPC_NEXT:              return "NEXT";
-        case OPC_MERGE:             return "MERGE";
-        case OPC_IMPORT:            return "IMPORT";
-        case OPC_JUMP_IF_FALSE:     return "JUMP_IF_FALSE";
-        case OPC_GOTO:              return "GOTO";
-        case OPC_BREAK:             return "BREAK";
-        case OPC_CONTINUE:          return "CONTINUE";
-        default:
-            assert(false && "invalid opcode given");
-            return "invalidopc";
-    }
 }
 
 static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {

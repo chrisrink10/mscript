@@ -128,4 +128,9 @@ int ms_VMOpCodeGetArg(ms_VMOpCode c);
 */
 ms_VMOpCodeType ms_VMOpCodeGetCode(ms_VMOpCode c);
 
+/**
+* @brief Get the string constant name for a given VM opcode.
+*/
+const char *ms_VMOpCodeToString(ms_VMOpCode c);
+
 #endif //MSCRIPT_BYTECODE_H
