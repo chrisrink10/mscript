@@ -15,41 +15,49 @@
  *----------------------------------------------------------------------------*/
 
 #include "munit/munit.h"
-#include "streamreader.h"
+#include "codegen.h"
 #include "lexer.h"
 #include "parser.h"
+#include "streamreader.h"
 
 static MunitSuite suites[] = {
-        {
-            "/lib/streamreader",
-            streamreader_tests,
-            NULL,
-            1,
-            MUNIT_SUITE_OPTION_NONE
-        },
-        {
-            "/lexer",
-            lexer_tests,
-            NULL,
-            1,
-            MUNIT_SUITE_OPTION_NONE
-        },
-        {
-            "/parser",
-            parser_tests,
-            NULL,
-            1,
-            MUNIT_SUITE_OPTION_NONE
-        },
-        { NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE },
+    {
+        "/lib/streamreader",
+        streamreader_tests,
+        NULL,
+        1,
+        MUNIT_SUITE_OPTION_NONE
+    },
+    {
+        "/lexer",
+        lexer_tests,
+        NULL,
+        1,
+        MUNIT_SUITE_OPTION_NONE
+    },
+    {
+        "/parser",
+        parser_tests,
+        NULL,
+        1,
+        MUNIT_SUITE_OPTION_NONE
+    },
+    {
+        "/codegen",
+        codegen_tests,
+        NULL,
+        1,
+        MUNIT_SUITE_OPTION_NONE
+    },
+    { NULL, NULL, NULL, 0, MUNIT_SUITE_OPTION_NONE },
 };
 
 static const MunitSuite mscript = {
-        "/mscript",
-        NULL,
-        suites,
-        1,
-        MUNIT_SUITE_OPTION_NONE
+    "/mscript",
+    NULL,
+    suites,
+    1,
+    MUNIT_SUITE_OPTION_NONE
 };
 
 int main(int argc, char *argv[]) {

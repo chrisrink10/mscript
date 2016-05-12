@@ -30,7 +30,7 @@ include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/lib)
 
 # Compiler and Linker flags
-set(C_WARNING_FLAGS "-Wall -Wextra -pedantic")
+set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
 
 #######################################################################
@@ -70,10 +70,11 @@ target_link_libraries(mscript readline)
 #######################################################################
 
 # Special flags for tests
-set(C_TEST_WARNING_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
+set(C_TEST_WARNING_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter -Wno-missing-field-initializers")
 
 # Testing code
 set(TESTING_SOURCE_FILES deps/munit/munit.c
+                         test/codegen.c
                          test/streamreader.c
                          test/lexer.c
                          test/parser.c
