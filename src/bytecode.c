@@ -267,8 +267,8 @@ static const char *VMOpCodeToString(ms_VMOpCode c) {
         case OPC_GET_GLO:           return "GET_GLO";
         case OPC_SET_GLO:           return "SET_GLO";
         case OPC_DEL_GLO:           return "DEL_GLO";
-        case OPC_LOAD_NAME:         return "LOAD_NAME";
         case OPC_NEW_NAME:          return "NEW_NAME";
+        case OPC_GET_NAME:          return "GET_NAME";
         case OPC_SET_NAME:          return "SET_NAME";
         case OPC_DEL_NAME:          return "DEL_NAME";
         case OPC_NEXT:              return "NEXT";
@@ -298,8 +298,8 @@ static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
         case OPC_GET_GLO:           return ByteCodeArgToString(bc, arg);
         case OPC_SET_GLO:           return ByteCodeArgToString(bc, arg);
         case OPC_DEL_GLO:           return ByteCodeArgToString(bc, arg);
-        case OPC_LOAD_NAME:         return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_NEW_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
+        case OPC_GET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_SET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_DEL_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_JUMP_IF_FALSE:     return ByteCodeArgToString(bc, arg);
@@ -1037,7 +1037,7 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
                 PushOpCode(OPC_PUSH, index, ctx->parent);
             } else {
                 PushIdent(a->ident, &index, ctx->parent);
-                PushOpCode(OPC_LOAD_NAME, index, ctx->parent);
+                PushOpCode(OPC_GET_NAME, index, ctx->parent);
             }
             break;
         }

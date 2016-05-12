@@ -588,7 +588,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
                 inc = 0;
                 break;
-            case OPC_LOAD_NAME:
+            case OPC_GET_NAME:
                 inc = VMLoadName(vm, arg);
                 break;
             case OPC_NEW_NAME:

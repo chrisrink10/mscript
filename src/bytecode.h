@@ -62,8 +62,8 @@ typedef enum {
     OPC_GET_GLO,        /*  req         TOS := db[TOS, TOS1, ...]                                                               */
     OPC_SET_GLO,        /*  req         db[TOS, TOS1, ...] := TOSN                                                              */
     OPC_DEL_GLO,        /*  req         delete db[TOS, TOS1, ...]                                                               */
-    OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                                                                    */
     OPC_NEW_NAME,       /*  req         env[names[i]] := null                                                                   */
+    OPC_GET_NAME,       /*  req         TOS := env[names[i]]                                                                    */
     OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                                                                   */
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                                                                    */
     OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
