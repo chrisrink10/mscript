@@ -288,64 +288,70 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     return outer;
 }
 
-bool ms_ExprIsIdent(const ms_Expr *expr) {
-    if (!expr) {
-        return false;
-    }
-
-    if (expr->type != EXPRTYPE_UNARY) {
-        return false;
-    }
-
-    if (!expr->cmpnt.u) {
-        return false;
-    }
-
-    if (expr->cmpnt.u->op != UNARY_NONE) {
-        return false;
-    }
-
-    if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
-        return false;
-    }
-
-    return true;
-}
-
-bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
-    if (!expr) {
-        return false;
-    }
+ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
+    assert(expr);
 
     if (expr->type == EXPRTYPE_UNARY) {
-        return ms_ExprIsIdent(expr);
-    }
-
-    if (!expr->cmpnt.b) {
-        return false;
-    }
-
-    if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
-        if (!ms_ExprIsQualifiedIdent(expr->cmpnt.b->latom.expr)) {
-            return false;
+        if (!expr->cmpnt.u) {
+            return EXPRIDENT_NONE;
         }
-    } else if (expr->cmpnt.b->ltype != EXPRATOM_IDENT) {
-        return false;
-    }
 
-    if (expr->cmpnt.b->rtype == EXPRATOM_VALUE) {
-        if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
-            return false;
+        if (expr->cmpnt.u->op != UNARY_NONE) {
+            return EXPRIDENT_NONE;
         }
-    } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
-        return false;
-    }
 
-    if (expr->cmpnt.b->op != BINARY_GETATTR) {
-        return false;
-    }
+        if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
+            return EXPRIDENT_NONE;
+        }
 
-    return true;
+        switch (expr->cmpnt.u->atom.ident->type) {
+            case IDENT_GLOBAL:
+                return EXPRIDENT_GLOBAL;
+            case IDENT_BUILTIN:
+                return EXPRIDENT_BUILTIN;
+            case IDENT_NAME:
+                return EXPRIDENT_NAME;
+        }
+
+        return EXPRIDENT_NONE;
+    } else {
+        if (!expr->cmpnt.b) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->op != BINARY_GETATTR) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->rtype == EXPRATOM_VALUE) {
+            if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
+                return EXPRIDENT_NONE;
+            }
+        } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
+            ms_ExprIdentType inner_type = ms_ExprGetIdentType(expr->cmpnt.b->latom.expr);
+            if ((inner_type == EXPRIDENT_NAME) ||
+                (inner_type == EXPRIDENT_QUALIFIED)) {
+                return EXPRIDENT_QUALIFIED;
+            } else {
+                return inner_type;
+            }
+        } else if (expr->cmpnt.b->ltype == EXPRATOM_IDENT) {
+            switch (expr->cmpnt.b->latom.ident->type) {
+                case IDENT_GLOBAL:
+                    return EXPRIDENT_GLOBAL;
+                case IDENT_BUILTIN:
+                    return EXPRIDENT_BUILTIN;
+                case IDENT_NAME:
+                    return EXPRIDENT_QUALIFIED;
+            }
+        }
+
+        return EXPRIDENT_NONE;
+    }
 }
 
 ms_IdentType ms_IdentGetType(const char *ident) {

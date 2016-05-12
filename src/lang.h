@@ -42,6 +42,14 @@ typedef struct {
     DSBuffer *name;
 } ms_Ident;
 
+typedef enum {
+    EXPRIDENT_NONE,
+    EXPRIDENT_NAME,
+    EXPRIDENT_BUILTIN,
+    EXPRIDENT_GLOBAL,
+    EXPRIDENT_QUALIFIED
+} ms_ExprIdentType;
+
 /*
  * VALUE LANGUAGE COMPONENTS
  */
@@ -373,15 +381,13 @@ ms_Expr *ms_ExprDup(const ms_Expr *src);
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
-* @brief Determine if an expression contains _only_ a single identifier.
+* @brief Determine the type of identifier contained in an expression.
+*
+* Identifiers within expressions can be: builtins, normal identifiers,
+* global names, or qualified identifiers (which are composed of one
+* normal identifier and one or more accessors).
 */
-bool ms_ExprIsIdent(const ms_Expr *expr);
-
-/**
-* @brief Determine if an expression contains _only_ a qualified identifier.
-* Qualified identifiers are in the form: IDENTIFIER ('.' IDENTIFIER)*
-*/
-bool ms_ExprIsQualifiedIdent(const ms_Expr *expr);
+ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr);
 
 /**
 * @brief Determine the type of identifier.

@@ -576,6 +576,18 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_DEL_ATTR:
                 inc = VMDoBinaryOp(vm, "__delattr__");
                 break;
+            case OPC_GET_GLO:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
+            case OPC_SET_GLO:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
+            case OPC_DEL_GLO:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
             case OPC_LOAD_NAME:
                 inc = VMLoadName(vm, arg);
                 break;

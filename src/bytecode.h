@@ -21,55 +21,58 @@
 #include "lang.h"
 
 typedef enum {
-    /*----------------------------------------------------------------------------------
-    name                    arg         action
-    ------------------------------------------------------------------------------------*/
-    OPC_PRINT,          /*              print $str(TOS)                                 */
-    OPC_PUSH,           /*  req         push values[i] to TOS                           */
-    OPC_POP,            /*              pop TOS                                         */
-    OPC_SWAP,           /*              TOS, TOS1 := TOS1, TOS                          */
-    OPC_DUP,            /*              duplicate TOS, push duplicate to TOS            */
-    OPC_ADD,            /*              TOS := TOS1 + TOS                               */
-    OPC_SUBTRACT,       /*              TOS := TOS1 - TOS                               */
-    OPC_MULTIPLY,       /*              TOS := TOS1 * TOS                               */
-    OPC_DIVIDE,         /*              TOS := TOS1 / TOS                               */
-    OPC_IDIVIDE,        /*              TOS := TOS1 \ TOS                               */
-    OPC_MODULO,         /*              TOS := TOS1 % TOS                               */
-    OPC_EXPONENTIATE,   /*              TOS := TOS1 ** TOS                              */
-    OPC_NEGATE,         /*              TOS := -TOS                                     */
-    OPC_SHIFT_LEFT,     /*              TOS := TOS1 << TOS                              */
-    OPC_SHIFT_RIGHT,    /*              TOS := TOS1 >> TOS                              */
-    OPC_BITWISE_AND,    /*              TOS := TOS1 & TOS                               */
-    OPC_BITWISE_XOR,    /*              TOS := TOS1 ^ TOS                               */
-    OPC_BITWISE_OR,     /*              TOS := TOS1 | TOS                               */
-    OPC_BITWISE_NOT,    /*              TOS := ~TOS                                     */
-    OPC_LE,             /*              TOS := TOS1 <= TOS                              */
-    OPC_LT,             /*              TOS := TOS1 < TOS                               */
-    OPC_GE,             /*              TOS := TOS1 >= TOS                              */
-    OPC_GT,             /*              TOS := TOS1 > TOS                               */
-    OPC_EQ,             /*              TOS := TOS1 == TOS                              */
-    OPC_NOT_EQ,         /*              TOS := TOS1 != TOS                              */
-    OPC_NOT,            /*              TOS := !TOS                                     */
-    OPC_AND,            /*              TOS := TOS1 && TOS                              */
-    OPC_OR,             /*              TOS := TOS1 || TOS                              */
-    OPC_CALL,           /*  req         call TOS with arg # arguments                   */
-    OPC_PUSH_BLOCK,     /*              push a new block context onto the frame         */
-    OPC_POP_BLOCK,      /*              pop the top block context from the stack        */
-    OPC_RETURN,         /*              return TOS to calling context                   */
-    OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                           */
-    OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOS2                          */
-    OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                           */
-    OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                            */
-    OPC_NEW_NAME,       /*  req         env[names[i]] := null                           */
-    OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                           */
-    OPC_DEL_NAME,       /*  req         delete env[names[i]]                            */
-    OPC_NEXT,           /*              TOS := $next(TOS)                               */
-    OPC_MERGE,          /*              merge TOS1 := TOS                               */
-    OPC_IMPORT,         /*              ???                                             */
-    OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                             */
-    OPC_GOTO,           /*  req         ip := arg                                       */
-    OPC_BREAK,          /*  req         break innermost loop (e.g. goto)                */
-    OPC_CONTINUE,       /*  req         continue loop from start (e.g. goto)            */
+    /*--------------------------------------------------------------------------------------------------------------------------
+    name                    arg         action                                          detail
+    ----------------------------------------------------------------------------------------------------------------------------*/
+    OPC_PRINT,          /*              print $str(TOS)                                                                         */
+    OPC_PUSH,           /*  req         push values[i] to TOS                                                                   */
+    OPC_POP,            /*              pop TOS                                                                                 */
+    OPC_SWAP,           /*              TOS, TOS1 := TOS1, TOS                                                                  */
+    OPC_DUP,            /*              duplicate TOS, push duplicate to TOS                                                    */
+    OPC_ADD,            /*              TOS := TOS1 + TOS                                                                       */
+    OPC_SUBTRACT,       /*              TOS := TOS1 - TOS                                                                       */
+    OPC_MULTIPLY,       /*              TOS := TOS1 * TOS                                                                       */
+    OPC_DIVIDE,         /*              TOS := TOS1 / TOS                                                                       */
+    OPC_IDIVIDE,        /*              TOS := TOS1 \ TOS                                                                       */
+    OPC_MODULO,         /*              TOS := TOS1 % TOS                                                                       */
+    OPC_EXPONENTIATE,   /*              TOS := TOS1 ** TOS                                                                      */
+    OPC_NEGATE,         /*              TOS := -TOS                                                                             */
+    OPC_SHIFT_LEFT,     /*              TOS := TOS1 << TOS                                                                      */
+    OPC_SHIFT_RIGHT,    /*              TOS := TOS1 >> TOS                                                                      */
+    OPC_BITWISE_AND,    /*              TOS := TOS1 & TOS                                                                       */
+    OPC_BITWISE_XOR,    /*              TOS := TOS1 ^ TOS                                                                       */
+    OPC_BITWISE_OR,     /*              TOS := TOS1 | TOS                                                                       */
+    OPC_BITWISE_NOT,    /*              TOS := ~TOS                                                                             */
+    OPC_LE,             /*              TOS := TOS1 <= TOS                                                                      */
+    OPC_LT,             /*              TOS := TOS1 < TOS                                                                       */
+    OPC_GE,             /*              TOS := TOS1 >= TOS                                                                      */
+    OPC_GT,             /*              TOS := TOS1 > TOS                                                                       */
+    OPC_EQ,             /*              TOS := TOS1 == TOS                                                                      */
+    OPC_NOT_EQ,         /*              TOS := TOS1 != TOS                                                                      */
+    OPC_NOT,            /*              TOS := !TOS                                                                             */
+    OPC_AND,            /*              TOS := TOS1 && TOS                                                                      */
+    OPC_OR,             /*              TOS := TOS1 || TOS                                                                      */
+    OPC_CALL,           /*  req         call TOS with arg # arguments                                                           */
+    OPC_PUSH_BLOCK,     /*              push a new block context onto the frame                                                 */
+    OPC_POP_BLOCK,      /*              pop the top block context from the stack                                                */
+    OPC_RETURN,         /*              return TOS to calling context                                                           */
+    OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                                                                   */
+    OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOSN                                                                  */
+    OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                                                                   */
+    OPC_GET_GLO,        /*  req         TOS := db[TOS, TOS1, ...]                                                               */
+    OPC_SET_GLO,        /*  req         db[TOS, TOS1, ...] := TOSN                                                              */
+    OPC_DEL_GLO,        /*  req         delete db[TOS, TOS1, ...]                                                               */
+    OPC_LOAD_NAME,      /*  req         TOS := env[names[i]]                                                                    */
+    OPC_NEW_NAME,       /*  req         env[names[i]] := null                                                                   */
+    OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                                                                   */
+    OPC_DEL_NAME,       /*  req         delete env[names[i]]                                                                    */
+    OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
+    OPC_MERGE,          /*              merge TOS1 := TOS                                                                       */
+    OPC_IMPORT,         /*              ???                                                                                     */
+    OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                                                                     */
+    OPC_GOTO,           /*  req         ip := arg                                                                               */
+    OPC_BREAK,          /*  req         break innermost loop (e.g. goto)                converted to GOTO w/ arg                */
+    OPC_CONTINUE,       /*  req         continue loop from start (e.g. goto)            converted to GOTO w/ arg                */
 } ms_VMOpCodeType;
 
 typedef int ms_VMOpCode;
@@ -97,6 +100,11 @@ typedef struct {
 * @brief Generate mscript VM bytecode from the given abstract syntax tree.
 */
 ms_VMByteCode *ms_ASTToOpCodes(ms_AST *ast);
+
+/**
+* @brief Print a representation of the bytecode format to the stdout.
+*/
+void ms_VMByteCodePrint(const ms_VMByteCode *bc);
 
 /**
 * @brief Destroy the memory held by byte code.

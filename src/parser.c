@@ -393,6 +393,7 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
             (*stmt)->type = STMTTYPE_DECLARATION;
             res = ParserParseDeclaration(prs, true, &(*stmt)->cmpnt.decl);
             break;
+        case GLOBAL:        /* fall through */
         case IDENTIFIER:
             res = ParserParseAssignment(prs, stmt);
             break;
@@ -501,14 +502,17 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
     }
 
     /* verify that the expression is an identifier */
+    ms_ExprIdentType ident_type = ms_ExprGetIdentType(ident);
     if (declare) {
-        if (!ms_ExprIsIdent(ident)) {
+        if (ident_type != EXPRIDENT_NAME) {
             ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
         }
     } else {
-        if (!ms_ExprIsQualifiedIdent(ident)) {
+        if ((ident_type != EXPRIDENT_NAME) &&
+            (ident_type != EXPRIDENT_QUALIFIED) &&
+            (ident_type != EXPRIDENT_GLOBAL)) {
             ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
@@ -695,7 +699,8 @@ static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport *
         return PARSE_ERROR;
     }
 
-    if (!ms_ExprIsQualifiedIdent((*import)->ident)) {
+    ms_ExprIdentType ident_type = ms_ExprGetIdentType((*import)->ident);
+    if ((ident_type != EXPRIDENT_NAME) && (ident_type != EXPRIDENT_QUALIFIED)) {
         ParserErrorSet(prs, ERR_MUST_IMPORT_QIDENT, prs->cur, prs->line, prs->col);
         return PARSE_ERROR;
     }
@@ -882,8 +887,11 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
     }
 
     /* some sort of assignment (simple or compound) */
+    ms_ExprIdentType ident_type = ms_ExprGetIdentType(name);
     if (ParserExpectToken(prs, OP_EQ)) {
-        if (!ms_ExprIsQualifiedIdent(name)) {
+        if ((ident_type != EXPRIDENT_NAME) &&
+            (ident_type != EXPRIDENT_QUALIFIED) &&
+            (ident_type != EXPRIDENT_GLOBAL)) {
             ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
@@ -902,7 +910,9 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
                ParserExpectToken(prs, OP_IDIVIDE_EQUALS) ||
                ParserExpectToken(prs, OP_MODULO_EQUALS)) {
 
-        if (!ms_ExprIsQualifiedIdent(name)) {
+        if ((ident_type != EXPRIDENT_NAME) &&
+            (ident_type != EXPRIDENT_QUALIFIED) &&
+            (ident_type != EXPRIDENT_GLOBAL)) {
             ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return PARSE_ERROR;
