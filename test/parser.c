@@ -921,6 +921,27 @@ MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *
                 AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "cond")),
                 AST_EMPTY_STMT_BLOCK()),
         },
+        {
+            .val = "for true { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_EXPR(
+                AST_UEXPR_V(UNARY_NONE, VM_BOOL(true)),
+                AST_EMPTY_STMT_BLOCK()),
+        },
+        {
+            .val = "for 1 { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_EXPR(
+                AST_UEXPR_V(UNARY_NONE, VM_INT(1)),
+                AST_EMPTY_STMT_BLOCK()),
+        },
+        {
+            .val = "for arr.drained() { }",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_FOR_EXPR(
+                AST_FNCALL_E(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "arr"), BINARY_GETATTR, VM_STR("drained")), AST_EMPTY_EXPRLIST()),
+                AST_EMPTY_STMT_BLOCK()),
+        },
     };
 
     size_t len = sizeof(exprs) / sizeof(exprs[0]);

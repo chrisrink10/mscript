@@ -65,6 +65,7 @@ static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete *
 static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forstmt);
 static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIncrement **inc, ms_StmtBlock **block);
 static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIterator **iter, ms_StmtBlock **block);
+static ms_ParseResult ParserParseForExpr(ms_Parser *prs, ms_Expr *expr, ms_StmtForExpr **forexpr, ms_StmtBlock **block);
 static ms_ParseResult ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
 static ms_ParseResult ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
 static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport **import);
@@ -487,30 +488,14 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
         declare = true;
     }
 
-    /* one of { iterator, incremented } FOR statement without declaration */
+    /* parse the next expression (which may be the identifer for certain
+     * types of for statements) */
     ms_Expr *ident;
     if (ParserParseExpression(prs, &ident) == PARSE_ERROR) {
         return PARSE_ERROR;
     }
 
-    /* verify that the expression is an identifier */
-    ms_ExprIdentType ident_type = ms_ExprGetIdentType(ident);
-    if (declare) {
-        if (ident_type != EXPRIDENT_NAME) {
-            ms_ExprDestroy(ident);
-            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
-            return PARSE_ERROR;
-        }
-    } else {
-        if ((ident_type != EXPRIDENT_NAME) &&
-            (ident_type != EXPRIDENT_QUALIFIED) &&
-            (ident_type != EXPRIDENT_GLOBAL)) {
-            ms_ExprDestroy(ident);
-            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
-            return PARSE_ERROR;
-        }
-    }
-
+    /* determine if this is an iterator or increment style for statement */
     if (ParserExpectToken(prs, OP_EQ)) {
         ParserConsumeToken(prs);
         (*forstmt)->type = FORSTMT_INCREMENT;
@@ -530,20 +515,31 @@ static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forst
 
     /* generic single expression FOR statement */
     (*forstmt)->type = FORSTMT_EXPR;
-    (*forstmt)->clause.expr = calloc(1, sizeof(ms_StmtForExpr));
-    if (!(*forstmt)->clause.expr) {
-        ms_ExprDestroy(ident);
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
-        return PARSE_ERROR;
-    }
-    (*forstmt)->clause.expr->expr = ident;
-    return ParserParseBlock(prs, &(*forstmt)->block);
+    return ParserParseForExpr(prs, ident, &(*forstmt)->clause.expr, &(*forstmt)->block);
 }
 
 static ms_ParseResult ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool declare, ms_StmtForIncrement **inc, ms_StmtBlock **block) {
     assert(prs);
     assert(ident);
     assert(inc);
+
+    /* verify that the expression is an identifier */
+    ms_ExprIdentType ident_type = ms_ExprGetIdentType(ident);
+    if (declare) {
+        if (ident_type != EXPRIDENT_NAME) {
+            ms_ExprDestroy(ident);
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+    } else {
+        if ((ident_type != EXPRIDENT_NAME) &&
+            (ident_type != EXPRIDENT_QUALIFIED) &&
+            (ident_type != EXPRIDENT_GLOBAL)) {
+            ms_ExprDestroy(ident);
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+    }
 
     *inc = calloc(1, sizeof(ms_StmtForIncrement));
     if (!(*inc)) {
@@ -594,6 +590,24 @@ static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, boo
     assert(ident);
     assert(iter);
 
+    /* verify that the expression is an identifier */
+    ms_ExprIdentType ident_type = ms_ExprGetIdentType(ident);
+    if (declare) {
+        if (ident_type != EXPRIDENT_NAME) {
+            ms_ExprDestroy(ident);
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_IDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+    } else {
+        if ((ident_type != EXPRIDENT_NAME) &&
+            (ident_type != EXPRIDENT_QUALIFIED) &&
+            (ident_type != EXPRIDENT_GLOBAL)) {
+            ms_ExprDestroy(ident);
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return PARSE_ERROR;
+        }
+    }
+
     *iter = calloc(1, sizeof(ms_StmtForIterator));
     if (!(*iter)) {
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
@@ -606,6 +620,21 @@ static ms_ParseResult ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, boo
         return PARSE_ERROR;
     }
 
+    return ParserParseBlock(prs, block);
+}
+
+static ms_ParseResult ParserParseForExpr(ms_Parser *prs, ms_Expr *expr, ms_StmtForExpr **forexpr, ms_StmtBlock **block) {
+    assert(prs);
+    assert(expr);
+    assert(forexpr);
+
+    *forexpr = calloc(1, sizeof(ms_StmtForExpr));
+    if (!(*forexpr)) {
+        ms_ExprDestroy(expr);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return PARSE_ERROR;
+    }
+    (*forexpr)->expr = expr;
     return ParserParseBlock(prs, block);
 }
 
