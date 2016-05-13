@@ -870,18 +870,23 @@ static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, Cod
         ExprComponentToOpCodes(&u->atom, ident->cmpnt.u->type, &ctxe);
         *nsubscripts = 0;
     } else {
+        assert(ident->cmpnt.b->op == BINARY_GETATTR);
         ms_ExprBinary *b = ident->cmpnt.b;
         CodeGenContextExpr ctxe = { ctx };
-        ExprComponentToOpCodes(&b->latom, ident->cmpnt.b->ltype, &ctxe);
-        ExprComponentToOpCodes(&b->ratom, ident->cmpnt.b->rtype, &ctxe);
+        size_t len = 1;
 
         if (b->rtype == EXPRATOM_EXPRLIST) {
-            size_t len = dsarray_len(b->ratom.list);
+            len = dsarray_len(b->ratom.list);
             assert(len <= (size_t)OPC_ARG_MAX);
-            *nsubscripts = (int)len;
-        } else {
-            *nsubscripts = 0;
         }
+
+        ctxe.attrdepth += len;
+        ctxe.attrcount += len;
+        ExprComponentToOpCodes(&b->latom, ident->cmpnt.b->ltype, &ctxe);
+        ExprComponentToOpCodes(&b->ratom, ident->cmpnt.b->rtype, &ctxe);
+        ctxe.attrdepth -= len;
+
+        *nsubscripts = (int)ctxe.attrcount;
     }
     /* intentionally provide no opcode */
 }
@@ -899,7 +904,7 @@ static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, 
         assert(len <= (size_t)OPC_ARG_MAX);
         *nsubscripts = (int)len;
     } else {
-        *nsubscripts = 0;
+        *nsubscripts = 1;
     }
 
     CodeGenContextExpr ctxe = { ctx };
@@ -923,6 +928,9 @@ static void IdentExprToOpCodes(const ms_Expr *ident, int *index, CodeGenContext 
 }
 
 static void ExprToOpCodes(const ms_Expr *expr, CodeGenContext *ctx) {
+    assert(expr);
+    assert(ctx);
+
     CodeGenContextExpr ctxe = { ctx };
     ExprToOpCodesInner(expr, &ctxe);
 }

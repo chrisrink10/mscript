@@ -59,12 +59,12 @@ typedef enum {
     OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                                                                   */
     OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOSN                                                                  */
     OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                                                                   */
-    OPC_GET_GLO,        /*  req         TOS := db[TOS, TOS1, ...]                                                               */
-    OPC_SET_GLO,        /*  req         db[TOS, TOS1, ...] := TOSN                                                              */
-    OPC_DEL_GLO,        /*  req         delete db[TOS, TOS1, ...]                                                               */
+    OPC_GET_GLO,        /*  req         TOS := db[..., TOS1, TOS]                                                               */
+    OPC_SET_GLO,        /*  req         db[..., TOS1, TOS] := TOSN                                                              */
+    OPC_DEL_GLO,        /*  req         delete db[..., TOS1, TOS]                                                               */
     OPC_NEW_NAME,       /*  req         env[names[i]] := null                                                                   */
     OPC_GET_NAME,       /*  req         TOS := env[names[i]]                                                                    */
-    OPC_SET_NAME,       /*  req         env[names[i]] := TOS1                                                                   */
+    OPC_SET_NAME,       /*  req         env[names[i]] := TOS                                                                    */
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                                                                    */
     OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
     OPC_MERGE,          /*              merge TOS1 := TOS                                                                       */

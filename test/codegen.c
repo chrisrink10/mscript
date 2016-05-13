@@ -1658,6 +1658,220 @@ MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user
 }
 
 MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "name := \"Daenerys Stormborn\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Daenerys Stormborn"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_SET_NAME, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 2, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "name.first := \"Daenerys\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Daenerys"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SET_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 4, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "name[\"first\"] := \"Daenerys\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Daenerys"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SET_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 4, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "data[\"address\"].city := \"London\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("London"),
+                    VM_STR("address"),
+                    VM_STR("city"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("data"),
+                }),
+                .nops = 6, .nvals = 3, .nidents = 1
+            }
+        },
+        {
+            .val = "data[\"address\", \"city\"] := \"London\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("London"),
+                    VM_STR("address"),
+                    VM_STR("city"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_ATTR, 2),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("data"),
+                }),
+                .nops = 5, .nvals = 3, .nidents = 1
+            }
+        },
+        {
+            .val = "@name := \"Daenerys Stormborn\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Daenerys Stormborn"),
+                    VM_STR("@name"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SET_GLO, 0),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "@name.first := \"Daenerys\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Daenerys"),
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_GLO, 1),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "@name[\"first\"] := \"Kurt\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Kurt"),
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_GLO, 1),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "@data.address.city := \"Rivendell\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Rivendell"),
+                    VM_STR("@data"),
+                    VM_STR("address"),
+                    VM_STR("city"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_SET_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 4, .nidents = 0
+            }
+        },
+        {
+            .val = "@data[\"address\", \"city\"] := \"London\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("London"),
+                    VM_STR("@data"),
+                    VM_STR("address"),
+                    VM_STR("city"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_SET_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 4, .nidents = 0
+            }
+        },
+        {
+            .val = "@data[\"address\"].city := \"London\";",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("London"),
+                    VM_STR("@data"),
+                    VM_STR("address"),
+                    VM_STR("city"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_SET_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 4, .nidents = 0
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
