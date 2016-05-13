@@ -38,6 +38,9 @@ typedef struct {
     CodeGenContext *parent;
     size_t attrcount;           /** count of attributes seen in a single expr */
     size_t attrdepth;           /** depth of attributes in current stack frame */
+    size_t attrlenlast;         /** count of the number of attributes in the most recent stack */
+    bool suppress_get_attr;     /** suppress GET_ATTR opcodes */
+    bool get_name_as_push;      /** convert GET_NAME opcodes to PUSH */
 } CodeGenContextExpr;
 
 static const int EXPR_OPCODE_STACK_LEN = 50;
@@ -77,6 +80,7 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx);
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
+static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type);
 static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx);
 static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx);
@@ -301,6 +305,7 @@ static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
         case OPC_GET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_SET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_DEL_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
+        case OPC_IMPORT:            return ByteCodeArgToString(bc, arg);
         case OPC_JUMP_IF_FALSE:     return ByteCodeArgToString(bc, arg);
         case OPC_GOTO:              return ByteCodeArgToString(bc, arg);
         case OPC_BREAK:             return ByteCodeArgToString(bc, arg);
@@ -774,9 +779,44 @@ static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx
     assert(import);
     assert(ctx);
 
-    ExprToOpCodes(import->ident, ctx);
-    PushOpCode(OPC_IMPORT, 0, ctx);
-    // TODO: alias the import
+    ms_ExprIdentType type = ms_ExprGetIdentType(import->ident);
+    switch (type) {
+        case EXPRIDENT_NONE:
+            assert(false && "import identifier is not an identifier");
+            break;
+        case EXPRIDENT_BUILTIN:
+            assert(false && "cannot import a builtin name");
+            break;
+        case EXPRIDENT_NAME: {
+            assert(import->ident->type == EXPRTYPE_UNARY);
+            assert(import->ident->cmpnt.u->type == EXPRATOM_IDENT);
+            ms_Ident *ident = import->ident->cmpnt.u->atom.ident;
+            int index;
+            ms_Value v = { .type = MSVAL_STR, .val = { .s = ident->name } };
+            PushValue(&v, &index, ctx);
+            PushOpCode(OPC_PUSH, index, ctx);
+            PushOpCode(OPC_IMPORT, 0, ctx);
+            break;
+        }
+        case EXPRIDENT_GLOBAL:
+            assert(false && "cannot import a global");
+            break;
+        case EXPRIDENT_QUALIFIED: {
+            assert(import->ident->type == EXPRTYPE_BINARY);
+            assert(import->ident->cmpnt.b->op == BINARY_GETATTR);
+            CodeGenContextExpr ctxe = { .parent = ctx, .suppress_get_attr = true, .get_name_as_push = true, };
+            ExprBinaryAttrListToOpCode(import->ident->cmpnt.b, &ctxe);
+            int nsubscripts = (int)ctxe.attrcount;
+            PushOpCode(OPC_IMPORT, nsubscripts, ctx);
+            break;
+        }
+    }
+
+    if (import->alias) {
+        int index;
+        PushIdent(import->alias, &index, ctx);
+        PushOpCode(OPC_SET_NAME, index, ctx);
+    }
 }
 
 static void StmtMergeToOpCodes(const ms_StmtMerge *merge, CodeGenContext *ctx) {
@@ -873,19 +913,7 @@ static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, Cod
         assert(ident->cmpnt.b->op == BINARY_GETATTR);
         ms_ExprBinary *b = ident->cmpnt.b;
         CodeGenContextExpr ctxe = { ctx };
-        size_t len = 1;
-
-        if (b->rtype == EXPRATOM_EXPRLIST) {
-            len = dsarray_len(b->ratom.list);
-            assert(len <= (size_t)OPC_ARG_MAX);
-        }
-
-        ctxe.attrdepth += len;
-        ctxe.attrcount += len;
-        ExprComponentToOpCodes(&b->latom, ident->cmpnt.b->ltype, &ctxe);
-        ExprComponentToOpCodes(&b->ratom, ident->cmpnt.b->rtype, &ctxe);
-        ctxe.attrdepth -= len;
-
+        ExprBinaryAttrListToOpCode(b, &ctxe);
         *nsubscripts = (int)ctxe.attrcount;
     }
     /* intentionally provide no opcode */
@@ -980,25 +1008,16 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
         case BINARY_GETATTR: {
             assert((b->rtype == EXPRATOM_EXPRLIST) || (b->rtype == EXPRATOM_VALUE));
             ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
-            size_t len = 1;
-
-            if (b->rtype == EXPRATOM_EXPRLIST) {
-                len = dsarray_len(b->ratom.list);
-                assert(len <= OPC_ARG_MAX);
-            }
-
-            ctx->attrdepth += len;
-            ctx->attrcount += len;
-            ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
-            ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
-            ctx->attrdepth -= len;
+            ExprBinaryAttrListToOpCode(b, ctx);
 
             if (ident_type == EXPRIDENT_GLOBAL) {
                 if (ctx->attrdepth == 0) {
                     PushOpCode(OPC_GET_GLO, (int)ctx->attrcount, ctx->parent);
                 }
             } else {
-                PushOpCode(OPC_GET_ATTR, (int)len, ctx->parent);
+                if (!ctx->suppress_get_attr) {
+                    PushOpCode(OPC_GET_ATTR, (int)ctx->attrlenlast, ctx->parent);
+                }
             }
             break;
         }
@@ -1037,8 +1056,10 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
         }
         case EXPRATOM_IDENT: {
             int index;
-            if (a->ident->type == IDENT_GLOBAL) {
-                /* convert global identifier to a string value and push it */
+            if ((a->ident->type == IDENT_GLOBAL) || (ctx->get_name_as_push)) {
+                /* convert identifier to a string value and push it;
+                 * do this for known global identifiers or if the context
+                 * requires that we do (such as for `import` statements) */
                 ms_Value v = { .type = MSVAL_STR, .val = { .s = a->ident->name } };
                 PushValue(&v, &index, ctx->parent);
                 PushOpCode(OPC_PUSH, index, ctx->parent);
@@ -1164,6 +1185,26 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
     }
 
     dsarray_append(ctx->opcodes, o);
+}
+
+static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
+    assert(b);
+    assert(ctx);
+
+    size_t len = 1;
+
+    if (b->rtype == EXPRATOM_EXPRLIST) {
+        len = dsarray_len(b->ratom.list);
+        assert(len <= (size_t)OPC_ARG_MAX);
+    }
+
+    ctx->attrdepth += len;
+    ctx->attrcount += len;
+    ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
+    ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
+    ctx->attrdepth -= len;
+
+    ctx->attrlenlast = len;
 }
 
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type) {

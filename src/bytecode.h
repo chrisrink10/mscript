@@ -68,7 +68,7 @@ typedef enum {
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                                                                    */
     OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
     OPC_MERGE,          /*              merge TOS1 := TOS                                                                       */
-    OPC_IMPORT,         /*              ???                                                                                     */
+    OPC_IMPORT,         /*  opt         TOS := import TOS.TOS1...                                                               */
     OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                                                                     */
     OPC_GOTO,           /*  req         ip := arg                                                                               */
     OPC_BREAK,          /*  req         break innermost loop (e.g. goto)                converted to GOTO w/ arg                */

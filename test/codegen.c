@@ -1849,6 +1849,115 @@ MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *use
 }
 
 MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "import Http;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http")
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_IMPORT, 0),
+                },
+                .idents = NULL,
+                .nops = 2, .nvals = 1, .nidents = 0
+            }
+        },
+        {
+            .val = "import Http.Server;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http"),
+                    VM_STR("Server"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_IMPORT, 1),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "import Http.Server.Errors;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http"),
+                    VM_STR("Server"),
+                    VM_STR("Errors"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_IMPORT, 2),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "import Http : httplib;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http")
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_IMPORT, 0),
+                    VM_OPC(OPC_SET_NAME, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("httplib"),
+                },
+                .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "import Http.Server : srv;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http"),
+                    VM_STR("Server"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_IMPORT, 1),
+                    VM_OPC(OPC_SET_NAME, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("srv")
+                },
+                .nops = 4, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "import Http.Server.Errors : errs;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("Http"),
+                    VM_STR("Server"),
+                    VM_STR("Errors"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_IMPORT, 2),
+                    VM_OPC(OPC_SET_NAME, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("errs")
+                },
+                .nops = 5, .nvals = 3, .nidents = 1
+            }
+        },
+    };
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
