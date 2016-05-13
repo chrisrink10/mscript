@@ -1618,6 +1618,217 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
 }
 
 MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "del name;",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_DEL_NAME, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 1, .nvals = 0, .nidents = 1
+            }
+        },
+        {
+            .val = "del name.first;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_DEL_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "del name[\"first\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_DEL_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "del name.first.second;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DEL_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 5, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "del name[\"first\", \"second\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DEL_ATTR, 2),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 4, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "del name[\"first\"].second;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DEL_ATTR, 1),
+                },
+                .idents = ((DSBuffer*[]){
+                    AST_IDENT_NAME("name"),
+                }),
+                .nops = 5, .nvals = 2, .nidents = 1
+            }
+        },
+        {
+            .val = "del @name;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_DEL_GLO, 0),
+                },
+                .idents = NULL,
+                .nops = 2, .nvals = 1, .nidents = 0
+            }
+        },
+        {
+            .val = "del @name.first;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DEL_GLO, 1),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "del @name[\"first\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_DEL_GLO, 1),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "del @name.first.second;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_DEL_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "del @name[\"first\", \"second\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_DEL_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "del @name[\"first\"].second;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_Value[]){
+                    VM_STR("@name"),
+                    VM_STR("first"),
+                    VM_STR("second"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_DEL_GLO, 2),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 3, .nidents = 0
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
