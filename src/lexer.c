@@ -173,22 +173,9 @@ begin_lex:              // Jump label for ignored input
         case EOF:
             return NULL;
 
-            // Windows newline \r\n
+            // Whitespace
         case '\r':
-            LexerIncrementLine(lex);
-            LexerAddToBuffer(lex, n);
-            if (!LexerAcceptOne(lex, "\n")) {
-                return LexerTokenError(lex, "\\r");
-            }
-            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
-
-            // Newlines \n
         case '\n':
-            LexerIncrementLine(lex);
-            LexerAddToBuffer(lex, n);
-            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
-
-            // Spaces and tabs
         case ' ':
         case '\t':
         case '\f':
@@ -340,6 +327,7 @@ begin_lex:              // Jump label for ignored input
         case '{':   return LexerTokenNew(lex, LBRACE, "{", 1);
         case '}':   return LexerTokenNew(lex, RBRACE, "}", 1);
         case ',':   return LexerTokenNew(lex, COMMA, ",", 1);
+        case ';':   return LexerTokenNew(lex, SEMICOLON, ";", 1);
 
             // Potential numeric
         case '.':
@@ -381,8 +369,6 @@ begin_lex:              // Jump label for ignored input
             return LexerLexNumber(lex, n);
 
             // Unused (but invalid) symbols
-        case ';':
-            return LexerTokenError(lex, ";");
         case '?':
             return LexerTokenError(lex, "?");
         case '`':
@@ -512,6 +498,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case RBRACE:            return TOK_RBRACE;
         case PERIOD:            return TOK_PERIOD;
         case COMMA:             return TOK_COMMA;
+        case SEMICOLON:         return TOK_SEMICOLON;
         case NEWLINE_TOK:       return TOK_NEWLINE;
     }
 

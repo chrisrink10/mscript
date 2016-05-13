@@ -270,7 +270,6 @@ static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_S
 static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms_StmtDeclaration *decl2);
 static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 static MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
-static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2);
 static MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2);
 static MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2);
 static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2);
@@ -286,7 +285,6 @@ static void CleanExpression(ms_Expr *expr);
 static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom);
 static void CleanFunction(ms_ValFunc *func);
 static void CleanExpressionList(ms_ExprList *list);
-static void CleanByteCode(ms_VMByteCode *bc);
 static void CleanParseResultTuple(ParseResultTuple *tuple);
 static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 
@@ -414,37 +412,37 @@ MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) 
 MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "0",
+            .val = "0;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_INT(0)),
         },
         {
-            .val = "3",
+            .val = "3;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_INT(3)),
         },
         {
-            .val = "0.0",
+            .val = "0.0;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_FLOAT(0.0)),
         },
         {
-            .val = "3.14",
+            .val = "3.14;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_FLOAT(3.14)),
         },
         {
-            .val = "true",
+            .val = "true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_BOOL(true)),
         },
         {
-            .val = "false",
+            .val = "false;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_BOOL(false)),
         },
         {
-            .val = "null",
+            .val = "null;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_NULL()),
         },
@@ -458,32 +456,32 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
 MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "-3",
+            .val = "-3;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_MINUS, VM_INT(3)),
         },
         {
-            .val = "--2.72",
+            .val = "--2.72;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_E(UNARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_FLOAT(2.72))),
         },
         {
-            .val = "!true",
+            .val = "!true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NOT, VM_BOOL(true)),
         },
         {
-            .val = "!!false",
+            .val = "!!false;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_E(UNARY_NOT, AST_UEXPR_V(UNARY_NOT, VM_BOOL(false))),
         },
         {
-            .val = "~792",
+            .val = "~792;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(792)),
         },
         {
-            .val = "~~42",
+            .val = "~~42;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_E(UNARY_BITWISE_NOT, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(42))),
         },
@@ -497,118 +495,118 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "7 + 3.6",
+            .val = "7 + 3.6;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6)),
         },
         {
-            .val = "3 + ~3",
+            .val = "3 + ~3;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(3), BINARY_PLUS, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(3))),
         },
         {
-            .val = "16 - false",
+            .val = "16 - false;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(16), BINARY_MINUS, VM_BOOL(false)),
         },
         {
-            .val = "3 - -3",
+            .val = "3 - -3;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(3), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(3))),
         },
         {
-            .val = "2 * 3.14",
+            .val = "2 * 3.14;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(2), BINARY_TIMES, VM_FLOAT(3.14)),
         },
         {
-            .val = "17 / 8.25",
+            .val = "17 / 8.25;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(17), BINARY_DIVIDE, VM_FLOAT(8.25)),
         },
         {
-            .val = "8.888 \\ 6",
+            .val = "8.888 \\ 6;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_FLOAT(8.888), BINARY_IDIVIDE, VM_INT(6)),
         },
         {
-            .val = "42 % 8",
+            .val = "42 % 8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(42), BINARY_MODULO, VM_INT(8)),
         },
         {
-            .val = "5.25 ** 2",
+            .val = "5.25 ** 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_FLOAT(5.25), BINARY_EXPONENTIATE, VM_INT(2)),
         },
         {
-            .val = "5 << 2",
+            .val = "5 << 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(5), BINARY_SHIFT_LEFT, VM_INT(2)),
         },
         {
-            .val = "183822 >> 4",
+            .val = "183822 >> 4;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(183822), BINARY_SHIFT_RIGHT, VM_INT(4)),
         },
         {
-            .val = "13 & 97",
+            .val = "13 & 97;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(13), BINARY_BITWISE_AND, VM_INT(97)),
         },
         {
-            .val = "3 | 15",
+            .val = "3 | 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(3), BINARY_BITWISE_OR, VM_INT(15)),
         },
         {
-            .val = "53 ^ 7",
+            .val = "53 ^ 7;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(53), BINARY_BITWISE_XOR, VM_INT(7)),
         },
         {
-            .val = "46.12 <= 73",
+            .val = "46.12 <= 73;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_FLOAT(46.12), BINARY_LE, VM_INT(73)),
         },
         {
-            .val = "true < 14",
+            .val = "true < 14;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_BOOL(true), BINARY_LT, VM_INT(14)),
         },
         {
-            .val = "33 != 1988",
+            .val = "33 != 1988;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(33), BINARY_NOT_EQ, VM_INT(1988)),
         },
         {
-            .val = "71 == 0.33",
+            .val = "71 == 0.33;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(71), BINARY_EQ, VM_FLOAT(0.33)),
         },
         {
-            .val = "81.3 > 90",
+            .val = "81.3 > 90;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_FLOAT(81.3), BINARY_GT, VM_INT(90)),
         },
         {
-            .val = "1000 >= 10000",
+            .val = "1000 >= 10000;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(1000), BINARY_GE, VM_INT(10000)),
         },
 
         {
-            .val = "true && false",
+            .val = "true && false;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_BOOL(true), BINARY_AND, VM_BOOL(false)),
         },
         {
-            .val = "true && !true",
+            .val = "true && !true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_BOOL(true), BINARY_AND, AST_UEXPR_V(UNARY_NOT, VM_BOOL(true))),
         },
         {
-            .val = "1 || null",
+            .val = "1 || null;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(1), BINARY_OR, VM_NULL()),
         },
@@ -623,147 +621,147 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
 
     ParseResultTuple exprs[] = {
         {
-            .val = "false || false && true",
+            .val = "false || false && true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_BOOL(false), BINARY_OR, AST_BEXPR_VV(VM_BOOL(false), BINARY_AND, VM_BOOL(true))),
         },
         {
-            .val = "(false || false) && true",
+            .val = "(false || false) && true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_BOOL(false), BINARY_OR, VM_BOOL(false)), BINARY_AND, VM_BOOL(true)),
         },
         {
-            .val = "(false || !false) && true",
+            .val = "(false || !false) && true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VE(VM_BOOL(false), BINARY_OR, AST_UEXPR_V(UNARY_NOT, VM_BOOL(false))), BINARY_AND, VM_BOOL(true)),
         },
         {
-            .val = "false == false != true",
+            .val = "false == false != true;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_BOOL(false), BINARY_EQ, VM_BOOL(false)), BINARY_NOT_EQ, VM_BOOL(true)),
         },
         {
-            .val = "false == (false != true)",
+            .val = "false == (false != true);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_BOOL(false), BINARY_EQ, AST_BEXPR_VV(VM_BOOL(false), BINARY_NOT_EQ, VM_BOOL(true))),
         },
         {
-            .val = "7 > 3.6 < 8",
+            .val = "7 > 3.6 < 8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_GT, VM_FLOAT(3.6)), BINARY_LT, VM_INT(8)),
         },
         {
-            .val = "7 > (3.6 < 8)",
+            .val = "7 > (3.6 < 8);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_GT, AST_BEXPR_VV(VM_FLOAT(3.6), BINARY_GT, VM_INT(8))),
         },
         {
-            .val = "7 > 3.6 >= 8",
+            .val = "7 > 3.6 >= 8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_GT, VM_FLOAT(3.6)), BINARY_GE, VM_INT(8)),
         },
         {
-            .val = "7 | 2 & 15",
+            .val = "7 | 2 & 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_OR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_AND, VM_INT(15))),
         },
         {
-            .val = "7 ^ 2 & 15",
+            .val = "7 ^ 2 & 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_AND, VM_INT(15))),
         },
         {
-            .val = "7 ^ 2 | 15",
+            .val = "7 ^ 2 | 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_XOR, VM_INT(2)), BINARY_BITWISE_OR, VM_INT(15)),
         },
         {
-            .val = "7 ^ (2 | 15)",
+            .val = "7 ^ (2 | 15);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_BITWISE_XOR, AST_BEXPR_VV(VM_INT(2), BINARY_BITWISE_OR, VM_INT(15))),
         },
         {
-            .val = "(7 | 2) & 15",
+            .val = "(7 | 2) & 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2)), BINARY_BITWISE_AND, VM_INT(15)),
         },
         {
-            .val = "(7 | 2) & ~15",
+            .val = "(7 | 2) & ~15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2)), BINARY_BITWISE_AND, AST_UEXPR_V(UNARY_BITWISE_NOT, VM_INT(15))),
         },
         {
-            .val = "~(7 | 2) & 15",
+            .val = "~(7 | 2) & 15;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_UEXPR_E(UNARY_BITWISE_NOT, AST_BEXPR_VV(VM_INT(7), BINARY_BITWISE_OR, VM_INT(2))), BINARY_BITWISE_AND, VM_INT(15)),
         },
         {
-            .val = "15 | 1 << 2",
+            .val = "15 | 1 << 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(15), BINARY_BITWISE_OR, AST_BEXPR_VV(VM_INT(1), BINARY_SHIFT_LEFT, VM_INT(2))),
         },
         {
-            .val = "(15 | 1) << 2",
+            .val = "(15 | 1) << 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(15), BINARY_BITWISE_OR, VM_INT(1)), BINARY_SHIFT_LEFT, VM_INT(2)),
         },
         {
-            .val = "7 + 3.6 - 8",
+            .val = "7 + 3.6 - 8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6)), BINARY_MINUS, VM_INT(8)),
         },
         {
-            .val = "7 + (3.6 - 8)",
+            .val = "7 + (3.6 - 8);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VV(VM_FLOAT(3.6), BINARY_MINUS, VM_INT(8))),
         },
         {
-            .val = "7 + (3.6 - -8)",
+            .val = "7 + (3.6 - -8);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VE(VM_FLOAT(3.6), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(8)))),
         },
         {
-            .val = "(7 + 3.6) - -8",
+            .val = "(7 + 3.6) - -8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_PLUS, VM_FLOAT(3.6)), BINARY_MINUS, AST_UEXPR_V(UNARY_MINUS, VM_INT(8))),
         },
         {
-            .val = "7 + 3.6 * -8",
+            .val = "7 + 3.6 * -8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_PLUS, AST_BEXPR_VE(VM_FLOAT(3.6), BINARY_TIMES, AST_UEXPR_V(UNARY_MINUS, VM_INT(8)))),
         },
         {
-            .val = "7 / 3.6 * -8",
+            .val = "7 / 3.6 * -8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_DIVIDE, VM_FLOAT(3.6)), BINARY_TIMES, AST_UEXPR_V(UNARY_MINUS, VM_INT(8))),
         },
         {
-            .val = "7 \\ 3.6 % -8",
+            .val = "7 \\ 3.6 % -8;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EE(AST_BEXPR_VV(VM_INT(7), BINARY_IDIVIDE, VM_FLOAT(3.6)), BINARY_MODULO, AST_UEXPR_V(UNARY_MINUS, VM_INT(8))),
         },
         {
-            .val = "7 ** 4 ** 2",
+            .val = "7 ** 4 ** 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_EXPONENTIATE, VM_INT(2))),
         },
         {
-            .val = "(7 ** 4) ** 2",
+            .val = "(7 ** 4) ** 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_EXPONENTIATE, VM_INT(4)), BINARY_EXPONENTIATE, VM_INT(2)),
         },
         {
-            .val = "7 ** 4 * 2",
+            .val = "7 ** 4 * 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_TIMES, VM_INT(2))),
         },
         {
-            .val = "7 ** 4 + 2",
+            .val = "7 ** 4 + 2;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_VV(VM_INT(7), BINARY_EXPONENTIATE, VM_INT(4)), BINARY_PLUS, VM_INT(2)),
         },
         {
-            .val = "7 ** (4 + 2)",
+            .val = "7 ** (4 + 2);",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VE(VM_INT(7), BINARY_EXPONENTIATE, AST_BEXPR_VV(VM_INT(4), BINARY_PLUS, VM_INT(2))),
         },
@@ -776,32 +774,32 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
 MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "$len()",
+            .val = "$len();",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_BUILTIN, "$len"), AST_EMPTY_EXPRLIST()),
         },
         {
-            .val = "foo()",
+            .val = "foo();",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EMPTY_EXPRLIST()),
         },
         {
-            .val = "$len(\"string\")",
+            .val = "$len(\"string\");",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_BUILTIN, "$len"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
         },
         {
-            .val = "foo(\"string\")",
+            .val = "foo(\"string\");",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("string")))),
         },
         {
-            .val = "foo()()",
+            .val = "foo()();",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT(IDENT_NAME, "foo"), AST_EMPTY_EXPRLIST()), AST_EMPTY_EXPRLIST()),
         },
         {
-            .val = "bar(\"baz\")()",
+            .val = "bar(\"baz\")();",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT(IDENT_NAME, "bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("baz")))), AST_EMPTY_EXPRLIST()),
         },
@@ -815,17 +813,17 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
 MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "del @global",
+            .val = "del @global;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global"))),
         },
         {
-            .val = "del local",
+            .val = "del local;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DEL(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "local")))
         },
         {
-            .val = "del name.second.third",
+            .val = "del name.second.third;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DEL(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")))
         },
@@ -974,14 +972,14 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
             ),
         },
         {
-            .val = "if pct >= 0.9 { \n"
-                   "    return \"A\"\n"
+            .val = "if pct >= 0.9 {\n"
+                   "    return \"A\";\n"
                    "} else if pct >= 0.8 { \n"
-                   "    return \"B\"\n"
+                   "    return \"B\";\n"
                    "} else if pct >= 0.7 { \n"
-                   "    return \"C\"\n"
+                   "    return \"C\";\n"
                    "} else {\n"
-                   "    return \"F\"\n"
+                   "    return \"F\";\n"
                    "}",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IF_ELIF(
@@ -1010,17 +1008,17 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
 MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "import Sys",
+            .val = "import Sys;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IMPORT(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "Sys")), NULL),
         },
         {
-            .val = "import Http.Server",
+            .val = "import Http.Server;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "Http"), BINARY_GETATTR, VM_STR("Server")), NULL),
         },
         {
-            .val = "import Http.Server : srv",
+            .val = "import Http.Server : srv;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_IMPORT(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "Http"), BINARY_GETATTR, VM_STR("Server")), AST_IDENT(IDENT_NAME, "srv")),
         },
@@ -1034,22 +1032,22 @@ MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *us
 MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "merge name := other",
+            .val = "merge name := other;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
         },
         {
-            .val = "merge name.second := other",
+            .val = "merge name.second := other;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_MERGE(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
         },
         {
-            .val = "merge @global := other",
+            .val = "merge @global := other;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
         },
         {
-            .val = "merge @global := \"some string\"",
+            .val = "merge @global := \"some string\";",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("some string"))),
         },
@@ -1063,32 +1061,32 @@ MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *use
 MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "return",
+            .val = "return;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_NULL())),
         },
         {
-            .val = "return null",
+            .val = "return null;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_NULL())),
         },
         {
-            .val = "return 1",
+            .val = "return 1;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_INT(1))),
         },
         {
-            .val = "return \"a string\"",
+            .val = "return \"a string\";",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_UEXPR_V(UNARY_NONE, VM_STR("a string"))),
         },
         {
-            .val = "return name",
+            .val = "return name;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name"))),
         },
         {
-            .val = "return name.second",
+            .val = "return name.second;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_RETURN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second"))),
         },
@@ -1102,7 +1100,7 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
 MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "func Sum(a, b) { return a + b }",
+            .val = "func Sum(a, b) { return a + b; }",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE_V(
                 AST_IDENT(IDENT_NAME, "Sum"),
@@ -1121,7 +1119,7 @@ MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *us
             ),
         },
         {
-            .val = "var Sum := func (a, b) { return a + b }",
+            .val = "var Sum := func (a, b) { return a + b; };",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE_V(
                 AST_IDENT(IDENT_NAME, "Sum"),
@@ -1149,27 +1147,27 @@ MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *us
 MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "var name",
+            .val = "var name;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), NULL),
         },
         {
-            .val = "var name := \"Gladys\"",
+            .val = "var name := \"Gladys\";",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE_V(AST_IDENT(IDENT_NAME, "name"), AST_UEXPR_V(UNARY_NONE, VM_STR("Gladys")), NULL),
         },
         {
-            .val = "var name, second",
+            .val = "var name, second;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "second"), NULL)),
         },
         {
-            .val = "var name, second, third",
+            .val = "var name, second, third;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "second"), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "third"), NULL))),
         },
         {
-            .val = "var name, second := \"J\", third",
+            .val = "var name, second := \"J\", third;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_DECLARE(AST_IDENT(IDENT_NAME, "name"), &AST_DECL_CMPNT_V(AST_IDENT(IDENT_NAME, "second"), AST_UEXPR_V(UNARY_NONE, VM_STR("J")), &AST_DECL_CMPNT(AST_IDENT(IDENT_NAME, "third"), NULL))),
         },
@@ -1183,17 +1181,17 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
 MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
-            .val = "name := 10",
+            .val = "name := 10;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
-            .val = "name.second := 10",
+            .val = "name.second := 10;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
-            .val = "name.second += 10",
+            .val = "name.second += 10;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
         },

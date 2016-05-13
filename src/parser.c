@@ -75,6 +75,7 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, m
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
 static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
 static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
+static ms_ParseResult ParserParseStatementTerminator(ms_Parser *prs);
 static ms_ParseResult ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseOrExpr(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseAndExpr(ms_Parser *prs, ms_Expr **expr);
@@ -98,9 +99,7 @@ static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_
 
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
-static inline void ParserConsumeNewlines(ms_Parser *prs);
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
-static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParseErrorDestroy(ms_ParseError *err);
 
@@ -249,9 +248,9 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * Expression Grammar:
  *
  * module:          (stmt)*
- * stmt:            'break' | 'continue' | del_stmt | for_stmt | if_stmt |
+ * stmt:            ('break' | 'continue' | del_stmt | for_stmt | if_stmt |
  *                  import_stmt | merge_stmt | ret_stmt | func_decl |
- *                  declare | assign | expr
+ *                  declare | assign | expr) ';'
  * for_stmt:        'for' ('var') expr ':=' expr ':' expr (':' expr) |
  *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
@@ -310,19 +309,12 @@ static ms_ParseResult ParserParseModule(ms_Parser *prs, ms_Module **module) {
         return PARSE_ERROR;
     }
 
-    ParserConsumeNewlines(prs);
     while (prs->cur) {
         ms_Stmt *stmt = NULL;
         if (ParserParseStatement(prs, &stmt) == PARSE_ERROR) {
             ms_StmtDestroy(stmt);
             return PARSE_ERROR;
         }
-        if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
-            ms_StmtDestroy(stmt);
-            ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
-            return PARSE_ERROR;
-        }
-        ParserConsumeNewlines(prs);
         dsarray_append(*module, stmt);
     }
 
@@ -353,13 +345,13 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
             (*stmt)->type = STMTTYPE_BREAK;
             (*stmt)->cmpnt.brk = NULL;
             ParserConsumeToken(prs);
-            res = PARSE_SUCCESS;
+            res = ParserParseStatementTerminator(prs);
             break;
         case KW_CONTINUE:
             (*stmt)->type = STMTTYPE_CONTINUE;
             (*stmt)->cmpnt.cont = NULL;
             ParserConsumeToken(prs);
-            res = PARSE_SUCCESS;
+            res = ParserParseStatementTerminator(prs);
             break;
         case KW_DEL:
             (*stmt)->type = STMTTYPE_DELETE;
@@ -400,6 +392,9 @@ static ms_ParseResult ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         default:
             (*stmt)->type = STMTTYPE_EXPRESSION;
             res = ParserParseExpression(prs, &(*stmt)->cmpnt.expr);
+            if (res != PARSE_ERROR) {
+                res = ParserParseStatementTerminator(prs);
+            }
             break;
     }
 
@@ -423,7 +418,6 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
     }
 
     ParserConsumeToken(prs);
-    ParserConsumeNewlines(prs);
 
     while ((prs->cur) && (!ParserExpectToken(prs, RBRACE))) {
         ms_Stmt *stmt = NULL;
@@ -435,12 +429,6 @@ static ms_ParseResult ParserParseBlock(ms_Parser *prs, ms_StmtBlock **block) {
             dsarray_append(*block, stmt);
             break;
         }
-        if (!ParserExpectTokenIfNotEOF(prs, NEWLINE_TOK)) {
-            ms_StmtDestroy(stmt);
-            ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_NEWLINE, prs->line, prs->col);
-            return PARSE_ERROR;
-        }
-        ParserConsumeNewlines(prs);
         dsarray_append(*block, stmt);
     }
 
@@ -469,7 +457,11 @@ static ms_ParseResult ParserParseDeleteStatement(ms_Parser *prs, ms_StmtDelete *
     }
 
     ParserConsumeToken(prs);
-    return ParserParseExpression(prs, &(*del)->expr);
+    if (ParserParseExpression(prs, &(*del)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseForStatement(ms_Parser *prs, ms_StmtFor **forstmt) {
@@ -706,7 +698,7 @@ static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport *
     }
 
     if (!ParserExpectToken(prs, COLON)) {
-        return PARSE_SUCCESS;
+        return ParserParseStatementTerminator(prs);
     }
 
     ParserConsumeToken(prs);
@@ -727,7 +719,7 @@ static ms_ParseResult ParserParseImportStatement(ms_Parser *prs, ms_StmtImport *
     (*import)->alias->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
     prs->cur->value = NULL;
     ParserConsumeToken(prs);
-    return PARSE_SUCCESS;
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge) {
@@ -756,7 +748,11 @@ static ms_ParseResult ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **m
     }
 
     ParserConsumeToken(prs);
-    return ParserParseExpression(prs, &(*merge)->right);
+    if (ParserParseExpression(prs, &(*merge)->right) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret) {
@@ -776,7 +772,7 @@ static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn *
 
     ParserConsumeToken(prs);
 
-    if (!prs->cur || ParserExpectToken(prs, NEWLINE_TOK) || ParserExpectToken(prs, RBRACE)) {
+    if ((!prs->cur) || (ParserExpectToken(prs, SEMICOLON))) {
         ms_ValData p;
         p.n = MS_VM_NULL_POINTER;
         (*ret)->expr = ms_ExprNewWithVal(MSVAL_NULL, p);
@@ -785,11 +781,14 @@ static ms_ParseResult ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn *
             return PARSE_ERROR;
         }
 
-        ParserConsumeToken(prs);
-        return PARSE_SUCCESS;
+        return ParserParseStatementTerminator(prs);
     }
 
-    return ParserParseExpression(prs, &(*ret)->expr);
+    if (ParserParseExpression(prs, &(*ret)->expr) == PARSE_ERROR) {
+        return PARSE_ERROR;
+    }
+
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl) {
@@ -861,7 +860,7 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, m
             return ParserParseDeclaration(prs, false, &(*decl)->next);
         }
 
-        return PARSE_SUCCESS;
+        return ParserParseStatementTerminator(prs);
     }
 
     ParserConsumeToken(prs);
@@ -874,7 +873,7 @@ static ms_ParseResult ParserParseDeclaration(ms_Parser *prs, bool req_keyword, m
         return ParserParseDeclaration(prs, false, &(*decl)->next);
     }
 
-    return PARSE_SUCCESS;
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
@@ -902,7 +901,7 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
             return PARSE_ERROR;
         }
 
-        return PARSE_SUCCESS;
+        return ParserParseStatementTerminator(prs);
     } else if (ParserExpectToken(prs, OP_PLUS_EQUALS) ||
                ParserExpectToken(prs, OP_MINUS_EQUALS) ||
                ParserExpectToken(prs, OP_TIMES_EQUALS) ||
@@ -923,13 +922,13 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
             return PARSE_ERROR;
         }
 
-        return PARSE_SUCCESS;
+        return ParserParseStatementTerminator(prs);
     }
 
     /* ONLY an expression */
     (*stmt)->type = STMTTYPE_EXPRESSION;
     (*stmt)->cmpnt.expr = name;
-    return PARSE_SUCCESS;
+    return ParserParseStatementTerminator(prs);
 }
 
 static ms_ParseResult ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt) {
@@ -1000,6 +999,18 @@ static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *nam
     }
 
     (*stmt)->cmpnt.assign->expr = combined;
+    return PARSE_SUCCESS;
+}
+
+static ms_ParseResult ParserParseStatementTerminator(ms_Parser *prs) {
+    assert(prs);
+
+    if (!ParserExpectToken(prs, SEMICOLON)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ";", prs->line, prs->col);
+        return PARSE_ERROR;
+    }
+
+    ParserConsumeToken(prs);
     return PARSE_SUCCESS;
 }
 
@@ -1928,35 +1939,11 @@ static inline void ParserConsumeToken(ms_Parser *prs) {
     ms_TokenDestroy(ParserAdvanceToken(prs));
 }
 
-/* Consume newlines until there are none remaining */
-static inline void ParserConsumeNewlines(ms_Parser *prs) {
-    assert(prs);
-    while (ParserExpectToken(prs, NEWLINE_TOK)) {
-        ParserConsumeToken(prs);
-    }
-}
-
 /* Check if the next token to see if it matches our expected next token. */
 static bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
     assert(prs);
 
     if ((!prs->cur) || (prs->cur->type != type)) {
-        return false;
-    }
-
-    return true;
-}
-
-/* Check the next token to see if it matches our expected next token or if
- * there are NO tokens left. */
-static bool ParserExpectTokenIfNotEOF(ms_Parser *prs, ms_TokenType type) {
-    assert(prs);
-
-    if (!prs->cur) {
-        return true;
-    }
-
-    if (prs->cur->type != type) {
         return false;
     }
 

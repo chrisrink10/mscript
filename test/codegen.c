@@ -204,7 +204,7 @@ static void CleanByteCode(ms_VMByteCode *bc);
 MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "0",
+            .val = "0;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(0),
@@ -216,7 +216,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "3",
+            .val = "3;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(3),
@@ -228,7 +228,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "0.0",
+            .val = "0.0;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(0.0),
@@ -240,7 +240,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "3.14",
+            .val = "3.14;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(3.14),
@@ -252,7 +252,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "true",
+            .val = "true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(true),
@@ -264,7 +264,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "false",
+            .val = "false;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -276,7 +276,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
             }
         },
         {
-            .val = "null",
+            .val = "null;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_NULL(),
@@ -297,7 +297,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
 MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "-3",
+            .val = "-3;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(3)
@@ -310,7 +310,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
             }
         },
         {
-            .val = "--2.72",
+            .val = "--2.72;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(2.72),
@@ -324,7 +324,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
             }
         },
         {
-            .val = "!true",
+            .val = "!true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(true),
@@ -337,7 +337,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
             }
         },
         {
-            .val = "!!false",
+            .val = "!!false;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -351,7 +351,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
             }
         },
         {
-            .val = "~792",
+            .val = "~792;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(792),
@@ -364,7 +364,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
             }
         },
         {
-            .val = "~~42",
+            .val = "~~42;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(42),
@@ -387,7 +387,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
 MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "7 + 3.6",
+            .val = "7 + 3.6;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -402,7 +402,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "3 + ~3",
+            .val = "3 + ~3;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(3),
@@ -418,7 +418,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "16 - false",
+            .val = "16 - false;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(16),
@@ -433,7 +433,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "3 - -3",
+            .val = "3 - -3;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(3),
@@ -449,7 +449,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "2 * 3.14",
+            .val = "2 * 3.14;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(2),
@@ -464,7 +464,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "17 / 8.25",
+            .val = "17 / 8.25;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(17),
@@ -479,7 +479,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "8.888 \\ 6",
+            .val = "8.888 \\ 6;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(8.888),
@@ -494,7 +494,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "42 % 8",
+            .val = "42 % 8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(42),
@@ -509,7 +509,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "5.25 ** 2",
+            .val = "5.25 ** 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(5.25),
@@ -524,7 +524,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "5 << 2",
+            .val = "5 << 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(5),
@@ -539,7 +539,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "183822 >> 4",
+            .val = "183822 >> 4;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(183822),
@@ -554,7 +554,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "13 & 97",
+            .val = "13 & 97;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(13),
@@ -569,7 +569,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "3 | 15",
+            .val = "3 | 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(3),
@@ -584,7 +584,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "53 ^ 7",
+            .val = "53 ^ 7;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(53),
@@ -599,7 +599,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "46.12 <= 73",
+            .val = "46.12 <= 73;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(46.12),
@@ -614,7 +614,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "true < 14",
+            .val = "true < 14;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(true),
@@ -629,7 +629,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "33 != 1988",
+            .val = "33 != 1988;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(33),
@@ -644,7 +644,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "71 == 0.33",
+            .val = "71 == 0.33;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(71),
@@ -659,7 +659,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "81.3 > 90",
+            .val = "81.3 > 90;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_FLOAT(81.3),
@@ -674,7 +674,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "1000 >= 10000",
+            .val = "1000 >= 10000;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(1000),
@@ -690,7 +690,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
         },
 
         {
-            .val = "true && false",
+            .val = "true && false;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(true),
@@ -705,7 +705,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "true && !true",
+            .val = "true && !true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(true),
@@ -721,7 +721,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
             }
         },
         {
-            .val = "1 || null",
+            .val = "1 || null;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(1),
@@ -745,7 +745,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
 MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "false || false && true",
+            .val = "false || false && true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -763,7 +763,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(false || false) && true",
+            .val = "(false || false) && true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -781,7 +781,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(false || !false) && true",
+            .val = "(false || !false) && true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -800,7 +800,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "false == false != true",
+            .val = "false == false != true;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -818,7 +818,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "false == (false != true)",
+            .val = "false == (false != true);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_BOOL(false),
@@ -836,7 +836,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 > 3.6 < 8",
+            .val = "7 > 3.6 < 8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -854,7 +854,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 > (3.6 < 8)",
+            .val = "7 > (3.6 < 8);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -872,7 +872,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 > 3.6 >= 8",
+            .val = "7 > 3.6 >= 8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -890,7 +890,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 | 2 & 15",
+            .val = "7 | 2 & 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -908,7 +908,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ^ 2 & 15",
+            .val = "7 ^ 2 & 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -926,7 +926,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ^ 2 | 15",
+            .val = "7 ^ 2 | 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -944,7 +944,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ^ (2 | 15)",
+            .val = "7 ^ (2 | 15);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -962,7 +962,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(7 | 2) & 15",
+            .val = "(7 | 2) & 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -980,7 +980,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(7 | 2) & ~15",
+            .val = "(7 | 2) & ~15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -999,7 +999,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "~(7 | 2) & 15",
+            .val = "~(7 | 2) & 15;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1018,7 +1018,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "15 | 1 << 2",
+            .val = "15 | 1 << 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(15),
@@ -1036,7 +1036,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(15 | 1) << 2",
+            .val = "(15 | 1) << 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(15),
@@ -1054,7 +1054,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 + 3.6 - 8",
+            .val = "7 + 3.6 - 8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1072,7 +1072,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 + (3.6 - 8)",
+            .val = "7 + (3.6 - 8);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1090,7 +1090,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 + (3.6 - -8)",
+            .val = "7 + (3.6 - -8);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1109,7 +1109,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(7 + 3.6) - -8",
+            .val = "(7 + 3.6) - -8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1128,7 +1128,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 + 3.6 * -8",
+            .val = "7 + 3.6 * -8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1147,7 +1147,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 / 3.6 * -8",
+            .val = "7 / 3.6 * -8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1166,7 +1166,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 \\ 3.6 % -8",
+            .val = "7 \\ 3.6 % -8;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1185,7 +1185,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ** 4 ** 2",
+            .val = "7 ** 4 ** 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1203,7 +1203,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "(7 ** 4) ** 2",
+            .val = "(7 ** 4) ** 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1221,7 +1221,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ** 4 * 2",
+            .val = "7 ** 4 * 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1239,7 +1239,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ** 4 + 2",
+            .val = "7 ** 4 + 2;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1257,7 +1257,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
             }
         },
         {
-            .val = "7 ** (4 + 2)",
+            .val = "7 ** (4 + 2);",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_INT(7),
@@ -1284,7 +1284,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
 MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "$len()",
+            .val = "$len();",
             .bc = &(ms_VMByteCode){
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
@@ -1298,7 +1298,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
             }
         },
         {
-            .val = "foo()",
+            .val = "foo();",
             .bc = &(ms_VMByteCode){
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
@@ -1312,7 +1312,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
             }
         },
         {
-            .val = "$len(\"string\")",
+            .val = "$len(\"string\");",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("string"),
@@ -1329,7 +1329,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
             }
         },
         {
-            .val = "foo(\"string\")",
+            .val = "foo(\"string\");",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("string"),
@@ -1346,7 +1346,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
             }
         },
         {
-            .val = "foo()()",
+            .val = "foo()();",
             .bc = &(ms_VMByteCode){
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
@@ -1361,7 +1361,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
             }
         },
         {
-            .val = "bar(\"baz\")()",
+            .val = "bar(\"baz\")();",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("baz"),
@@ -1388,7 +1388,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
 MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "name",
+            .val = "name;",
             .bc = &(ms_VMByteCode){
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
@@ -1401,7 +1401,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
             }
         },
         {
-            .val = "name.first",
+            .val = "name.first;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("first"),
@@ -1418,7 +1418,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
             }
         },
         {
-            .val = "name[\"first\"]",
+            .val = "name[\"first\"];",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("first"),
@@ -1435,14 +1435,14 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
             }
         },
         {
-            .val = "name.first.second.third",
-            .bc = &(ms_VMByteCode){
-                .values = (ms_Value[]){
+            .val = "name.first.second.third;",
+            .bc = &(ms_VMByteCode) {
+                .values = (ms_Value[]) {
                     VM_STR("first"),
                     VM_STR("second"),
                     VM_STR("third"),
                 },
-                .code = (ms_VMOpCode[]){
+                .code = (ms_VMOpCode[]) {
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_ATTR, 1),
@@ -1451,12 +1451,14 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                     VM_OPC(OPC_PUSH, 2),
                     VM_OPC(OPC_GET_ATTR, 1),
                 },
-                .idents = ((DSBuffer*[]){
+                .idents = ((DSBuffer *[]) {
                     AST_IDENT_NAME("name"),
                 }),
                 .nops = 7, .nvals = 3, .nidents = 1
             },
-            .val = "name[\"first\", \"second\"].third",
+        },
+        {
+            .val = "name[\"first\", \"second\"].third;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("first"),
@@ -1487,7 +1489,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
 MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
-            .val = "@glo",
+            .val = "@glo;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1501,7 +1503,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo.first",
+            .val = "@glo.first;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1517,7 +1519,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo.first.second",
+            .val = "@glo.first.second;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1535,7 +1537,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo.first.second[\"third\"]",
+            .val = "@glo.first.second[\"third\"];",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1555,7 +1557,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo[\"first\"]",
+            .val = "@glo[\"first\"];",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1571,7 +1573,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo[\"first\", \"second\"]",
+            .val = "@glo[\"first\", \"second\"];",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),
@@ -1589,7 +1591,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
             }
         },
         {
-            .val = "@glo[\"first\", \"second\"].third",
+            .val = "@glo[\"first\", \"second\"].third;",
             .bc = &(ms_VMByteCode){
                 .values = (ms_Value[]){
                     VM_STR("@glo"),

@@ -115,22 +115,12 @@ static MunitParameterEnum builtin_params[] = {
 };
 
 static char* invalid_identifier_vals[] = {
-    "$", "@", "@-some-name", "$%%%%", ";", "?", "`", "#",
+    "$", "@", "@-some-name", "$%%%%", "?", "`", "#",
     NULL
 };
 
 static MunitParameterEnum invalid_identifier_params[] = {
     { "ident", invalid_identifier_vals },
-    { NULL, NULL }
-};
-
-static char* newline_vals[] = {
-    "\r\n", "\n",
-    NULL
-};
-
-static MunitParameterEnum newline_params[] = {
-    { "newline", newline_vals },
     { NULL, NULL }
 };
 
@@ -258,14 +248,6 @@ MunitTest lexer_tests[] = {
         NULL,
         MUNIT_TEST_OPTION_NONE,
         NULL
-    },
-    {
-        "/Newlines",
-        lex_TestLexNewlines,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        newline_params
     },
     {
         "/Strings",
@@ -414,16 +396,12 @@ MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_dat
         { "}", RBRACE },
         { ":", COLON },
         { ".", PERIOD },
-        { ",", COMMA }
+        { ",", COMMA },
+        { ";", SEMICOLON },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
     return TestLexResultTuple(tokens, len);
-}
-
-MunitResult lex_TestLexNewlines(const MunitParameter params[], void *user_data) {
-    const char *newline = munit_parameters_get(params, "newline");
-    return LexExpect(newline, NEWLINE_TOK);
 }
 
 MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data) {
