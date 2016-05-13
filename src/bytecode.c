@@ -365,27 +365,27 @@ static char *ByteCodeValueToString(const ms_VMByteCode *bc, size_t i) {
     assert(bc);
     char *buf = NULL;
     size_t len = 0;
-    ms_Value *v = &bc->values[i];
+    ms_VMValue *v = &bc->values[i];
 
 gen_val_string:
     switch(v->type) {
-        case MSVAL_BOOL:
+        case VMVAL_BOOL:
             len = snprintf(buf, len, "%s\n", v->val.b ? "true" : "false");
             break;
-        case MSVAL_NULL:
+        case VMVAL_NULL:
             len = snprintf(buf, len, "%s\n", "null");
             break;
-        case MSVAL_FLOAT:
+        case VMVAL_FLOAT:
             len = snprintf(buf, len, "%f\n", v->val.f);
             break;
-        case MSVAL_INT:
+        case VMVAL_INT:
             len = snprintf(buf, len, "%lld\n", v->val.i);
             break;
-        case MSVAL_STR:
+        case VMVAL_STR:
             len = snprintf(buf, len, "\"%s\"\n", dsbuf_char_ptr(v->val.s));
             break;
-        case MSVAL_FUNC:
-            len = snprintf(buf, len, "<func %s>", dsbuf_char_ptr(v->val.fn->ident->name));
+        case VMVAL_FUNC:
+            len = snprintf(buf, len, "<func %p>", (void *)v->val.fn);
             break;
     }
 
@@ -1144,94 +1144,47 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx) {
     assert(ctx);
 
-    ms_VMOpCode *o = malloc(sizeof(ms_VMOpCode));
-    if (!o) { return; }
-
+    ms_VMOpCodeType o;
     switch (op) {
-        case UNARY_MINUS:
-            *o = OPC_NEGATE;
-            break;
-        case UNARY_NOT:
-            *o = OPC_NOT;
-            break;
-        case UNARY_BITWISE_NOT:
-            *o = OPC_BITWISE_NOT;
-            break;
+        case UNARY_MINUS:           o = OPC_NEGATE;         break;
+        case UNARY_NOT:             o = OPC_NOT;            break;
+        case UNARY_BITWISE_NOT:     o = OPC_BITWISE_NOT;    break;
+        case UNARY_NONE:
+            /* this function may be called with UNARY_NONE expressions */
+            return;
         default:
-            free(o);
+            assert(false && "invalid unary expression op found");
             return;
     }
 
-    dsarray_append(ctx->opcodes, o);
+    PushOpCode(o, 0, ctx);
 }
 
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
     assert(ctx);
 
-    ms_VMOpCode *o = malloc(sizeof(ms_VMOpCode));
-    if (!o) { return; }
-
+    ms_VMOpCodeType o;
     switch (op) {
-        case BINARY_PLUS:
-            *o = OPC_ADD;
-            break;
-        case BINARY_MINUS:
-            *o = OPC_SUBTRACT;
-            break;
-        case BINARY_TIMES:
-            *o = OPC_MULTIPLY;
-            break;
-        case BINARY_DIVIDE:
-            *o = OPC_DIVIDE;
-            break;
-        case BINARY_IDIVIDE:
-            *o = OPC_IDIVIDE;
-            break;
-        case BINARY_MODULO:
-            *o = OPC_MODULO;
-            break;
-        case BINARY_EXPONENTIATE:
-            *o = OPC_EXPONENTIATE;
-            break;
-        case BINARY_SHIFT_LEFT:
-            *o = OPC_SHIFT_LEFT;
-            break;
-        case BINARY_SHIFT_RIGHT:
-            *o = OPC_SHIFT_RIGHT;
-            break;
-        case BINARY_BITWISE_AND:
-            *o = OPC_BITWISE_AND;
-            break;
-        case BINARY_BITWISE_XOR:
-            *o = OPC_BITWISE_XOR;
-            break;
-        case BINARY_BITWISE_OR:
-            *o = OPC_BITWISE_OR;
-            break;
-        case BINARY_LE:
-            *o = OPC_LE;
-            break;
-        case BINARY_LT:
-            *o = OPC_LT;
-            break;
-        case BINARY_GE:
-            *o = OPC_GE;
-            break;
-        case BINARY_GT:
-            *o = OPC_GT;
-            break;
-        case BINARY_EQ:
-            *o = OPC_EQ;
-            break;
-        case BINARY_NOT_EQ:
-            *o = OPC_NOT_EQ;
-            break;
-        case BINARY_AND:
-            *o = OPC_AND;
-            break;
-        case BINARY_OR:
-            *o = OPC_OR;
-            break;
+        case BINARY_PLUS:               o = OPC_ADD;            break;
+        case BINARY_MINUS:              o = OPC_SUBTRACT;       break;
+        case BINARY_TIMES:              o = OPC_MULTIPLY;       break;
+        case BINARY_DIVIDE:             o = OPC_DIVIDE;         break;
+        case BINARY_IDIVIDE:            o = OPC_IDIVIDE;        break;
+        case BINARY_MODULO:             o = OPC_MODULO;         break;
+        case BINARY_EXPONENTIATE:       o = OPC_EXPONENTIATE;   break;
+        case BINARY_SHIFT_LEFT:         o = OPC_SHIFT_LEFT;     break;
+        case BINARY_SHIFT_RIGHT:        o = OPC_SHIFT_RIGHT;    break;
+        case BINARY_BITWISE_AND:        o = OPC_BITWISE_AND;    break;
+        case BINARY_BITWISE_XOR:        o = OPC_BITWISE_XOR;    break;
+        case BINARY_BITWISE_OR:         o = OPC_BITWISE_OR;     break;
+        case BINARY_LE:                 o = OPC_LE;             break;
+        case BINARY_LT:                 o = OPC_LT;             break;
+        case BINARY_GE:                 o = OPC_GE;             break;
+        case BINARY_GT:                 o = OPC_GT;             break;
+        case BINARY_EQ:                 o = OPC_EQ;             break;
+        case BINARY_NOT_EQ:             o = OPC_NOT_EQ;         break;
+        case BINARY_AND:                o = OPC_AND;            break;
+        case BINARY_OR:                 o = OPC_OR;             break;
         case BINARY_CALL:
             assert(false && "should not be generating call opcode here");
             break;
@@ -1239,11 +1192,11 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
             assert(false && "should not be generating getattr opcode here");
             break;
         default:
-            free(o);
+            assert(false && "invalid binary expression op found");
             return;
     }
 
-    dsarray_append(ctx->opcodes, o);
+    PushOpCode(o, 0, ctx);
 }
 
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
