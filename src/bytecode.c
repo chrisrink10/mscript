@@ -81,6 +81,7 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
+static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx);
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type);
 static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx);
 static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx);
@@ -133,6 +134,28 @@ void ms_VMByteCodePrint(const ms_VMByteCode *bc) {
         char *strarg = OpCodeArgToString(bc, i);
         fprintf(outfile, "%5zu %-20s %s\n", i, name, (strarg) ? (strarg) : "");
     }
+}
+
+void ms_VMValueDestroy(ms_VMValue *v) {
+    if (!v) { return; }
+
+    switch(v->type) {
+        case VMVAL_STR:
+            dsbuf_destroy(v->val.s);
+            v->val.s = NULL;
+            break;
+        case VMVAL_FUNC:
+            ms_VMByteCodeDestroy(v->val.fn);
+            v->val.fn = NULL;
+            break;
+        case VMVAL_INT:         /* fall through */
+        case VMVAL_FLOAT:       /* fall through */
+        case VMVAL_BOOL:        /* fall through */
+        case VMVAL_NULL:
+            break;
+    }
+
+    free(v);
 }
 
 ms_VMOpCode ms_VMOpCodeWithArg(ms_VMOpCodeType c, int arg) {
@@ -212,12 +235,14 @@ const char *ms_VMOpCodeToString(ms_VMOpCode c) {
 static bool CodeGenContextCreate(CodeGenContext *ctx) {
     assert(ctx);
 
-    ctx->opcodes = dsarray_new_cap(EXPR_OPCODE_STACK_LEN, NULL, (dsarray_free_fn)free);
+    ctx->opcodes = dsarray_new_cap(EXPR_OPCODE_STACK_LEN, NULL,
+                                   (dsarray_free_fn)free);
     if (!ctx->opcodes) {
         return false;
     }
 
-    ctx->values = dsarray_new_cap(EXPR_VALUE_STACK_LEN, NULL, (dsarray_free_fn)free);
+    ctx->values = dsarray_new_cap(EXPR_VALUE_STACK_LEN, NULL,
+                                  (dsarray_free_fn)ms_VMValueDestroy);
     if (!ctx->values) {
         dsarray_destroy(ctx->opcodes);
         return false;
@@ -248,22 +273,22 @@ static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx) {
         return NULL;
     }
 
-    bc->nops = dsarray_len((DSArray *)ctx->opcodes);
+    bc->nops = dsarray_len(ctx->opcodes);
     bc->code = malloc(sizeof(ms_VMOpCode) * (bc->nops));
     if (!bc->code) {
         free(bc);
         return NULL;
     }
 
-    bc->nvals = dsarray_len((DSArray *)ctx->values);
-    bc->values = malloc(sizeof(ms_Value) * (bc->nvals));
+    bc->nvals = dsarray_len(ctx->values);
+    bc->values = malloc(sizeof(ms_VMValue) * (bc->nvals));
     if (!bc->values) {
         free(bc->code);
         free(bc);
         return NULL;
     }
 
-    bc->nidents = dsarray_len((DSArray *)ctx->idents);
+    bc->nidents = dsarray_len(ctx->idents);
     bc->idents = malloc(sizeof(ms_Ident *) * (bc->nidents));
     if (!bc->idents) {
         free(bc->values);
@@ -273,15 +298,24 @@ static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx) {
     }
 
     for (size_t i = 0; i < bc->nops; i++) {
-        bc->code[i] = *(ms_VMOpCode *)dsarray_get((DSArray *)ctx->opcodes, i);
+        bc->code[i] = *(ms_VMOpCode *)dsarray_get(ctx->opcodes, i);
     }
 
     for (size_t i = 0; i < bc->nvals; i++) {
-        bc->values[i] = *(ms_Value *)dsarray_get((DSArray *)ctx->values, i);
+        ms_VMValue *v = dsarray_get(ctx->values, i);
+        bc->values[i] = *v;
+
+        /* clear the pointers in the old value so they aren't deallocated
+         * when the value stack is destroyed */
+        if (v->type == VMVAL_STR) {
+            v->val.s = NULL;
+        } else if (v->type == VMVAL_FUNC) {
+            v->val.fn = NULL;
+        }
     }
 
     for (size_t i = 0; i < bc->nidents; i++) {
-        bc->idents[i] = dsarray_get((DSArray *)ctx->idents, i);
+        bc->idents[i] = dsarray_get(ctx->idents, i);
     }
 
     return bc;
@@ -823,6 +857,7 @@ static void StmtMergeToOpCodes(const ms_StmtMerge *merge, CodeGenContext *ctx) {
     assert(merge);
     assert(ctx);
 
+    /* TODO: figure out what to do here (does this statement even make sense) */
     ExprToOpCodes(merge->right, ctx);
     ExprToOpCodes(merge->left, ctx);
     PushOpCode(OPC_MERGE, 0, ctx);
@@ -1207,6 +1242,25 @@ static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExp
     ctx->attrlenlast = len;
 }
 
+static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx) {
+    assert(fn);
+    assert(ctx);
+
+    if (!CodeGenContextCreate(ctx)) {
+        return NULL;
+    }
+
+    size_t len = dsarray_len(fn->block);
+    for (size_t i = 0; i < len; i++) {
+        ms_Stmt *stmt = dsarray_get(fn->block, i);
+        StmtToOpCodes(stmt, ctx);
+    }
+
+    ms_VMFunc *bc = VMByteCodeNew(ctx);
+    CodeGenContextClean(ctx);
+    return bc;
+}
+
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type) {
     assert(atom);
     ms_ExprIdentType ident_type = EXPRIDENT_NONE;
@@ -1223,15 +1277,43 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
     assert(index);
     assert(ctx);
 
-    ms_Value *v = malloc(sizeof(ms_Value));
-    if (!v) {
+    ms_VMValue *newv = malloc(sizeof(ms_VMValue));
+    if (!newv) {
         return;
     }
 
-    // TODO: deep copy reference values
-    *v = *val;
+    switch (val->type) {
+        case MSVAL_FLOAT:
+            newv->type = VMVAL_FLOAT;
+            newv->val.f = val->val.f;
+            break;
+        case MSVAL_INT:
+            newv->type = VMVAL_INT;
+            newv->val.i = val->val.i;
+            break;
+        case MSVAL_BOOL:
+            newv->type = VMVAL_BOOL;
+            newv->val.b = val->val.b;
+            break;
+        case MSVAL_STR:
+            newv->type = VMVAL_STR;
+            newv->val.s = dsbuf_dup(val->val.s);
+            assert(newv->val.s);    /* TODO: real error handling */
+            break;
+        case MSVAL_NULL:
+            newv->type = VMVAL_NULL;
+            newv->val.n = val->val.n;
+            break;
+        case MSVAL_FUNC: {
+            CodeGenContext fnctx = { NULL };
+            newv->type = VMVAL_FUNC;
+            newv->val.fn = ExprFunctionExprToOpCodes(val->val.fn, &fnctx);
+            assert(newv->val.fn);   /* TODO: also here */
+            break;
+        }
+    }
 
-    dsarray_append(ctx->values, v);
+    dsarray_append(ctx->values, newv);
     size_t nvals = dsarray_len(ctx->values);
     assert(nvals != 0);
     assert(nvals <= OPC_ARG_MAX);

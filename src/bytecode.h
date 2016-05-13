@@ -87,14 +87,45 @@ typedef struct {
 } ms_VMOpCodeDebug;
 #endif
 
+typedef struct ms_VMByteCode ms_VMByteCode;
+typedef double ms_VMFloat;
+typedef long long ms_VMInt;
+typedef DSBuffer ms_VMStr;
+typedef bool ms_VMBool;
+typedef const void ms_VMNull;
+typedef ms_VMByteCode ms_VMFunc;
+
+typedef enum {
+    VMVAL_FLOAT,
+    VMVAL_INT,
+    VMVAL_STR,
+    VMVAL_BOOL,
+    VMVAL_NULL,
+    VMVAL_FUNC,
+} ms_VMDataType;
+
+typedef union {
+    ms_VMFloat f;
+    ms_VMInt i;
+    ms_VMStr *s;
+    ms_VMBool b;
+    ms_VMNull *n;
+    ms_VMFunc *fn;
+} ms_VMData;
+
 typedef struct {
+    ms_VMDataType type;
+    ms_VMData val;
+} ms_VMValue;
+
+struct ms_VMByteCode {
     ms_VMOpCode *code;                              /* array of opcodes */
-    ms_Value *values;                               /* array of VM values */
+    ms_VMValue *values;                             /* array of VM values */
     DSBuffer **idents;                              /* array of identifiers */
     size_t nops;                                    /* number of opcodes */
     size_t nvals;                                   /* number of values */
     size_t nidents;                                 /* number of idents */
-} ms_VMByteCode;
+};
 
 /**
 * @brief Generate mscript VM bytecode from the given abstract syntax tree.
@@ -112,6 +143,11 @@ void ms_VMByteCodePrint(const ms_VMByteCode *bc);
 * @param bc a @c ms_VMByteCode object
 */
 void ms_VMByteCodeDestroy(ms_VMByteCode *bc);
+
+/**
+* @brief Destroy a
+*/
+void ms_VMValueDestroy(ms_VMValue *v);
 
 /**
 * @brief Encode an opcode with a numeric argument.
