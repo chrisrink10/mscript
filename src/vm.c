@@ -560,6 +560,10 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
             case OPC_CALL:
                 inc = VMCallFunction(vm);
                 break;
+            case OPC_CALL_BUILTIN:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
             case OPC_PUSH_BLOCK:
                 inc = VMPushBlock(vm);
                 break;
@@ -568,6 +572,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 break;
             case OPC_RETURN:
                 ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
                 break;
             case OPC_GET_ATTR:
                 inc = VMDoBinaryOp(vm, "__getattr__");

@@ -53,6 +53,7 @@ typedef enum {
     OPC_AND,            /*              TOS := TOS1 && TOS                                                                      */
     OPC_OR,             /*              TOS := TOS1 || TOS                                                                      */
     OPC_CALL,           /*  req         call TOS with arg # arguments                                                           */
+    OPC_CALL_BUILTIN,   /*  req         call builtin names[i]                                                                   */
     OPC_PUSH_BLOCK,     /*              push a new block context onto the frame                                                 */
     OPC_POP_BLOCK,      /*              pop the top block context from the stack                                                */
     OPC_RETURN,         /*              return TOS to calling context                                                           */

@@ -1290,7 +1290,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
                 .values = NULL,
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
-                    VM_OPC(OPC_CALL, 0),
+                    VM_OPC(OPC_CALL_BUILTIN, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     AST_IDENT_NAME("$len"),
@@ -1321,7 +1321,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_NAME, 0),
-                    VM_OPC(OPC_CALL, 1),
+                    VM_OPC(OPC_CALL_BUILTIN, 1),
                 },
                 .idents = ((DSBuffer*[]){
                     AST_IDENT_NAME("$len"),

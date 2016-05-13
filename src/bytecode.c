@@ -215,6 +215,7 @@ const char *ms_VMOpCodeToString(ms_VMOpCode c) {
         case OPC_AND:               return "AND";
         case OPC_OR:                return "OR";
         case OPC_CALL:              return "CALL";
+        case OPC_CALL_BUILTIN:      return "CALL_BUILTIN";
         case OPC_PUSH_BLOCK:        return "PUSH_BLOCK";
         case OPC_POP_BLOCK:         return "POP_BLOCK";
         case OPC_RETURN:            return "RETURN";
@@ -342,6 +343,7 @@ static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
     switch (type) {
         case OPC_PUSH:              return ByteCodeValueToString(bc, (size_t)arg);
         case OPC_CALL:              return ByteCodeArgToString(bc, arg);
+        case OPC_CALL_BUILTIN:      return ByteCodeArgToString(bc, arg);
         case OPC_GET_ATTR:          return ByteCodeArgToString(bc, arg);
         case OPC_SET_ATTR:          return ByteCodeArgToString(bc, arg);
         case OPC_DEL_ATTR:          return ByteCodeArgToString(bc, arg);
@@ -1057,11 +1059,15 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
     switch (b->op) {
         case BINARY_CALL: {
             assert(b->rtype == EXPRATOM_EXPRLIST);
+            ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
             ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
             ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
             size_t len = dsarray_len(b->ratom.list);
             assert(len <= OPC_ARG_MAX);
-            PushOpCode(OPC_CALL, (int) len, ctx->parent);
+            ms_VMOpCodeType opc = (ident_type == EXPRIDENT_BUILTIN)
+                                  ? (OPC_CALL_BUILTIN)
+                                  : (OPC_CALL);
+            PushOpCode(opc, (int) len, ctx->parent);
             break;
         }
         case BINARY_GETATTR: {
@@ -1243,8 +1249,15 @@ static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAto
     ms_ExprIdentType ident_type = EXPRIDENT_NONE;
     if (type == EXPRATOM_EXPRESSION) {
         ident_type = ms_ExprGetIdentType(atom->expr);
-    } else if ((type == EXPRATOM_IDENT) && (atom->ident->type == IDENT_GLOBAL)) {
-        ident_type = EXPRIDENT_GLOBAL;
+    } else if (type == EXPRATOM_IDENT) {
+        switch (atom->ident->type) {
+            case IDENT_GLOBAL:
+                return EXPRIDENT_GLOBAL;
+            case IDENT_BUILTIN:
+                return EXPRIDENT_BUILTIN;
+            case IDENT_NAME:
+                return EXPRIDENT_NAME;
+        }
     }
     return ident_type;
 }
