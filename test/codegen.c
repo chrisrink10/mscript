@@ -1842,6 +1842,67 @@ MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void
 }
 
 MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data)  {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "for true { }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 4),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 1, .nidents = 0
+            },
+        },
+        {
+            .val = "for cond { }",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 4),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("cond"),
+                },
+                .nops = 5, .nvals = 0, .nidents = 1
+            },
+        },
+        {
+            .val = "for arr.drained() { }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("drained"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_CALL, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 7),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("arr"),
+                },
+                .nops = 8, .nvals = 1, .nidents = 1
+            },
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
