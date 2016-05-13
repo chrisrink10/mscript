@@ -21,18 +21,31 @@
 #include "vm.h"
 #include "lang.h"
 
-#define OPC_BITS ((sizeof(int) / 2) * 8)
-#define OPC_ARG_MAX ((1 << OPC_BITS) - 1)
+#define OPC_BITS                ((sizeof(int) / 2) * 8)
+#define OPC_ARG_MAX             ((1 << OPC_BITS) - 1)
 
-#define BLOCK_NO_PUSH_OR_POP (0)
-#define BLOCK_INCL_PUSH      (1)
-#define BLOCK_INCL_POP       (2)
+#define BLOCK_NO_PUSH_OR_POP    (0)
+#define BLOCK_INCL_PUSH         (1)
+#define BLOCK_INCL_POP          (2)
 
 typedef struct {
     DSArray *opcodes;
     DSArray *values;
     DSArray *idents;
 } CodeGenContext;
+
+typedef struct {
+    CodeGenContext *parent;
+    int push_or_pop;            /** bitmask for whether block should be pushed or popped */
+} CodeGenContextBlock;
+
+typedef struct {
+    CodeGenContext *parent;
+    size_t start;               /** index of the first block statement */
+    size_t end;                 /** index of the last block statement */
+    int break_arg;              /** argument to place on a BREAK opcode */
+    int cont_arg;               /** argument to place on a CONTINUE opcode */
+} CodeGenContextFor;
 
 typedef struct {
     CodeGenContext *parent;
@@ -54,14 +67,14 @@ static char *ByteCodeArgToString(const ms_VMByteCode *bc, int arg);
 static bool CodeGenContextCreate(CodeGenContext *ctx);
 static void CodeGenContextClean(CodeGenContext *ctx);
 static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx);
-static void BlockToOpCodes(const ms_StmtBlock *blk, int push_or_pop, CodeGenContext *ctx);
+static void BlockToOpCodes(const ms_StmtBlock *blk, CodeGenContextBlock *ctx);
 static void StmtToOpCodes(const ms_Stmt *stmt, CodeGenContext *ctx);
 static void StmtDeleteToOpCodes(const ms_StmtDelete *del, CodeGenContext *ctx);
 static void StmtForToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx);
 static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx);
 static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx);
 static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx);
-static void StmtForFixBreakAndContinue(CodeGenContext *ctx, size_t start, size_t end, int break_arg, int cont_arg);
+static void StmtForFixBreakAndContinue(CodeGenContextFor *ctx);
 static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, CodeGenContext *ctx);
 static void StmtElseIfToOpCodes(const ms_StmtIfElse *elif, CodeGenContext *ctx);
 static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx);
@@ -405,22 +418,23 @@ static char *ByteCodeArgToString(const ms_VMByteCode *bc, int arg) {
     return buf;
 }
 
-static void BlockToOpCodes(const ms_StmtBlock *blk, int push_or_pop, CodeGenContext *ctx) {
+static void BlockToOpCodes(const ms_StmtBlock *blk, CodeGenContextBlock *ctx) {
     assert(blk);
     assert(ctx);
+    assert(ctx->parent);
 
-    if ((push_or_pop & BLOCK_INCL_PUSH) == BLOCK_INCL_PUSH) {
-        PushOpCode(OPC_PUSH_BLOCK, 0, ctx);
+    if ((ctx->push_or_pop & BLOCK_INCL_PUSH) == BLOCK_INCL_PUSH) {
+        PushOpCode(OPC_PUSH_BLOCK, 0, ctx->parent);
     }
 
     size_t len = dsarray_len(blk);
     for (size_t i = 0; i < len; i++) {
         ms_Stmt *stmt = dsarray_get(blk, i);
-        StmtToOpCodes(stmt, ctx);
+        StmtToOpCodes(stmt, ctx->parent);
     }
 
-    if ((push_or_pop & BLOCK_INCL_POP) == BLOCK_INCL_POP) {
-        PushOpCode(OPC_POP_BLOCK, 0, ctx);
+    if ((ctx->push_or_pop & BLOCK_INCL_POP) == BLOCK_INCL_POP) {
+        PushOpCode(OPC_POP_BLOCK, 0, ctx->parent);
     }
 }
 
@@ -569,7 +583,8 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx) 
 
     /* load up the block */
     size_t start = dsarray_len(ctx->opcodes);
-    BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, ctx);
+    CodeGenContextBlock blkctx = { .parent = ctx, .push_or_pop = BLOCK_NO_PUSH_OR_POP };
+    BlockToOpCodes(forstmt->block, &blkctx);
     size_t end = dsarray_len(ctx->opcodes);
 
     /* reload the identifier, increment it, and go back */
@@ -588,7 +603,8 @@ static void StmtForIncToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx) 
     *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
 
     /* update the BREAK and CONTINUE opcodes with the correct gotos */
-    StmtForFixBreakAndContinue(ctx, start, end, (int)pop, (int)i);
+    CodeGenContextFor ctxfor = { ctx, start, end, (int)pop, (int)i };
+    StmtForFixBreakAndContinue(&ctxfor);
 }
 
 static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx) {
@@ -662,7 +678,8 @@ static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx)
 
     /* load up the block */
     size_t start = dsarray_len(ctx->opcodes);
-    BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, ctx);
+    CodeGenContextBlock blkctx = { .parent = ctx, .push_or_pop = BLOCK_NO_PUSH_OR_POP };
+    BlockToOpCodes(forstmt->block, &blkctx);
     size_t end = dsarray_len(ctx->opcodes);
 
     /* go back to the comparison at the beginning of the loop */
@@ -675,7 +692,8 @@ static void StmtForIterToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx)
     *opc = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
 
     /* update the BREAK and CONTINUE opcodes with the correct gotos */
-    StmtForFixBreakAndContinue(ctx, start, end, (int)pop, (int)i);
+    CodeGenContextFor ctxfor = { ctx, start, end, (int)pop, (int)i };
+    StmtForFixBreakAndContinue(&ctxfor);
 }
 
 static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx) {
@@ -706,7 +724,8 @@ static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx)
     PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx);
 
     size_t start = dsarray_len(ctx->opcodes);
-    BlockToOpCodes(forstmt->block, BLOCK_NO_PUSH_OR_POP, ctx);
+    CodeGenContextBlock blkctx = { .parent = ctx, .push_or_pop = BLOCK_NO_PUSH_OR_POP };
+    BlockToOpCodes(forstmt->block, &blkctx);
     size_t end = dsarray_len(ctx->opcodes);
 
     PushOpCode(OPC_GOTO, (int)i, ctx);
@@ -718,24 +737,26 @@ static void StmtForExprToOpCodes(const ms_StmtFor *forstmt, CodeGenContext *ctx)
     *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)pop);
 
     /* update the BREAK and CONTINUE opcodes with the correct gotos */
-    StmtForFixBreakAndContinue(ctx, start, end, (int)pop, (int)i);
+    CodeGenContextFor ctxfor = { ctx, start, end, (int)pop, (int)i };
+    StmtForFixBreakAndContinue(&ctxfor);
 }
 
-static void StmtForFixBreakAndContinue(CodeGenContext *ctx, size_t start, size_t end, int break_arg, int cont_arg) {
+static void StmtForFixBreakAndContinue(CodeGenContextFor *ctx) {
     assert(ctx);
-    assert(start <= end);
+    assert(ctx->parent);
+    assert(ctx->start <= ctx->end);
 
     /* update BREAK and CONTINUE goto arguments in for loop blocks */
-    for (size_t i = start; i < end; i++) {
-        ms_VMOpCode *opc = dsarray_get(ctx->opcodes, i);
+    for (size_t i = ctx->start; i < ctx->end; i++) {
+        ms_VMOpCode *opc = dsarray_get(ctx->parent->opcodes, i);
         ms_VMOpCodeType type = ms_VMOpCodeGetCode((*opc));
 
         switch(type) {
             case OPC_BREAK:
-                *opc = ms_VMOpCodeWithArg(OPC_GOTO, break_arg);
+                *opc = ms_VMOpCodeWithArg(OPC_GOTO, ctx->break_arg);
                 break;
             case OPC_CONTINUE:
-                *opc = ms_VMOpCodeWithArg(OPC_GOTO, cont_arg);
+                *opc = ms_VMOpCodeWithArg(OPC_GOTO, ctx->cont_arg);
                 break;
             default:
                 break;
@@ -771,7 +792,8 @@ static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, CodeGenContext *ctx) {
     PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx);
 
     /* push the entire IF block onto the opcode stack and get the new top index */
-    BlockToOpCodes(ifstmt->block, BLOCK_INCL_PUSH | BLOCK_INCL_POP, ctx);
+    CodeGenContextBlock blkctx = { .parent = ctx, .push_or_pop = BLOCK_INCL_PUSH | BLOCK_INCL_POP };
+    BlockToOpCodes(ifstmt->block, &blkctx);
     size_t n = dsarray_len(ctx->opcodes);
 
     /* update IF opcode with n+1 argument */
@@ -803,9 +825,11 @@ static void StmtElseIfToOpCodes(const ms_StmtIfElse *elif, CodeGenContext *ctx) 
         case IFELSE_IF:
             StmtIfToOpCodes(elif->clause.ifstmt, ctx);
             break;
-        case IFELSE_ELSE:
-            BlockToOpCodes(elif->clause.elstmt->block, BLOCK_INCL_PUSH | BLOCK_INCL_POP, ctx);
+        case IFELSE_ELSE: {
+            CodeGenContextBlock blkctx = { .parent = ctx, .push_or_pop = BLOCK_INCL_PUSH | BLOCK_INCL_POP };
+            BlockToOpCodes(elif->clause.elstmt->block, &blkctx);
             break;
+        }
     }
 }
 
