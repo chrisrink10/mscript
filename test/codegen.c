@@ -1878,6 +1878,27 @@ MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void
             },
         },
         {
+            .val = "for cond || fn() { }",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_CALL, 0),
+                    VM_OPC(OPC_OR, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 7),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("cond"),
+                    AST_IDENT_NAME("fn")
+                },
+                .nops = 8, .nvals = 0, .nidents = 2
+            },
+        },
+        {
             .val = "for arr.drained() { }",
             .bc = &(ms_VMByteCode){
                 .values = (ms_VMValue[]){
