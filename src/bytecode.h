@@ -94,7 +94,11 @@ typedef long long ms_VMInt;
 typedef DSBuffer ms_VMStr;
 typedef bool ms_VMBool;
 typedef const void ms_VMNull;
-typedef ms_VMByteCode ms_VMFunc;
+
+typedef struct {
+    DSArray *args;
+    ms_VMByteCode *code;
+} ms_VMFunc;
 
 typedef enum {
     VMVAL_FLOAT,
@@ -146,7 +150,7 @@ void ms_VMByteCodePrint(const ms_VMByteCode *bc);
 void ms_VMByteCodeDestroy(ms_VMByteCode *bc);
 
 /**
-* @brief Destroy a
+* @brief Destroy an ms_VMValue.
 */
 void ms_VMValueDestroy(ms_VMValue *v);
 

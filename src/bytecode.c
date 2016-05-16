@@ -341,12 +341,20 @@ static void VMValueClean(ms_VMValue *v) {
 
     switch(v->type) {
         case VMVAL_STR:
-            dsbuf_destroy(v->val.s);
-            v->val.s = NULL;
+            if (v->val.s) {
+                dsbuf_destroy(v->val.s);
+                v->val.s = NULL;
+            }
             break;
         case VMVAL_FUNC:
-            ms_VMByteCodeDestroy(v->val.fn);
-            v->val.fn = NULL;
+            if (v->val.fn) {
+                dsarray_destroy(v->val.fn->args);
+                v->val.fn->args = NULL;
+                ms_VMByteCodeDestroy(v->val.fn->code);
+                v->val.fn->code = NULL;
+                free(v->val.fn);
+                v->val.fn = NULL;
+            }
             break;
         case VMVAL_INT:         /* fall through */
         case VMVAL_FLOAT:       /* fall through */
@@ -1259,15 +1267,42 @@ static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext
         return NULL;
     }
 
-    size_t len = dsarray_len(fn->block);
-    for (size_t i = 0; i < len; i++) {
+    size_t nstmts = dsarray_len(fn->block);
+    for (size_t i = 0; i < nstmts; i++) {
         ms_Stmt *stmt = dsarray_get(fn->block, i);
         StmtToOpCodes(stmt, ctx);
     }
 
-    ms_VMFunc *bc = VMByteCodeNew(ctx);
+    ms_VMFunc *func = malloc(sizeof(ms_VMFunc));
+    if (!func) {
+        CodeGenContextClean(ctx);
+        return NULL;
+    }
+
+    size_t nargs = dsarray_len(fn->args);
+    func->args = dsarray_new_cap(nargs, (dsarray_compare_fn)dsbuf_compare,
+                                 (dsarray_free_fn)dsbuf_destroy);
+    if (!func->args) {
+        free(func);
+        CodeGenContextClean(ctx);
+        return NULL;
+    }
+
+    for (size_t i = 0; i < nargs; i++) {
+        ms_Ident *ident = dsarray_get(fn->args, i);
+        DSBuffer *name = dsbuf_dup(ident->name);
+        if (!name) {
+            free(func);
+            dsarray_destroy(func->args);
+            CodeGenContextClean(ctx);
+            return NULL;
+        }
+        dsarray_append(func->args, name);
+    }
+
+    func->code = VMByteCodeNew(ctx);
     CodeGenContextClean(ctx);
-    return bc;
+    return func;
 }
 
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type) {
