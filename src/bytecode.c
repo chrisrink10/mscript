@@ -69,6 +69,7 @@ static char *ByteCodeArgToString(const ms_VMByteCode *bc, int arg);
 static bool CodeGenContextCreate(CodeGenContext *ctx);
 static void CodeGenContextClean(CodeGenContext *ctx);
 static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx);
+static void VMValueClean(ms_VMValue *v);
 static void BlockToOpCodes(const ms_StmtBlock *blk, CodeGenContextBlock *ctx);
 static void StmtToOpCodes(const ms_Stmt *stmt, CodeGenContext *ctx);
 static void StmtDeleteToOpCodes(const ms_StmtDelete *del, CodeGenContext *ctx);
@@ -129,6 +130,9 @@ void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
     if (!bc) { return; }
     free(bc->code);
     bc->code = NULL;
+    for (size_t i = 0; i < bc->nvals; i++) {
+        VMValueClean(&bc->values[i]);
+    }
     free(bc->values);
     bc->values = NULL;
     for (size_t i = 0; i < bc->nidents; i++) {
@@ -153,23 +157,7 @@ void ms_VMByteCodePrint(const ms_VMByteCode *bc) {
 
 void ms_VMValueDestroy(ms_VMValue *v) {
     if (!v) { return; }
-
-    switch(v->type) {
-        case VMVAL_STR:
-            dsbuf_destroy(v->val.s);
-            v->val.s = NULL;
-            break;
-        case VMVAL_FUNC:
-            ms_VMByteCodeDestroy(v->val.fn);
-            v->val.fn = NULL;
-            break;
-        case VMVAL_INT:         /* fall through */
-        case VMVAL_FLOAT:       /* fall through */
-        case VMVAL_BOOL:        /* fall through */
-        case VMVAL_NULL:
-            break;
-    }
-
+    VMValueClean(v);
     free(v);
 }
 
@@ -346,6 +334,26 @@ static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx) {
     }
 
     return bc;
+}
+
+static void VMValueClean(ms_VMValue *v) {
+    assert(v);
+
+    switch(v->type) {
+        case VMVAL_STR:
+            dsbuf_destroy(v->val.s);
+            v->val.s = NULL;
+            break;
+        case VMVAL_FUNC:
+            ms_VMByteCodeDestroy(v->val.fn);
+            v->val.fn = NULL;
+            break;
+        case VMVAL_INT:         /* fall through */
+        case VMVAL_FLOAT:       /* fall through */
+        case VMVAL_BOOL:        /* fall through */
+        case VMVAL_NULL:
+            break;
+    }
 }
 
 static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
