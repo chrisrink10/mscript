@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "bytecode.h"
+#include "libds/dict.h"
 #include "vm.h"
 #include "lang.h"
 
@@ -32,6 +33,7 @@ typedef struct {
     DSArray *opcodes;
     DSArray *values;
     DSArray *idents;
+    DSDict *ident_cache;        /** cache of previously used identifier names */
 } CodeGenContext;
 
 typedef struct {
@@ -270,6 +272,16 @@ static bool CodeGenContextCreate(CodeGenContext *ctx) {
         return false;
     }
 
+    ctx->ident_cache = dsdict_new((dsdict_hash_fn)dsbuf_hash,
+                                  (dsdict_compare_fn)dsbuf_compare,
+                                  NULL, (dsdict_free_fn)free);
+    if (!ctx->ident_cache) {
+        dsarray_destroy(ctx->opcodes);
+        dsarray_destroy(ctx->values);
+        dsarray_destroy(ctx->idents);
+        return false;
+    }
+
     return true;
 }
 
@@ -277,6 +289,7 @@ static void CodeGenContextClean(CodeGenContext *ctx) {
     dsarray_destroy(ctx->opcodes);
     dsarray_destroy(ctx->values);
     dsarray_destroy(ctx->idents);
+    dsdict_destroy(ctx->ident_cache);
 }
 
 static ms_VMByteCode *VMByteCodeNew(const CodeGenContext *ctx) {
@@ -1315,6 +1328,15 @@ static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx) {
     assert(index);
     assert(ctx);
 
+    /* see if we had already used this identifier and we don't need to
+     * duplicate it in the bytecode representation */
+    size_t *existing_index = dsdict_get(ctx->ident_cache, ident->name);
+    if (existing_index) {
+        *index = (int)(*existing_index);
+        return;
+    }
+
+    /* push the identifer onto the context stack */
     DSBuffer *name = dsbuf_dup(ident->name);
     if (!name) {
         return;
@@ -1325,6 +1347,14 @@ static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx) {
     assert(nidents != 0);
     assert(nidents <= OPC_ARG_MAX);
     *index = (int)(nidents - 1);
+
+    /* cache this identifier */
+    size_t *new_index = malloc(sizeof(size_t));
+    if (!new_index) {
+        return;
+    }
+    *new_index = (size_t)(*index);
+    dsdict_put(ctx->ident_cache, name, new_index);
 }
 
 static void PushOpCode(ms_VMOpCodeType type, int arg, CodeGenContext *ctx) {

@@ -1838,6 +1838,62 @@ MunitResult prs_TestCodeGenForIncStatements(const MunitParameter params[], void 
 }
 
 MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "for var i in range { }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_NULL(),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_NEW_NAME, 1),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_NEXT, 0),
+                    VM_OPC(OPC_SET_NAME, 1),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 10),
+                    VM_OPC(OPC_GOTO, 2),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("range"),
+                    AST_IDENT_NAME("i"),
+                },
+                .nops = 11, .nvals = 1, .nidents = 2
+            },
+        },
+        {
+            .val = "for i in range { }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_NULL(),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_NEXT, 0),
+                    VM_OPC(OPC_SET_NAME, 1),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 9),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("range"),
+                    AST_IDENT_NAME("i"),
+                },
+                .nops = 10, .nvals = 1, .nidents = 2
+            },
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 
