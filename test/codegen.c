@@ -1984,6 +1984,156 @@ MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void
 }
 
 MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "if cost >= money { }",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 6),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("cost"),
+                    AST_IDENT_NAME("money"),
+                },
+                .nops = 6, .nvals = 0, .nidents = 2
+            },
+        },
+        {
+            .val = "if cost >= money { \n"
+                "    // do nothing\n"
+                "} else { \n"
+                "    // also do nothing\n"
+                "}",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 7),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 9),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("cost"),
+                    AST_IDENT_NAME("money"),
+                },
+                .nops = 9, .nvals = 0, .nidents = 2
+            },
+        },
+        {
+            .val = "if cost >= money { \n"
+                "    // freak out\n"
+                "} else if cost == money { \n"
+                "    // sigh a breath of relief\n"
+                "} else { \n"
+                "    // all good\n"
+                "}",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 7),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 16),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 14),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 16),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("cost"),
+                    AST_IDENT_NAME("money"),
+                },
+                .nops = 16, .nvals = 0, .nidents = 2
+            },
+        },
+        {
+            .val = "if pct >= 0.9 {\n"
+                "    return \"A\";\n"
+                "} else if pct >= 0.8 { \n"
+                "    return \"B\";\n"
+                "} else if pct >= 0.7 { \n"
+                "    return \"C\";\n"
+                "} else {\n"
+                "    return \"F\";\n"
+                "}",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_FLOAT(0.9),
+                    VM_STR("A"),
+                    VM_FLOAT(0.8),
+                    VM_STR("B"),
+                    VM_FLOAT(0.7),
+                    VM_STR("C"),
+                    VM_STR("F"),
+                },
+                .code = (ms_VMOpCode[]){
+                    /* pct >= 0.9 */
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 9),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_RETURN, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 31),
+
+                    /* pct >= 0.8 */
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 18),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_RETURN, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 31),
+
+                    /* pct >= 0.7 */
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 27),
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 5),
+                    VM_OPC(OPC_RETURN, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                    VM_OPC(OPC_GOTO, 31),
+
+                    /* else */
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 6),
+                    VM_OPC(OPC_RETURN, 0),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = (DSBuffer*[]){
+                    AST_IDENT_NAME("pct"),
+                },
+                .nops = 31, .nvals = 7, .nidents = 1
+            },
+        },
+    };
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
     return MUNIT_OK;
 }
 

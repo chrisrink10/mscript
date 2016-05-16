@@ -819,25 +819,30 @@ static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, CodeGenContext *ctx) {
     BlockToOpCodes(ifstmt->block, &blkctx);
     size_t n = dsarray_len(ctx->opcodes);
 
-    /* update IF opcode with n+1 argument */
-    ms_VMOpCode *opcif = dsarray_get(ctx->opcodes, i);
-    *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)n+1);
-    assert((n + 1) <= OPC_ARG_MAX);
-
-    /* push the GOTO instruction on and cache its index */
-    size_t j = dsarray_len(ctx->opcodes);
-    PushOpCode(OPC_GOTO, 0, ctx);
-
-    /* push any opcodes associated with subordinate branches */
     if (ifstmt->elif) {
-        StmtElseIfToOpCodes(ifstmt->elif, ctx);
-    }
+        /* update IF opcode with n+1 argument */
+        ms_VMOpCode *opcif = dsarray_get(ctx->opcodes, i);
+        *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)n+1);
+        assert((n + 1) <= OPC_ARG_MAX);
 
-    /* update the original GOTO instruction argument */
-    size_t eob = dsarray_len(ctx->opcodes) - i;
-    ms_VMOpCode *opcgoto = dsarray_get(ctx->opcodes, j);
-    *opcgoto = ms_VMOpCodeWithArg(OPC_GOTO, (int)eob);
-    assert(eob <= OPC_ARG_MAX);
+        /* push the GOTO instruction on and cache its index */
+        size_t j = dsarray_len(ctx->opcodes);
+        PushOpCode(OPC_GOTO, 0, ctx);
+
+        /* push any opcodes associated with subordinate branches */
+        StmtElseIfToOpCodes(ifstmt->elif, ctx);
+
+        /* update the original GOTO instruction argument */
+        size_t eob = dsarray_len(ctx->opcodes);
+        ms_VMOpCode *opcgoto = dsarray_get(ctx->opcodes, j);
+        *opcgoto = ms_VMOpCodeWithArg(OPC_GOTO, (int)eob);
+        assert(eob <= OPC_ARG_MAX);
+    } else {
+        /* update IF opcode with n argument */
+        ms_VMOpCode *opcif = dsarray_get(ctx->opcodes, i);
+        *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)n);
+        assert(n <= OPC_ARG_MAX);
+    }
 }
 
 static void StmtElseIfToOpCodes(const ms_StmtIfElse *elif, CodeGenContext *ctx) {
