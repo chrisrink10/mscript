@@ -86,6 +86,14 @@ MunitTest codegen_tests[] = {
         NULL
     },
     {
+        "/BreakAndContinueStatements",
+        prs_TestCodeGenBreakAndContinueStatements,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/DeleteStatement",
         prs_TestCodeGenDeleteStatement,
         NULL,
@@ -1610,6 +1618,51 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
                 .idents = NULL,
                 .nops = 5, .nvals = 4, .nidents = 0
             }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "for true { break; }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 5),
+                    VM_OPC(OPC_GOTO, 5),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = NULL,
+                .nops = 6, .nvals = 1, .nidents = 0
+            },
+        },
+        {
+            .val = "for true { continue; }",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_BOOL(true),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH_BLOCK, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 5),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_GOTO, 1),
+                    VM_OPC(OPC_POP_BLOCK, 0),
+                },
+                .idents = NULL,
+                .nops = 6, .nvals = 1, .nidents = 0
+            },
         },
     };
 
