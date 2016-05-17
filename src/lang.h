@@ -148,6 +148,15 @@ typedef enum {
 } ms_ExprBinaryOp;
 
 typedef struct {
+    ms_ExprAtom cond;
+    ms_ExprAtomType condtype;
+    ms_ExprAtom iftrue;
+    ms_ExprAtomType truetype;
+    ms_ExprAtom iffalse;
+    ms_ExprAtomType falsetype;
+} ms_ExprConditional;
+
+typedef struct {
     ms_ExprAtom latom;
     ms_ExprAtomType ltype;
     ms_ExprBinaryOp op;
@@ -156,11 +165,13 @@ typedef struct {
 } ms_ExprBinary;
 
 typedef union {
+    ms_ExprConditional *c;
     ms_ExprBinary *b;
     ms_ExprUnary *u;
 } ms_ExprComponent;
 
 typedef enum {
+    EXPRTYPE_CONDITIONAL,
     EXPRTYPE_BINARY,
     EXPRTYPE_UNARY
 } ms_ExprType;
@@ -176,6 +187,9 @@ typedef enum {
     EXPRLOC_UNARY,
     EXPRLOC_LEFT,
     EXPRLOC_RIGHT,
+    EXPRLOC_COND,
+    EXPRLOC_TRUE,
+    EXPRLOC_FALSE,
 } ms_ExprLocation;
 
 /*

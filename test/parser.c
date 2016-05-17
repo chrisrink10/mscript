@@ -67,6 +67,11 @@ static char* bad_code[] = {
     "true.;",
     "name.;",
     "name.second.;",
+    "select( ;",
+    "select(name ;",
+    "select(name);",
+    "select(name:);",
+    "select(name: value,);",
     "break \"string\";",
     "continue 3.14;",
     "del;",
@@ -144,6 +149,14 @@ MunitTest parser_tests[] = {
     {
         "/BinaryExpressions",
         prs_TestParseBinaryExprs,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ConditionalExpressions",
+        prs_TestParseConditionalExprs,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -315,7 +328,9 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_EXPRCOMPONENT_UNARY(atomtype, opname, atomv) \
                                     AST_EXPRCOMPONENT(u, ((ms_ExprUnary){ .type = atomtype, .op = opname, .atom = atomv }))
 #define AST_EXPRCOMPONENT_BINARY(latomv, latomtype, opname, ratomv, ratomtype) \
-                                    AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .latom = latomv, .ltype = latomtype, .op = opname, .ratom = ratomv, .rtype = ratomtype}))
+                                     AST_EXPRCOMPONENT(b, ((ms_ExprBinary){ .latom = latomv, .ltype = latomtype, .op = opname, .ratom = ratomv, .rtype = ratomtype}))
+#define AST_EXPRCOMPONENT_COND(catom, ctype, tatom, ttype, fatom, ftype) \
+                                    AST_EXPRCOMPONENT(c, ((ms_ExprConditional){ .cond = catom, .condtype = ctype, .iftrue = tatom, .truetype = ttype, .iffalse = fatom, .falsetype = ftype}))
 #define AST_EXPRATOM_EXPR(eatom)    ((ms_ExprAtom){ .expr = &eatom })
 #define AST_EXPRATOM_VAL(vatom)     ((ms_ExprAtom){ .val = vatom })
 #define AST_EXPRATOM_IDENT(iatom)   ((ms_ExprAtom){ .ident = iatom })
@@ -323,6 +338,8 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_UNARY(atp, uop, v)      AST_EXPR(EXPRTYPE_UNARY, AST_EXPRCOMPONENT_UNARY(atp, uop, v))
 #define AST_BINARY(latp, lv, op, ratp, rv) \
                                     AST_EXPR(EXPRTYPE_BINARY, AST_EXPRCOMPONENT_BINARY(lv, latp, op, rv, ratp))
+#define AST_COND(ca, ctp, ta, ttp, fa, ftp) \
+                                    AST_EXPR(EXPRTYPE_CONDITIONAL, AST_EXPRCOMPONENT_COND(ca, ctp, ta, ttp, fa, ftp))
 #define AST_IDENT_NAME(v)           (dsbuf_new_l(v, sizeof(v)-1))
 
 // Expression macros
@@ -342,6 +359,14 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_GETATTR_E(e, lst)       AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_GETATTR_I(id, lst)      AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_CEXPR_VVV(v1, v2, v3)   AST_COND(AST_EXPRATOM_VAL(v1), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
+#define AST_CEXPR_EEE(e1, e2, e3)   AST_COND(AST_EXPRATOM_EXPR(e1), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e2), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e3), EXPRATOM_EXPRESSION)
+#define AST_CEXPR_III(i1, i2, i3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i2), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i3), EXPRATOM_IDENT)
+#define AST_CEXPR_IVV(i1, v2, v3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
+#define AST_CEXPR_IIV(i1, i2, v3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i2), EXPRATOM_IDENT, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
+#define AST_CEXPR_EVV(e1, v2, v3)   AST_COND(AST_EXPRATOM_EXPR(e1), EXPRATOM_EXPRESSION, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
+#define AST_CEXPR_IVE(i1, v2, e3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_EXPR(e3), EXPRATOM_EXPRESSION)
+#define AST_CEXPR_EVE(e1, v2, e3)   AST_COND(AST_EXPRATOM_EXPR(e1), EXPRATOM_EXPRESSION, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_EXPR(e3), EXPRATOM_EXPRESSION)
 #define AST_IDENT(tp, v)            &((ms_Ident){ .type = tp, .name = AST_IDENT_NAME(v) }) /* subtract one to ignore the terminating NUL */
 #define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)(((ms_Expr*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 #define AST_EMPTY_EXPRLIST()        (dsarray_new_cap(1, NULL, NULL))
@@ -619,6 +644,35 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
             .val = "1 || null;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_BEXPR_VV(VM_INT(1), BINARY_OR, VM_NULL()),
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "(use_degrees) ? 360 : 2.0 * pi;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_CEXPR_IVE(AST_IDENT(IDENT_NAME, "use_degrees"), VM_INT(360), AST_BEXPR_VI(VM_FLOAT(2.0), BINARY_TIMES, AST_IDENT(IDENT_NAME, "pi"))),
+        },
+        {
+            .val = "select(has_value: value);",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_CEXPR_IIV(AST_IDENT(IDENT_NAME, "has_value"), AST_IDENT(IDENT_NAME, "value"), VM_NULL()),
+        },
+        {
+            .val = "select(has_value: value, 10);",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_CEXPR_IIV(AST_IDENT(IDENT_NAME, "has_value"), AST_IDENT(IDENT_NAME, "value"), VM_INT(10)),
+        },
+        {
+            .val = "select(i >= 10: 10, i >= 5: 5, 0);",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_CEXPR_EVE(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "i"), BINARY_GE, VM_INT(10)), VM_INT(10), AST_CEXPR_EVV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "i"), BINARY_GE, VM_INT(5)), VM_INT(5), VM_INT(0))),
         },
     };
 
@@ -1530,6 +1584,15 @@ static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2
             munit_assert_cmp_int(expr1->cmpnt.b->rtype, ==, expr2->cmpnt.b->rtype);
             CompareExpressionAtoms(expr1->cmpnt.b->rtype, &expr1->cmpnt.b->ratom, &expr2->cmpnt.b->ratom);
             break;
+        case EXPRTYPE_CONDITIONAL:
+            munit_assert_cmp_int(expr1->cmpnt.c->condtype, ==, expr2->cmpnt.c->condtype);
+            CompareExpressionAtoms(expr1->cmpnt.c->condtype, &expr1->cmpnt.c->cond, &expr2->cmpnt.c->cond);
+            munit_assert_cmp_int(expr1->cmpnt.c->truetype, ==, expr2->cmpnt.c->truetype);
+            CompareExpressionAtoms(expr1->cmpnt.c->truetype, &expr1->cmpnt.c->iftrue, &expr2->cmpnt.c->iftrue);
+            munit_assert_cmp_int(expr1->cmpnt.c->falsetype, ==, expr2->cmpnt.c->falsetype);
+            CompareExpressionAtoms(expr1->cmpnt.c->falsetype, &expr1->cmpnt.c->iffalse, &expr2->cmpnt.c->iffalse);
+            break;
+
     }
 
     return MUNIT_OK;
@@ -1796,6 +1859,11 @@ static void CleanExpression(ms_Expr *expr) {
         case EXPRTYPE_BINARY:
             CleanExpressionAtom(expr->cmpnt.b->ltype, &expr->cmpnt.b->latom);
             CleanExpressionAtom(expr->cmpnt.b->rtype, &expr->cmpnt.b->ratom);
+            return;
+        case EXPRTYPE_CONDITIONAL:
+            CleanExpressionAtom(expr->cmpnt.c->condtype, &expr->cmpnt.c->cond);
+            CleanExpressionAtom(expr->cmpnt.c->truetype, &expr->cmpnt.c->iftrue);
+            CleanExpressionAtom(expr->cmpnt.c->falsetype, &expr->cmpnt.c->iffalse);
             return;
     }
 }
