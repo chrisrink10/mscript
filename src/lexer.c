@@ -434,12 +434,24 @@ cleanup_token:
 char *ms_TokenToString(ms_Token *tok) {
     if (!tok) { return 0; }
     const char* tok_name = ms_TokenName(tok);
-    size_t len = dsbuf_len(tok->value) + strlen(tok_name) + 28;
-    char* str = malloc(len);
-    if (!str) { return NULL; }
-    snprintf(str, len, "Token(%s, \"%s\", %zu, %zu)", tok_name,
-             dsbuf_char_ptr(tok->value), tok->line, tok->col);
-    return str;
+
+    size_t len = 0;
+    char *buf = NULL;
+
+gen_token_string:
+    len = snprintf(buf, len, "Token(%s, \"%s\", %zu, %zu)", tok_name,
+                   dsbuf_char_ptr(tok->value), tok->line, tok->col);
+
+    if (buf) {
+        return buf;
+    }
+
+    buf = malloc(len + 1);
+    if (!buf) {
+        return NULL;
+    }
+
+    goto gen_token_string;
 }
 
 void ms_TokenDestroy(ms_Token *tok) {
