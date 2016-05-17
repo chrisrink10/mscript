@@ -25,6 +25,82 @@
  * MACROS AND CONSTANTS
  */
 
+// Token name constants
+const char *const TOK_ERROR = "ERROR";
+const char *const TOK_RESERVED_KW = "RESERVED_KW";
+const char *const TOK_IDENTIFIER = "IDENTIFIER";
+const char *const TOK_BUILTIN_FUNC = "BUILTIN_FUNC";
+const char *const TOK_GLOBAL = "GLOBAL";
+const char *const TOK_NEWLINE = "NEWLINE";
+const char *const TOK_QUESTION_MARK = "QUESTION_MARK";
+const char *const TOK_SEMICOLON = "SEMICOLON";
+const char *const TOK_COMMA = "COMMA";
+const char *const TOK_PERIOD = "PERIOD";
+const char *const TOK_RBRACE = "RBRACE";
+const char *const TOK_LBRACE = "LBRACE";
+const char *const TOK_RBRACKET = "RBRACKET";
+const char *const TOK_LBRACKET = "LBRACKET";
+const char *const TOK_RPAREN = "RPAREN";
+const char *const TOK_LPAREN = "LPAREN";
+const char *const TOK_COLON = "COLON";
+const char *const TOK_OP_SAFE_REFERENCE = "OP_SAFE_REFERENCE";
+const char *const TOK_OP_BITWISE_AND_EQUALS = "OP_BITWISE_AND_EQUALS";
+const char *const TOK_OP_BITWISE_OR_EQUALS = "OP_BITWISE_OR_EQUALS";
+const char *const TOK_OP_BITWISE_XOR_EQUALS = "OP_BITWISE_XOR_EQUALS";
+const char *const TOK_OP_SHIFT_LEFT_EQUALS = "OP_SHIFT_LEFT_EQUALS";
+const char *const TOK_OP_SHIFT_RIGHT_EQUALS = "OP_SHIFT_RIGHT_EQUALS";
+const char *const TOK_OP_BITWISE_AND = "OP_BITWISE_AND";
+const char *const TOK_OP_BITWISE_OR = "OP_BITWISE_OR";
+const char *const TOK_OP_BITWISE_XOR = "OP_BITWISE_XOR";
+const char *const TOK_OP_BITWISE_NOT = "OP_BITWISE_NOT";
+const char *const TOK_OP_SHIFT_LEFT = "OP_SHIFT_LEFT";
+const char *const TOK_OP_SHIFT_RIGHT = "OP_SHIFT_RIGHT";
+const char *const TOK_OP_LE = "OP_LE";
+const char *const TOK_OP_GE = "OP_GE";
+const char *const TOK_NOT_EQ = "OP_NOT_EQ";
+const char *const TOK_OP_NOT = "OP_NOT";
+const char *const TOK_OP_EQ = "OP_EQ";
+const char *const TOK_OP_LT = "OP_LT";
+const char *const TOK_OP_GT = "OP_GT";
+const char *const TOK_OP_DOUBLE_EQ = "OP_DOUBLE_EQ";
+const char *const TOK_OP_EXPONENTIATE = "OP_EXPONENTIATE";
+const char *const TOK_OP_OR = "OP_OR";
+const char *const TOK_OP_AND = "OP_AND";
+const char *const TOK_OP_MODULO_EQUALS = "OP_MODULO_EQUALS";
+const char *const TOK_OP_IDIVIDE_EQUALS = "OP_IDIVIDE_EQUALS";
+const char *const TOK_OP_DIVIDE_EQUALS = "OP_DIVIDE_EQUALS";
+const char *const TOK_OP_TIMES_EQUALS = "OP_TIMES_EQUALS";
+const char *const TOK_OP_MINUS_EQUALS = "OP_MINUS_EQUALS";
+const char *const TOK_OP_PLUS_EQUALS = "OP_PLUS_EQUALS";
+const char *const TOK_OP_MODULO = "OP_MODULO";
+const char *const TOK_OP_IDIVIDE = "OP_IDIVIDE";
+const char *const TOK_OP_DIVIDE = "OP_DIVIDE";
+const char *const TOK_OP_TIMES = "OP_TIMES";
+const char *const TOK_OP_MINUS = "OP_MINUS";
+const char *const TOK_OP_PLUS = "OP_PLUS";
+const char *const TOK_OP_UMINUS = "OP_UMINUS";
+const char *const TOK_KW_MERGE = "KW_MERGE";
+const char *const TOK_KW_NULL = "KW_NULL";
+const char *const TOK_KW_FALSE = "KW_FALSE";
+const char *const TOK_KW_TRUE = "KW_TRUE";
+const char *const TOK_KW_DEL = "KW_DEL";
+const char *const TOK_KW_VAR = "KW_VAR";
+const char *const TOK_KW_BREAK = "KW_BREAK";
+const char *const TOK_KW_CONTINUE = "KW_CONTINUE";
+const char *const TOK_KW_IMPORT = "KW_IMPORT";
+const char *const TOK_KW_FOR = "KW_FOR";
+const char *const TOK_KW_RETURN = "KW_RETURN";
+const char *const TOK_KW_ELSE = "KW_ELSE";
+const char *const TOK_KW_IF = "KW_IF";
+const char *const TOK_KW_FUNC = "KW_FUNC";
+const char *const TOK_KW_IS = "KW_IS";
+const char *const TOK_KW_IN = "KW_IN";
+const char *const TOK_KW_SELECT = "KW_SELECT";
+const char *const TOK_STRING = "STRING";
+const char *const TOK_INT_NUMBER = "INT_NUMBER";
+const char *const TOK_FLOAT_NUMBER = "FLOAT_NUMBER";
+const char *const TOK_HEX_NUMBER = "HEX_NUMBER";
+
 // Default token buffer size
 static const int DEFAULT_TOKEN_BUFFER = 10;
 
@@ -46,6 +122,7 @@ static KeywordTuple KEYWORDS[] = {
     { "func", KW_FUNC }, { "del", KW_DEL }, { "continue", KW_CONTINUE },
     { "break", KW_BREAK }, { "import", KW_IMPORT }, { "merge", KW_MERGE },
     { "var", KW_VAR },  { "in", KW_IN }, { "is", KW_IS }, { "for", KW_FOR },
+    { "select", KW_SELECT },
 
     // Unused and reserved keywords
     { "switch", RESERVED_KW }, { "error", RESERVED_KW }, { "goto", RESERVED_KW },
@@ -336,10 +413,19 @@ begin_lex:              // Jump label for ignored input
         case '!':
             n = LexerPeek(lex);
             if (n == '=') {
-                LexerNextChar(lex);
-                return LexerTokenNew(lex, OP_NOT_EQ, "!=", 1);
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_NOT_EQ, "!=", 2);
             }
             return LexerTokenNew(lex, OP_NOT, "!", 1);
+
+            // Conditional operator
+        case '?':
+            n = LexerPeek(lex);
+            if (n == '.') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_SAFE_REFERENCE, "?.", 2);
+            }
+            return LexerTokenNew(lex, QUESTION_MARK, "?", 1);
 
             // Various unambiguous symbols
         case '(':   return LexerTokenNew(lex, LPAREN, "(", 1);
@@ -391,8 +477,6 @@ begin_lex:              // Jump label for ignored input
             return LexerLexNumber(lex, n);
 
             // Unused (but invalid) symbols
-        case '?':
-            return LexerTokenError(lex, "?");
         case '`':
             return LexerTokenError(lex, "`");
         case '#':
@@ -493,6 +577,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case KW_MERGE:                  return TOK_KW_MERGE;
         case KW_IS:                     return TOK_KW_IS;
         case KW_IN:                     return TOK_KW_IN;
+        case KW_SELECT:                 return TOK_KW_SELECT;
         case OP_UMINUS:                 return TOK_OP_UMINUS;
         case OP_PLUS:                   return TOK_OP_PLUS;
         case OP_MINUS:                  return TOK_OP_MINUS;
@@ -528,6 +613,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case OP_BITWISE_XOR_EQUALS:     return TOK_OP_BITWISE_XOR_EQUALS;
         case OP_SHIFT_LEFT_EQUALS:      return TOK_OP_SHIFT_LEFT_EQUALS;
         case OP_SHIFT_RIGHT_EQUALS:     return TOK_OP_SHIFT_RIGHT_EQUALS;
+        case OP_SAFE_REFERENCE:         return TOK_OP_SAFE_REFERENCE;
         case COLON:                     return TOK_COLON;
         case LPAREN:                    return TOK_LPAREN;
         case RPAREN:                    return TOK_RPAREN;
@@ -538,6 +624,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case PERIOD:                    return TOK_PERIOD;
         case COMMA:                     return TOK_COMMA;
         case SEMICOLON:                 return TOK_SEMICOLON;
+        case QUESTION_MARK:             return TOK_QUESTION_MARK;
         case NEWLINE_TOK:               return TOK_NEWLINE;
     }
 

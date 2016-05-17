@@ -116,7 +116,7 @@ static MunitParameterEnum builtin_params[] = {
 };
 
 static char* invalid_identifier_vals[] = {
-    "$", "@", "@-some-name", "$%%%%", "?", "`", "#",
+    "$", "@", "@-some-name", "$%%%%", "`", "#",
     NULL
 };
 
@@ -319,6 +319,7 @@ MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data) 
         { "in", KW_IN },
         { "is", KW_IS },
         { "for", KW_FOR },
+        { "select", KW_SELECT },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
@@ -386,6 +387,7 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { ">>=", OP_SHIFT_RIGHT_EQUALS },
         { "<<", OP_SHIFT_LEFT },
         { "<<=", OP_SHIFT_LEFT_EQUALS },
+        { "?.", OP_SAFE_REFERENCE },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
@@ -404,6 +406,7 @@ MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_dat
         { ".", PERIOD },
         { ",", COMMA },
         { ";", SEMICOLON },
+        { "?", QUESTION_MARK },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
