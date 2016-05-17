@@ -28,9 +28,27 @@ typedef struct ms_Expr ms_Expr;
  */
 
 typedef DSArray ms_StmtBlock;
-typedef DSBuffer ms_Ident;
 typedef DSArray ms_ExprList;
 typedef DSArray ms_ArgList;
+
+typedef enum {
+    IDENT_NAME,
+    IDENT_BUILTIN,
+    IDENT_GLOBAL,
+} ms_IdentType;
+
+typedef struct {
+    ms_IdentType type;
+    DSBuffer *name;
+} ms_Ident;
+
+typedef enum {
+    EXPRIDENT_NONE,
+    EXPRIDENT_NAME,
+    EXPRIDENT_BUILTIN,
+    EXPRIDENT_GLOBAL,
+    EXPRIDENT_QUALIFIED
+} ms_ExprIdentType;
 
 /*
  * VALUE LANGUAGE COMPONENTS
@@ -363,15 +381,23 @@ ms_Expr *ms_ExprDup(const ms_Expr *src);
 ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc);
 
 /**
-* @brief Determine if an expression contains _only_ a single identifier.
+* @brief Determine the type of identifier contained in an expression.
+*
+* Identifiers within expressions can be: builtins, normal identifiers,
+* global names, or qualified identifiers (which are composed of one
+* normal identifier and one or more accessors).
 */
-bool ms_ExprIsIdent(const ms_Expr *expr);
+ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr);
 
 /**
-* @brief Determine if an expression contains _only_ a qualified identifier.
-* Qualified identifiers are in the form: IDENTIFIER ('.' IDENTIFIER)*
+* @brief Determine the type of identifier.
 */
-bool ms_ExprIsQualifiedIdent(const ms_Expr *expr);
+ms_IdentType ms_IdentGetType(const char *ident);
+
+/**
+* @brief Destroy the given @c ms_Ident .
+*/
+void ms_IdentDestroy(ms_Ident *ident);
 
 /**
 * @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.

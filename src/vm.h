@@ -85,12 +85,12 @@ ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMEr
 /**
 * @brief Peek at the top data value on the current VM frame.
 */
-ms_Value *ms_VMTop(ms_VM *vm);
+ms_VMValue *ms_VMTop(ms_VM *vm);
 
 /*
 * @brief Pop the top value off the data stack on the current VM frame.
 */
-ms_Value ms_VMPop(ms_VM *vm);
+ms_VMValue ms_VMPop(ms_VM *vm);
 
 /**
 * @brief Set the VM error message.
@@ -100,7 +100,7 @@ void ms_VMErrorSet(ms_VM *vm, const char *msg, ...);
 /*
 * @brief Push a new value onto the data stack of the current VM frame.
 */
-void ms_VMPush(ms_VM *vm, ms_Value val);
+void ms_VMPush(ms_VM *vm, ms_VMValue val);
 
 /*
 * @brief Push a floating point value onto the stack.
@@ -140,7 +140,7 @@ void ms_VMSwap(ms_VM *vm);
 /**
 * @brief Get a function pointer for the given primitive type and method.
 */
-ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_ValDataType type, const char *method);
+ms_Function ms_VMPrototypeFuncGet(ms_VM *vm, ms_VMDataType type, const char *method);
 
 /**
 * @brief Clear the data stack and reset the instruction pointer.
@@ -163,6 +163,6 @@ void ms_VMDestroy(ms_VM *vm);
 * @param l a pointer to an integer which will be filled if @c f contains an int
 * @returns true if @c f contains an integer; false otherwise
 */
-bool ms_VMFloatIsInt(ms_ValFloat f, ms_ValInt *l);
+bool ms_VMFloatIsInt(ms_VMFloat f, ms_VMInt *l);
 
 #endif //MSCRIPT_VM_H

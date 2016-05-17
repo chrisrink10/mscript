@@ -27,6 +27,7 @@ static const char *const TOK_IDENTIFIER = "IDENTIFIER";
 static const char *const TOK_BUILTIN_FUNC = "BUILTIN_FUNC";
 static const char *const TOK_GLOBAL = "GLOBAL";
 static const char *const TOK_NEWLINE = "NEWLINE";
+static const char *const TOK_SEMICOLON = "SEMICOLON";
 static const char *const TOK_COMMA = "COMMA";
 static const char *const TOK_PERIOD = "PERIOD";
 static const char *const TOK_RBRACE = "RBRACE";
@@ -155,6 +156,7 @@ typedef enum ms_TokenType {
     RBRACE,
     PERIOD,
     COMMA,
+    SEMICOLON,
     NEWLINE_TOK
 } ms_TokenType;
 

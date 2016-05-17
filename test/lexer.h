@@ -35,7 +35,6 @@ MunitResult lex_TestLexBuiltins(const MunitParameter *params, void *user_data);
 MunitResult lex_TestLexInvalidIdentifiers(const MunitParameter *params, void *user_data);
 MunitResult lex_TestLexOperators(const MunitParameter *params, void *user_data);
 MunitResult lex_TestLexPunctuation(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexNewlines(const MunitParameter *params, void *user_data);
 MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data);
 MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_data);
 

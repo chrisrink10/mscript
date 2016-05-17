@@ -90,8 +90,16 @@ ms_Expr *ms_ExprNewWithIdent(const char *name, size_t len) {
         return NULL;
     }
 
-    expr->cmpnt.u->atom.ident = dsbuf_new_l(name, len);
+    expr->cmpnt.u->atom.ident = malloc(sizeof(ms_Ident));
     if (!expr->cmpnt.u->atom.ident) {
+        free(expr);
+        return NULL;
+    }
+
+    expr->cmpnt.u->atom.ident->name = dsbuf_new_l(name, len);
+    expr->cmpnt.u->atom.ident->type = ms_IdentGetType(name);
+    if (!expr->cmpnt.u->atom.ident->name) {
+        free(expr->cmpnt.u->atom.ident);
         free(expr);
         return NULL;
     }
@@ -280,69 +288,95 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
     return outer;
 }
 
-bool ms_ExprIsIdent(const ms_Expr *expr) {
-    if (!expr) {
-        return false;
-    }
-
-    if (expr->type != EXPRTYPE_UNARY) {
-        return false;
-    }
-
-    if (!expr->cmpnt.u) {
-        return false;
-    }
-
-    if (expr->cmpnt.u->op != UNARY_NONE) {
-        return false;
-    }
-
-    if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
-        return false;
-    }
-
-    return true;
-}
-
-bool ms_ExprIsQualifiedIdent(const ms_Expr *expr) {
-    if (!expr) {
-        return false;
-    }
+ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
+    assert(expr);
 
     if (expr->type == EXPRTYPE_UNARY) {
-        return ms_ExprIsIdent(expr);
-    }
-
-    if (!expr->cmpnt.b) {
-        return false;
-    }
-
-    if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
-        if (!ms_ExprIsQualifiedIdent(expr->cmpnt.b->latom.expr)) {
-            return false;
+        if (!expr->cmpnt.u) {
+            return EXPRIDENT_NONE;
         }
-    } else if (expr->cmpnt.b->ltype != EXPRATOM_IDENT) {
-        return false;
-    }
 
-    if (expr->cmpnt.b->rtype != EXPRATOM_VALUE) {
-        return false;
-    }
+        if (expr->cmpnt.u->op != UNARY_NONE) {
+            return EXPRIDENT_NONE;
+        }
 
-    if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
-        return false;
-    }
+        if (expr->cmpnt.u->type != EXPRATOM_IDENT) {
+            return EXPRIDENT_NONE;
+        }
 
-    if (expr->cmpnt.b->op != BINARY_GETATTR) {
-        return false;
-    }
+        switch (expr->cmpnt.u->atom.ident->type) {
+            case IDENT_GLOBAL:
+                return EXPRIDENT_GLOBAL;
+            case IDENT_BUILTIN:
+                return EXPRIDENT_BUILTIN;
+            case IDENT_NAME:
+                return EXPRIDENT_NAME;
+        }
 
-    return true;
+        return EXPRIDENT_NONE;
+    } else {
+        if (!expr->cmpnt.b) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->op != BINARY_GETATTR) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->rtype == EXPRATOM_VALUE) {
+            if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
+                return EXPRIDENT_NONE;
+            }
+        } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
+            return EXPRIDENT_NONE;
+        }
+
+        if (expr->cmpnt.b->ltype == EXPRATOM_EXPRESSION) {
+            ms_ExprIdentType inner_type = ms_ExprGetIdentType(expr->cmpnt.b->latom.expr);
+            if ((inner_type == EXPRIDENT_NAME) ||
+                (inner_type == EXPRIDENT_QUALIFIED)) {
+                return EXPRIDENT_QUALIFIED;
+            } else {
+                return inner_type;
+            }
+        } else if (expr->cmpnt.b->ltype == EXPRATOM_IDENT) {
+            switch (expr->cmpnt.b->latom.ident->type) {
+                case IDENT_GLOBAL:
+                    return EXPRIDENT_GLOBAL;
+                case IDENT_BUILTIN:
+                    return EXPRIDENT_BUILTIN;
+                case IDENT_NAME:
+                    return EXPRIDENT_QUALIFIED;
+            }
+        }
+
+        return EXPRIDENT_NONE;
+    }
+}
+
+ms_IdentType ms_IdentGetType(const char *ident) {
+    assert(ident);
+
+    switch (ident[0]) {
+        case '$':
+            return IDENT_BUILTIN;
+        case '@':
+            return IDENT_GLOBAL;
+        default:
+            return IDENT_NAME;
+    }
+}
+
+void ms_IdentDestroy(ms_Ident *ident) {
+    if (!ident) { return; }
+    dsbuf_destroy(ident->name);
+    ident->name = NULL;
+    free(ident);
 }
 
 void ms_ValFuncDestroy(ms_ValFunc *fn) {
     if (!fn) { return; }
-    dsbuf_destroy(fn->ident);
+    ms_IdentDestroy(fn->ident);
     fn->ident = NULL;
     dsarray_destroy(fn->args);
     fn->args = NULL;
@@ -440,8 +474,14 @@ static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomTy
             }
             break;
         case EXPRATOM_IDENT:
-            dest->ident = dsbuf_dup(src->ident);
+            dest->ident = malloc(sizeof(ms_Ident));
             if (!dest->ident) {
+                goto expr_atom_dup_fail;
+            }
+
+            dest->ident->type = src->ident->type;
+            dest->ident->name = dsbuf_dup(src->ident->name);
+            if (!dest->ident->name) {
                 goto expr_atom_dup_fail;
             }
             break;
@@ -494,7 +534,7 @@ static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
             atom->expr = NULL;
             break;
         case EXPRATOM_IDENT:
-            dsbuf_destroy(atom->ident);
+            ms_IdentDestroy(atom->ident);
             atom->ident = NULL;
             break;
         case EXPRATOM_EXPRLIST:
@@ -591,7 +631,7 @@ static void StmtImportDestroy(ms_StmtImport *import) {
     if (!import) { return; }
     ms_ExprDestroy(import->ident);
     import->ident = NULL;
-    dsbuf_destroy(import->alias);
+    ms_IdentDestroy(import->alias);
     import->alias = NULL;
     free(import);
 }
@@ -630,7 +670,7 @@ static void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
 
 static void StmtDeclarationDestroy(ms_StmtDeclaration *decl) {
     if (!decl) { return; }
-    dsbuf_destroy(decl->ident);
+    ms_IdentDestroy(decl->ident);
     decl->ident = NULL;
     ms_ExprDestroy(decl->expr);
     decl->expr = NULL;

@@ -173,22 +173,9 @@ begin_lex:              // Jump label for ignored input
         case EOF:
             return NULL;
 
-            // Windows newline \r\n
+            // Whitespace
         case '\r':
-            LexerIncrementLine(lex);
-            LexerAddToBuffer(lex, n);
-            if (!LexerAcceptOne(lex, "\n")) {
-                return LexerTokenError(lex, "\\r");
-            }
-            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
-
-            // Newlines \n
         case '\n':
-            LexerIncrementLine(lex);
-            LexerAddToBuffer(lex, n);
-            return LexerTokenFromBuffer(lex, NEWLINE_TOK);
-
-            // Spaces and tabs
         case ' ':
         case '\t':
         case '\f':
@@ -340,6 +327,7 @@ begin_lex:              // Jump label for ignored input
         case '{':   return LexerTokenNew(lex, LBRACE, "{", 1);
         case '}':   return LexerTokenNew(lex, RBRACE, "}", 1);
         case ',':   return LexerTokenNew(lex, COMMA, ",", 1);
+        case ';':   return LexerTokenNew(lex, SEMICOLON, ";", 1);
 
             // Potential numeric
         case '.':
@@ -381,8 +369,6 @@ begin_lex:              // Jump label for ignored input
             return LexerLexNumber(lex, n);
 
             // Unused (but invalid) symbols
-        case ';':
-            return LexerTokenError(lex, ";");
         case '?':
             return LexerTokenError(lex, "?");
         case '`':
@@ -405,6 +391,7 @@ ms_Token *ms_TokenNew(ms_TokenType type, const char *value, size_t len, size_t l
         goto cleanup_token;
     }
 
+    len = (len == 0) ? 1 : len;             /* guarantee that empty strings have a length since len must be >= 1 */
     tok->value = dsbuf_new_l(value, len);
     if (!tok->value) {
         goto cleanup_token_value;
@@ -511,6 +498,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case RBRACE:            return TOK_RBRACE;
         case PERIOD:            return TOK_PERIOD;
         case COMMA:             return TOK_COMMA;
+        case SEMICOLON:         return TOK_SEMICOLON;
         case NEWLINE_TOK:       return TOK_NEWLINE;
     }
 
@@ -634,14 +622,12 @@ static ms_Token *LexerLexString(ms_Lexer *lex, int first) {
 
     int n;
     int prev = EOF;
-    LexerAddToBuffer(lex, first);
 
     // Accept every next character but:
     // - an escaped version of the opening quotation mark
     // - a new line (this is an error)
     while ((n = LexerNextChar(lex)) != EOF) {
         if ((n == first) && (prev != '\\')) {
-            LexerAddToBuffer(lex, n);
             break;
         }
         if ((n == '\n') || (n == '\r')) {
