@@ -54,6 +54,14 @@ MunitTest codegen_tests[] = {
         NULL
     },
     {
+        "/ConditionalExpressions",
+        prs_TestCodeGenConditionalExprs,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/OperatorPrecedence",
         prs_TestCodeGenExprPrecedence,
         NULL,
@@ -754,6 +762,109 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
                     VM_OPC(OPC_OR, 0),
                 },
                 .nops = 3, .nvals = 2,
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "(use_degrees) ? 360 : 2.0 * pi;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(360),
+                    VM_FLOAT(2.0),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 4),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GOTO, 7),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_MULTIPLY, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("use_degrees"),
+                    VM_IDENT("pi"),
+                }),
+                .nops = 7, .nvals = 2, .nidents = 2
+            }
+        },
+        {
+            .val = "select(has_value: value);",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_NULL(),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 4),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_GOTO, 5),
+                    VM_OPC(OPC_PUSH, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("has_value"),
+                    VM_IDENT("value"),
+                }),
+                .nops = 5, .nvals = 1, .nidents = 2
+            }
+        },
+        {
+            .val = "select(has_value: value, 10);",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(10),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 4),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_GOTO, 5),
+                    VM_OPC(OPC_PUSH, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("has_value"),
+                    VM_IDENT("value"),
+                }),
+                .nops = 5, .nvals = 1, .nidents = 2
+            }
+        },
+        {
+            .val = "select(i >= 10: 10, i >= 5: 5, 0);",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(10),
+                    VM_INT(10),
+                    VM_INT(5),
+                    VM_INT(5),
+                    VM_INT(0),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 6),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GOTO, 13),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_GE, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 12),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_GOTO, 13),
+                    VM_OPC(OPC_PUSH, 4),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("i"),
+                }),
+                .nops = 13, .nvals = 5, .nidents = 1
             }
         },
     };

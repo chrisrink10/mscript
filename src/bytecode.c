@@ -93,6 +93,7 @@ static void ExprToOpCodes(const ms_Expr *expr, CodeGenContext *ctx);
 static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx);
 static void ExprUnaryToOpCodes(const ms_ExprUnary *u, CodeGenContextExpr *ctx);
 static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
+static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx);
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx);
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
@@ -1069,6 +1070,9 @@ static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx) {
         case EXPRTYPE_BINARY:
             ExprBinaryToOpCodes(expr->cmpnt.b, ctx);
             break;
+        case EXPRTYPE_CONDITIONAL:
+            ExprConditionalToOpCodes(expr->cmpnt.c, ctx);
+            break;
     }
 }
 
@@ -1104,6 +1108,9 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             PushOpCode(opc, (int) len, ctx->parent);
             break;
         }
+        case BINARY_SAFEGETATTR: {
+            break;
+        }
         case BINARY_GETATTR: {
             assert((b->rtype == EXPRATOM_EXPRLIST) || (b->rtype == EXPRATOM_VALUE));
             ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
@@ -1137,6 +1144,59 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             break;
         }
     }
+}
+
+static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx) {
+    assert(c);
+    assert(ctx);
+    assert(ctx->parent);
+
+    /***************************************************************************
+     * Conditional expressions should end up looking like this in bytecode:
+     *
+     * index        instruction     arg
+     * -----        -----------     ----
+     * ...          (expr)                      <--- conditional expression
+     * i            IF              j           <--- if TOS evaluated to false, jump to false value
+     * ...          (expr)                      <--- expression if true
+     * ...          GOTO            k           <--- jump past false expression
+     * j            (expr)                      <--- expression if false
+     * k            (...)                       <--- end of branch
+     ***************************************************************************/
+
+    ms_ExprIdentType cond_ident_type = ExprAtomGetIdentType(&c->cond, c->condtype);
+    ExprComponentToOpCodes(&c->cond, c->condtype, ctx);
+
+    if (cond_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    size_t i = dsarray_len(ctx->parent->opcodes);
+    PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx->parent);
+
+    ms_ExprIdentType true_ident_type = ExprAtomGetIdentType(&c->iftrue, c->truetype);
+    ExprComponentToOpCodes(&c->iftrue, c->truetype, ctx);
+
+    if (true_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    PushOpCode(OPC_GOTO, 0, ctx->parent);
+    size_t j = dsarray_len(ctx->parent->opcodes);
+
+    ms_ExprIdentType false_ident_type = ExprAtomGetIdentType(&c->iffalse, c->falsetype);
+    ExprComponentToOpCodes(&c->iffalse, c->falsetype, ctx);
+
+    if (false_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    /* fix the opcode arguments */
+    size_t k = dsarray_len(ctx->parent->opcodes);
+    ms_VMOpCode *ifopc = dsarray_get(ctx->parent->opcodes, i);
+    *ifopc = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)j);
+    ms_VMOpCode *gotoopc = dsarray_get(ctx->parent->opcodes, j-1);
+    *gotoopc = ms_VMOpCodeWithArg(OPC_GOTO, (int)k);
 }
 
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx) {
@@ -1230,6 +1290,9 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
             break;
         case BINARY_GETATTR:
             assert(false && "should not be generating getattr opcode here");
+            break;
+        case BINARY_SAFEGETATTR:
+            assert(false && "should not be generating safegetattr opcode here");
             break;
         default:
             assert(false && "invalid binary expression op found");
