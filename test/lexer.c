@@ -84,7 +84,8 @@ static char *reserved_keyword_vals[] = {
     "while", "switch", "goto", "error", "class", "private", "public",
     "protected", "yield", "from", "try", "except", "finally", "do", "and",
     "or", "mut", "const", "async", "await", "repeat", "until", "package",
-    "num", "str", "bool", "datetime", "obj", "as", "with", "using",
+    "num", "str", "bool", "datetime", "obj", "as", "with", "using", "spawn",
+    "val",
     NULL
 };
 

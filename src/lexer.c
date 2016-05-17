@@ -59,7 +59,8 @@ static KeywordTuple KEYWORDS[] = {
     { "while", RESERVED_KW }, { "except", RESERVED_KW }, { "num", RESERVED_KW },
     { "str", RESERVED_KW }, { "bool", RESERVED_KW }, { "datetime", RESERVED_KW },
     { "obj", RESERVED_KW }, { "as", RESERVED_KW }, { "package", RESERVED_KW },
-    { "with", RESERVED_KW }, { "using", RESERVED_KW }
+    { "with", RESERVED_KW }, { "using", RESERVED_KW }, { "spawn", RESERVED_KW },
+    { "val", RESERVED_KW }
 };
 
 /*
