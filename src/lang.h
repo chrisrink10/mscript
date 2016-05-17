@@ -145,6 +145,7 @@ typedef enum {
     BINARY_OR,
     BINARY_CALL,
     BINARY_GETATTR,
+    BINARY_SAFEGETATTR,
 } ms_ExprBinaryOp;
 
 typedef struct {

@@ -374,7 +374,8 @@ ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
             return EXPRIDENT_NONE;
         }
 
-        if (expr->cmpnt.b->op != BINARY_GETATTR) {
+        if ((expr->cmpnt.b->op != BINARY_GETATTR) &&
+            (expr->cmpnt.b->op != BINARY_SAFEGETATTR)) {
             return EXPRIDENT_NONE;
         }
 

@@ -1110,6 +1110,7 @@ static ms_ParseResult ParserParseSelectBody(ms_Parser *prs, bool saw_full_pair, 
         /* we expected a closing parent but didn't get one */
         if (!ParserExpectToken(prs, RPAREN)) {
             ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ")", prs->line, prs->col);
+            ms_ExprDestroy(cond);
             return PARSE_ERROR;
         }
 
@@ -1134,11 +1135,15 @@ static ms_ParseResult ParserParseSelectBody(ms_Parser *prs, bool saw_full_pair, 
         return ParserExprCombineConditional(prs, cond, iftrue, iffalse, select);
     } else if (!ParserExpectToken(prs, COMMA)) {
         ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ",", prs->line, prs->col);
+        ms_ExprDestroy(cond);
+        ms_ExprDestroy(iftrue);
         return PARSE_ERROR;
     }
 
     ParserConsumeToken(prs);
     if ((res = ParserParseSelectBody(prs, true, &iffalse)) == PARSE_ERROR) {
+        ms_ExprDestroy(cond);
+        ms_ExprDestroy(iftrue);
         return res;
     }
 
@@ -1708,7 +1713,9 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
 
     while (ParserExpectToken(prs, LPAREN) ||
             ParserExpectToken(prs, LBRACKET) ||
-            ParserExpectToken(prs, PERIOD)) {
+            ParserExpectToken(prs, PERIOD) ||
+            ParserExpectToken(prs, OP_SAFE_REFERENCE) ||
+            ParserExpectToken(prs, OP_SAFE_GETATTR)) {
         ms_ExprBinaryOp op;
         ms_Expr *right;
         if ((res = ParserParseAccessor(prs, &right, &op)) == PARSE_ERROR) {
@@ -1733,37 +1740,46 @@ static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr, ms_Exp
     assert(prs);
     assert(expr);
 
-    if (prs->cur->type == LPAREN) {
-        ParserConsumeToken(prs);
-        *op = BINARY_CALL;
-        return ParserParseExprList(prs, expr, RPAREN);
-    } else if (prs->cur->type == LBRACKET) {
-        ParserConsumeToken(prs);
-        *op = BINARY_GETATTR;
-        return ParserParseExprList(prs, expr, RBRACKET);
-    } else if (prs->cur->type == PERIOD) {
-        ParserConsumeToken(prs);
+    ms_TokenType type = prs->cur->type;
+    switch (type) {
+        case LPAREN:
+            ParserConsumeToken(prs);
+            *op = BINARY_CALL;
+            return ParserParseExprList(prs, expr, RPAREN);
+        case OP_SAFE_GETATTR:           /* fall through */
+        case LBRACKET:
+            ParserConsumeToken(prs);
+            *op = (type == LBRACKET) ?
+                  BINARY_GETATTR :
+                  BINARY_SAFEGETATTR;
+            return ParserParseExprList(prs, expr, RBRACKET);
+        case OP_SAFE_REFERENCE:         /* fall through */
+        case PERIOD: {
+            ParserConsumeToken(prs);
 
-        if (!ParserExpectToken(prs, IDENTIFIER)) {
-            ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
-            return PARSE_ERROR;
+            if (!ParserExpectToken(prs, IDENTIFIER)) {
+                ParserErrorSet(prs, ERR_EXPECTED_IDENTIFIER, prs->cur, prs->line, prs->col);
+                return PARSE_ERROR;
+            }
+
+            ms_ValData p;
+            p.s = prs->cur->value;
+            prs->cur->value = NULL;
+            *expr = ms_ExprNewWithVal(MSVAL_STR, p);
+            if (!(*expr)) {
+                ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+                return PARSE_ERROR;
+            }
+
+            ParserConsumeToken(prs);
+            *op = (type == PERIOD) ?
+                  (BINARY_GETATTR) :
+                  (BINARY_SAFEGETATTR);
+            return PARSE_SUCCESS;
         }
-
-        ms_ValData p;
-        p.s = prs->cur->value;
-        prs->cur->value = NULL;
-        *expr = ms_ExprNewWithVal(MSVAL_STR, p);
-        if (!(*expr)) {
-            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
-            return PARSE_ERROR;
-        }
-
-        ParserConsumeToken(prs);
-        *op = BINARY_GETATTR;
-        return PARSE_SUCCESS;
+        default:
+            return PARSE_SUCCESS;
     }
-
-    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_TokenType closer) {

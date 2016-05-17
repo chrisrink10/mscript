@@ -179,6 +179,14 @@ MunitTest parser_tests[] = {
         NULL
     },
     {
+        "/QualifiedIdents",
+        prs_TestParseQualifiedIdents,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/DeleteStatement",
         prs_TestParseDeleteStatement,
         NULL,
@@ -359,6 +367,8 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_GETATTR_E(e, lst)       AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_GETATTR_I(id, lst)      AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_SAFEGETATTR_E(e, lst)   AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_SAFEGETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_SAFEGETATTR_I(id, lst)  AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_SAFEGETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_CEXPR_VVV(v1, v2, v3)   AST_COND(AST_EXPRATOM_VAL(v1), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
 #define AST_CEXPR_EEE(e1, e2, e3)   AST_COND(AST_EXPRATOM_EXPR(e1), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e2), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e3), EXPRATOM_EXPRESSION)
 #define AST_CEXPR_III(i1, i2, i3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i2), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i3), EXPRATOM_IDENT)
@@ -866,6 +876,60 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
             .val = "bar(\"baz\")();",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_FNCALL_E(AST_FNCALL_I(AST_IDENT(IDENT_NAME, "bar"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("baz")))), AST_EMPTY_EXPRLIST()),
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "name;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")),
+        },
+        {
+            .val = "name.first;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("first")),
+        },
+        {
+            .val = "name?.first;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SAFEGETATTR, VM_STR("first")),
+        },
+        {
+            .val = "name[\"first\"];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")))),
+        },
+        {
+            .val = "name?[\"first\"];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_SAFEGETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")))),
+        },
+        {
+            .val = "name?[\"first\", \"second\"];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_SAFEGETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")), &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))),
+        },
+        {
+            .val = "name.first.second.third;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("first")), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")),
+        },
+        {
+            .val = "name?.first?.second?.third;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SAFEGETATTR, VM_STR("first")), BINARY_SAFEGETATTR, VM_STR("second")), BINARY_SAFEGETATTR, VM_STR("third")),
+        },
+        {
+            .val = "name[\"first\", \"second\"]?.third;",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_BEXPR_EV(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")), &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))), BINARY_SAFEGETATTR, VM_STR("third")),
         },
     };
 
