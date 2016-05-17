@@ -264,7 +264,8 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * block:           '{' stmt* '}'
  * func_decl:       'func' IDENTIFIER '(' ident_list ')' block
  * declare:         'var' IDENTIFIER (':=' expr) (',' IDENTIFIER (':=' expr))*
- * assign:          expr (':=' | '+=' | '-=' | '*=' | '/=' | '\=' | '%=') expr
+ * assign:          expr (':=' | '+=' | '-=' | '*=' | '/=' | '\=' | '%='
+ *                  '&=' | '|=' | '^=' | '<<=' | '>>=') expr
  *
  * expr:            or_expr ('||' or_expr)*
  * or_expr:         and_expr ('&&' and_expr)*
