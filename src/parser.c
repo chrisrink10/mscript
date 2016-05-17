@@ -936,7 +936,12 @@ static ms_ParseResult ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
                ParserExpectToken(prs, OP_TIMES_EQUALS) ||
                ParserExpectToken(prs, OP_DIVIDE_EQUALS) ||
                ParserExpectToken(prs, OP_IDIVIDE_EQUALS) ||
-               ParserExpectToken(prs, OP_MODULO_EQUALS)) {
+               ParserExpectToken(prs, OP_MODULO_EQUALS) ||
+               ParserExpectToken(prs, OP_BITWISE_AND_EQUALS) ||
+               ParserExpectToken(prs, OP_BITWISE_OR_EQUALS) ||
+               ParserExpectToken(prs, OP_BITWISE_XOR_EQUALS) ||
+               ParserExpectToken(prs, OP_SHIFT_LEFT_EQUALS) ||
+               ParserExpectToken(prs, OP_SHIFT_RIGHT_EQUALS)) {
 
         if ((ident_type != EXPRIDENT_NAME) &&
             (ident_type != EXPRIDENT_QUALIFIED) &&
@@ -985,13 +990,18 @@ static ms_ParseResult ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *nam
     /* translate compound operator to binary op */
     ms_ExprBinaryOp op = BINARY_EMPTY;
     switch (prs->cur->type) {
-        case OP_PLUS_EQUALS:        op = BINARY_PLUS;       break;
-        case OP_MINUS_EQUALS:       op = BINARY_MINUS;      break;
-        case OP_TIMES_EQUALS:       op = BINARY_TIMES;      break;
-        case OP_DIVIDE_EQUALS:      op = BINARY_DIVIDE;     break;
-        case OP_IDIVIDE_EQUALS:     op = BINARY_IDIVIDE;    break;
-        case OP_MODULO_EQUALS:      op = BINARY_MODULO;     break;
-        default:                    assert(false);          break;
+        case OP_PLUS_EQUALS:            op = BINARY_PLUS;           break;
+        case OP_MINUS_EQUALS:           op = BINARY_MINUS;          break;
+        case OP_TIMES_EQUALS:           op = BINARY_TIMES;          break;
+        case OP_DIVIDE_EQUALS:          op = BINARY_DIVIDE;         break;
+        case OP_IDIVIDE_EQUALS:         op = BINARY_IDIVIDE;        break;
+        case OP_MODULO_EQUALS:          op = BINARY_MODULO;         break;
+        case OP_BITWISE_AND_EQUALS:     op = BINARY_BITWISE_AND;    break;
+        case OP_BITWISE_OR_EQUALS:      op = BINARY_BITWISE_OR;     break;
+        case OP_BITWISE_XOR_EQUALS:     op = BINARY_BITWISE_XOR;    break;
+        case OP_SHIFT_LEFT_EQUALS:      op = BINARY_SHIFT_LEFT;     break;
+        case OP_SHIFT_RIGHT_EQUALS:     op = BINARY_SHIFT_RIGHT;    break;
+        default:                        assert(false);              break;
     }
 
     ParserConsumeToken(prs);

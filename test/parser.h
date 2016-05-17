@@ -40,6 +40,7 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
 MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS

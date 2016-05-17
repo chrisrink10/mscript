@@ -267,6 +267,9 @@ begin_lex:              // Jump label for ignored input
             if (n == '&') {
                 (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_AND, "&&", 2);
+            } else if (n == '=') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_BITWISE_AND_EQUALS, "&=", 2);
             }
             return LexerTokenNew(lex, OP_BITWISE_AND, "&", 1);
 
@@ -276,6 +279,9 @@ begin_lex:              // Jump label for ignored input
             if (n == '|') {
                 (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_OR, "||", 2);
+            } else if (n == '=') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_BITWISE_OR_EQUALS, "|=", 2);
             }
             return LexerTokenNew(lex, OP_BITWISE_OR, "|", 1);
 
@@ -285,6 +291,11 @@ begin_lex:              // Jump label for ignored input
 
             // Bitwise XOR
         case '^':
+            n = LexerPeek(lex);
+            if (n == '=') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_BITWISE_XOR_EQUALS, "^=", 2);
+            }
             return LexerTokenNew(lex, OP_BITWISE_XOR, "^", 1);
 
             // Less than and less equal
@@ -295,6 +306,11 @@ begin_lex:              // Jump label for ignored input
                 return LexerTokenNew(lex, OP_LE, "<=", 2);
             } else if (n == '<') {
                 (void)LexerNextChar(lex);
+                n = LexerPeek(lex);
+                if (n == '=') {
+                    (void)LexerNextChar(lex);
+                    return LexerTokenNew(lex, OP_SHIFT_LEFT_EQUALS, "<<=", 3);
+                }
                 return LexerTokenNew(lex, OP_SHIFT_LEFT, "<<", 2);
             }
             return LexerTokenNew(lex, OP_LT, "<", 1);
@@ -307,6 +323,11 @@ begin_lex:              // Jump label for ignored input
                 return LexerTokenNew(lex, OP_GE, ">=", 2);
             } else if (n == '>') {
                 (void)LexerNextChar(lex);
+                n = LexerPeek(lex);
+                if (n == '=') {
+                    (void)LexerNextChar(lex);
+                    return LexerTokenNew(lex, OP_SHIFT_RIGHT_EQUALS, ">>=", 3);
+                }
                 return LexerTokenNew(lex, OP_SHIFT_RIGHT, ">>", 2);
             }
             return LexerTokenNew(lex, OP_GT, ">", 1);
@@ -435,72 +456,77 @@ const char *ms_TokenName(ms_Token *tok) {
 
 const char *ms_TokenTypeName(ms_TokenType type) {
     switch(type) {
-        case ERROR:             return TOK_ERROR;
-        case RESERVED_KW:       return TOK_RESERVED_KW;
-        case IDENTIFIER:        return TOK_IDENTIFIER;
-        case BUILTIN_FUNC:      return TOK_BUILTIN_FUNC;
-        case GLOBAL:            return TOK_GLOBAL;
-        case FLOAT_NUMBER:      return TOK_FLOAT_NUMBER;
-        case INT_NUMBER:        return TOK_INT_NUMBER;
-        case HEX_NUMBER:        return TOK_HEX_NUMBER;
-        case STRING:            return TOK_STRING;
-        case KW_FUNC:           return TOK_KW_FUNC;
-        case KW_IF:             return TOK_KW_IF;
-        case KW_ELSE:           return TOK_KW_ELSE;
-        case KW_RETURN:         return TOK_KW_RETURN;
-        case KW_FOR:            return TOK_KW_FOR;
-        case KW_IMPORT:         return TOK_KW_IMPORT;
-        case KW_CONTINUE:       return TOK_KW_CONTINUE;
-        case KW_BREAK:          return TOK_KW_BREAK;
-        case KW_VAR:            return TOK_KW_VAR;
-        case KW_DEL:            return TOK_KW_DEL;
-        case KW_TRUE:           return TOK_KW_TRUE;
-        case KW_FALSE:          return TOK_KW_FALSE;
-        case KW_NULL:           return TOK_KW_NULL;
-        case KW_MERGE:          return TOK_KW_MERGE;
-        case KW_IS:             return TOK_KW_IS;
-        case KW_IN:             return TOK_KW_IN;
-        case OP_UMINUS:         return TOK_OP_UMINUS;
-        case OP_PLUS:           return TOK_OP_PLUS;
-        case OP_MINUS:          return TOK_OP_MINUS;
-        case OP_TIMES:          return TOK_OP_TIMES;
-        case OP_DIVIDE:         return TOK_OP_DIVIDE;
-        case OP_IDIVIDE:        return TOK_OP_IDIVIDE;
-        case OP_MODULO:         return TOK_OP_MODULO;
-        case OP_PLUS_EQUALS:    return TOK_OP_PLUS_EQUALS;
-        case OP_MINUS_EQUALS:   return TOK_OP_MINUS_EQUALS;
-        case OP_TIMES_EQUALS:   return TOK_OP_TIMES_EQUALS;
-        case OP_DIVIDE_EQUALS:  return TOK_OP_DIVIDE_EQUALS;
-        case OP_IDIVIDE_EQUALS: return TOK_OP_IDIVIDE_EQUALS;
-        case OP_MODULO_EQUALS:  return TOK_OP_MODULO_EQUALS;
-        case OP_AND:            return TOK_OP_AND;
-        case OP_OR:             return TOK_OP_OR;
-        case OP_EXPONENTIATE:   return TOK_OP_EXPONENTIATE;
-        case OP_DOUBLE_EQ:      return TOK_OP_DOUBLE_EQ;
-        case OP_GT:             return TOK_OP_GT;
-        case OP_LT:             return TOK_OP_LT;
-        case OP_EQ:             return TOK_OP_EQ;
-        case OP_NOT:            return TOK_OP_NOT;
-        case OP_NOT_EQ:         return TOK_NOT_EQ;
-        case OP_GE:             return TOK_OP_GE;
-        case OP_LE:             return TOK_OP_LE;
-        case OP_BITWISE_AND:    return TOK_OP_BITWISE_AND;
-        case OP_BITWISE_OR:     return TOK_OP_BITWISE_OR;
-        case OP_BITWISE_XOR:    return TOK_OP_BITWISE_XOR;
-        case OP_BITWISE_NOT:    return TOK_OP_BITWISE_NOT;
-        case OP_SHIFT_LEFT:     return TOK_OP_SHIFT_LEFT;
-        case OP_SHIFT_RIGHT:    return TOK_OP_SHIFT_RIGHT;
-        case COLON:             return TOK_COLON;
-        case LPAREN:            return TOK_LPAREN;
-        case RPAREN:            return TOK_RPAREN;
-        case LBRACKET:          return TOK_LBRACKET;
-        case RBRACKET:          return TOK_RBRACKET;
-        case LBRACE:            return TOK_LBRACE;
-        case RBRACE:            return TOK_RBRACE;
-        case PERIOD:            return TOK_PERIOD;
-        case COMMA:             return TOK_COMMA;
-        case SEMICOLON:         return TOK_SEMICOLON;
-        case NEWLINE_TOK:       return TOK_NEWLINE;
+        case ERROR:                     return TOK_ERROR;
+        case RESERVED_KW:               return TOK_RESERVED_KW;
+        case IDENTIFIER:                return TOK_IDENTIFIER;
+        case BUILTIN_FUNC:              return TOK_BUILTIN_FUNC;
+        case GLOBAL:                    return TOK_GLOBAL;
+        case FLOAT_NUMBER:              return TOK_FLOAT_NUMBER;
+        case INT_NUMBER:                return TOK_INT_NUMBER;
+        case HEX_NUMBER:                return TOK_HEX_NUMBER;
+        case STRING:                    return TOK_STRING;
+        case KW_FUNC:                   return TOK_KW_FUNC;
+        case KW_IF:                     return TOK_KW_IF;
+        case KW_ELSE:                   return TOK_KW_ELSE;
+        case KW_RETURN:                 return TOK_KW_RETURN;
+        case KW_FOR:                    return TOK_KW_FOR;
+        case KW_IMPORT:                 return TOK_KW_IMPORT;
+        case KW_CONTINUE:               return TOK_KW_CONTINUE;
+        case KW_BREAK:                  return TOK_KW_BREAK;
+        case KW_VAR:                    return TOK_KW_VAR;
+        case KW_DEL:                    return TOK_KW_DEL;
+        case KW_TRUE:                   return TOK_KW_TRUE;
+        case KW_FALSE:                  return TOK_KW_FALSE;
+        case KW_NULL:                   return TOK_KW_NULL;
+        case KW_MERGE:                  return TOK_KW_MERGE;
+        case KW_IS:                     return TOK_KW_IS;
+        case KW_IN:                     return TOK_KW_IN;
+        case OP_UMINUS:                 return TOK_OP_UMINUS;
+        case OP_PLUS:                   return TOK_OP_PLUS;
+        case OP_MINUS:                  return TOK_OP_MINUS;
+        case OP_TIMES:                  return TOK_OP_TIMES;
+        case OP_DIVIDE:                 return TOK_OP_DIVIDE;
+        case OP_IDIVIDE:                return TOK_OP_IDIVIDE;
+        case OP_MODULO:                 return TOK_OP_MODULO;
+        case OP_PLUS_EQUALS:            return TOK_OP_PLUS_EQUALS;
+        case OP_MINUS_EQUALS:           return TOK_OP_MINUS_EQUALS;
+        case OP_TIMES_EQUALS:           return TOK_OP_TIMES_EQUALS;
+        case OP_DIVIDE_EQUALS:          return TOK_OP_DIVIDE_EQUALS;
+        case OP_IDIVIDE_EQUALS:         return TOK_OP_IDIVIDE_EQUALS;
+        case OP_MODULO_EQUALS:          return TOK_OP_MODULO_EQUALS;
+        case OP_AND:                    return TOK_OP_AND;
+        case OP_OR:                     return TOK_OP_OR;
+        case OP_EXPONENTIATE:           return TOK_OP_EXPONENTIATE;
+        case OP_DOUBLE_EQ:              return TOK_OP_DOUBLE_EQ;
+        case OP_GT:                     return TOK_OP_GT;
+        case OP_LT:                     return TOK_OP_LT;
+        case OP_EQ:                     return TOK_OP_EQ;
+        case OP_NOT:                    return TOK_OP_NOT;
+        case OP_NOT_EQ:                 return TOK_NOT_EQ;
+        case OP_GE:                     return TOK_OP_GE;
+        case OP_LE:                     return TOK_OP_LE;
+        case OP_BITWISE_AND:            return TOK_OP_BITWISE_AND;
+        case OP_BITWISE_OR:             return TOK_OP_BITWISE_OR;
+        case OP_BITWISE_XOR:            return TOK_OP_BITWISE_XOR;
+        case OP_BITWISE_NOT:            return TOK_OP_BITWISE_NOT;
+        case OP_SHIFT_LEFT:             return TOK_OP_SHIFT_LEFT;
+        case OP_SHIFT_RIGHT:            return TOK_OP_SHIFT_RIGHT;
+        case OP_BITWISE_AND_EQUALS:     return TOK_OP_BITWISE_AND_EQUALS;
+        case OP_BITWISE_OR_EQUALS:      return TOK_OP_BITWISE_OR_EQUALS;
+        case OP_BITWISE_XOR_EQUALS:     return TOK_OP_BITWISE_XOR_EQUALS;
+        case OP_SHIFT_LEFT_EQUALS:      return TOK_OP_SHIFT_LEFT_EQUALS;
+        case OP_SHIFT_RIGHT_EQUALS:     return TOK_OP_SHIFT_RIGHT_EQUALS;
+        case COLON:                     return TOK_COLON;
+        case LPAREN:                    return TOK_LPAREN;
+        case RPAREN:                    return TOK_RPAREN;
+        case LBRACKET:                  return TOK_LBRACKET;
+        case RBRACKET:                  return TOK_RBRACKET;
+        case LBRACE:                    return TOK_LBRACE;
+        case RBRACE:                    return TOK_RBRACE;
+        case PERIOD:                    return TOK_PERIOD;
+        case COMMA:                     return TOK_COMMA;
+        case SEMICOLON:                 return TOK_SEMICOLON;
+        case NEWLINE_TOK:               return TOK_NEWLINE;
     }
 
     assert(false);

@@ -42,6 +42,7 @@ MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *
 MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data);
+MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data);
 
 /*
  * TEST DEFINITIONS

@@ -37,6 +37,11 @@ static const char *const TOK_LBRACKET = "LBRACKET";
 static const char *const TOK_RPAREN = "RPAREN";
 static const char *const TOK_LPAREN = "LPAREN";
 static const char *const TOK_COLON = "COLON";
+static const char *const TOK_OP_BITWISE_AND_EQUALS = "OP_BITWISE_AND_EQUALS";
+static const char *const TOK_OP_BITWISE_OR_EQUALS = "OP_BITWISE_OR_EQUALS";
+static const char *const TOK_OP_BITWISE_XOR_EQUALS = "OP_BITWISE_XOR_EQUALS";
+static const char *const TOK_OP_SHIFT_LEFT_EQUALS = "OP_SHIFT_LEFT_EQUALS";
+static const char *const TOK_OP_SHIFT_RIGHT_EQUALS = "OP_SHIFT_RIGHT_EQUALS";
 static const char *const TOK_OP_BITWISE_AND = "OP_BITWISE_AND";
 static const char *const TOK_OP_BITWISE_OR = "OP_BITWISE_OR";
 static const char *const TOK_OP_BITWISE_XOR = "OP_BITWISE_XOR";
@@ -147,6 +152,11 @@ typedef enum ms_TokenType {
     OP_BITWISE_NOT,
     OP_SHIFT_LEFT,
     OP_SHIFT_RIGHT,
+    OP_BITWISE_AND_EQUALS,
+    OP_BITWISE_OR_EQUALS,
+    OP_BITWISE_XOR_EQUALS,
+    OP_SHIFT_LEFT_EQUALS,
+    OP_SHIFT_RIGHT_EQUALS,
     COLON,
     LPAREN,
     RPAREN,

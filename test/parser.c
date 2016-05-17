@@ -253,6 +253,14 @@ MunitTest parser_tests[] = {
         MUNIT_TEST_OPTION_NONE,
         NULL
     },
+    {
+        "/CompoundAssignment",
+        prs_TestParseCompoundAssignment,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
@@ -332,6 +340,8 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_BEXPR_IV(li, bop, rv)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
 #define AST_FNCALL_E(e, lst)        AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_GETATTR_E(e, lst)       AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
+#define AST_GETATTR_I(id, lst)      AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_IDENT(tp, v)            &((ms_Ident){ .type = tp, .name = AST_IDENT_NAME(v) }) /* subtract one to ignore the terminating NUL */
 #define AST_EXPRLIST(l, ...)        (dsarray_new_lit((void **)(((ms_Expr*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 #define AST_EMPTY_EXPRLIST()        (dsarray_new_cap(1, NULL, NULL))
@@ -1212,9 +1222,88 @@ MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_da
             .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
+            .val = "name.second.third := 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+        },
+        {
+            .val = "name[\"second\"] := 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+        },
+        {
+            .val = "name[\"second\", \"third\"] := 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("second")), &AST_UEXPR_V(UNARY_NONE, VM_STR("third")))), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
             .val = "name.second += 10;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
+        },
+        {
+            .val = "name += 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_PLUS, VM_INT(10))),
+        },
+        {
+            .val = "name -= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MINUS, VM_INT(10))),
+        },
+        {
+            .val = "name *= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_TIMES, VM_INT(10))),
+        },
+        {
+            .val = "name /= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_DIVIDE, VM_INT(10))),
+        },
+        {
+            .val = "name \\= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_IDIVIDE, VM_INT(10))),
+        },
+        {
+            .val = "name %= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MODULO, VM_INT(10))),
+        },
+        {
+            .val = "name &= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_AND, VM_INT(10))),
+        },
+        {
+            .val = "name |= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_OR, VM_INT(10))),
+        },
+        {
+            .val = "name ^= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_XOR, VM_INT(10))),
+        },
+        {
+            .val = "name <<= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_LEFT, VM_INT(10))),
+        },
+        {
+            .val = "name >>= 10;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_RIGHT, VM_INT(10))),
         },
     };
 

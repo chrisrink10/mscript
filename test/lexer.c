@@ -376,11 +376,16 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { "<=", OP_LE },
         { ":=", OP_EQ },
         { "&", OP_BITWISE_AND },
+        { "&=", OP_BITWISE_AND_EQUALS },
         { "|", OP_BITWISE_OR },
+        { "|=", OP_BITWISE_OR_EQUALS },
         { "~", OP_BITWISE_NOT },
         { "^", OP_BITWISE_XOR },
+        { "^=", OP_BITWISE_XOR_EQUALS },
         { ">>", OP_SHIFT_RIGHT },
-        { ">>", OP_SHIFT_LEFT },
+        { ">>=", OP_SHIFT_RIGHT_EQUALS },
+        { "<<", OP_SHIFT_LEFT },
+        { "<<=", OP_SHIFT_LEFT_EQUALS },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
