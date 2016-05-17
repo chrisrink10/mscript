@@ -43,6 +43,7 @@ const char *const TOK_LBRACKET = "LBRACKET";
 const char *const TOK_RPAREN = "RPAREN";
 const char *const TOK_LPAREN = "LPAREN";
 const char *const TOK_COLON = "COLON";
+const char *const TOK_OP_SAFE_GETATTR = "OP_SAFE_GETATTR";
 const char *const TOK_OP_SAFE_REFERENCE = "OP_SAFE_REFERENCE";
 const char *const TOK_OP_BITWISE_AND_EQUALS = "OP_BITWISE_AND_EQUALS";
 const char *const TOK_OP_BITWISE_OR_EQUALS = "OP_BITWISE_OR_EQUALS";
@@ -424,6 +425,9 @@ begin_lex:              // Jump label for ignored input
             if (n == '.') {
                 (void)LexerNextChar(lex);
                 return LexerTokenNew(lex, OP_SAFE_REFERENCE, "?.", 2);
+            } else if (n == '[') {
+                (void)LexerNextChar(lex);
+                return LexerTokenNew(lex, OP_SAFE_GETATTR, "?[", 2);
             }
             return LexerTokenNew(lex, QUESTION_MARK, "?", 1);
 
@@ -614,6 +618,7 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case OP_SHIFT_LEFT_EQUALS:      return TOK_OP_SHIFT_LEFT_EQUALS;
         case OP_SHIFT_RIGHT_EQUALS:     return TOK_OP_SHIFT_RIGHT_EQUALS;
         case OP_SAFE_REFERENCE:         return TOK_OP_SAFE_REFERENCE;
+        case OP_SAFE_GETATTR:           return TOK_OP_SAFE_GETATTR;
         case COLON:                     return TOK_COLON;
         case LPAREN:                    return TOK_LPAREN;
         case RPAREN:                    return TOK_RPAREN;

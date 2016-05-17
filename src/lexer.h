@@ -38,6 +38,7 @@ extern const char *const TOK_LBRACKET;
 extern const char *const TOK_RPAREN;
 extern const char *const TOK_LPAREN;
 extern const char *const TOK_COLON;
+extern const char *const TOK_OP_SAFE_GETATTR;
 extern const char *const TOK_OP_SAFE_REFERENCE;
 extern const char *const TOK_OP_BITWISE_AND_EQUALS;
 extern const char *const TOK_OP_BITWISE_OR_EQUALS;
@@ -162,6 +163,7 @@ typedef enum ms_TokenType {
     OP_SHIFT_LEFT_EQUALS,
     OP_SHIFT_RIGHT_EQUALS,
     OP_SAFE_REFERENCE,
+    OP_SAFE_GETATTR,
     COLON,
     LPAREN,
     RPAREN,

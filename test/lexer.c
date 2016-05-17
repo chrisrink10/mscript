@@ -388,6 +388,7 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
         { "<<", OP_SHIFT_LEFT },
         { "<<=", OP_SHIFT_LEFT_EQUALS },
         { "?.", OP_SAFE_REFERENCE },
+        { "?[", OP_SAFE_GETATTR },
     };
 
     size_t len = sizeof(tokens) / sizeof(tokens[0]);
