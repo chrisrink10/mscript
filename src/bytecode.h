@@ -18,6 +18,7 @@
 #define MSCRIPT_BYTECODE_H
 
 #include <stddef.h>
+#include "error.h"
 #include "lang.h"
 
 typedef enum {
@@ -135,7 +136,7 @@ struct ms_VMByteCode {
 /**
 * @brief Generate mscript VM bytecode from the given abstract syntax tree.
 */
-ms_VMByteCode *ms_ASTToOpCodes(ms_AST *ast);
+ms_Result ms_VMByteCodeGenerateFromAST(const ms_AST *ast, ms_VMByteCode **code, ms_Error **err);
 
 /**
 * @brief Print a representation of the bytecode format to the stdout.

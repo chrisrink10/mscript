@@ -14,39 +14,23 @@
  *  limitations under the License.
  *----------------------------------------------------------------------------*/
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#include <readline/readline.h>
-#include "mscript.h"
+#include "error.h"
 
-static int StartREPL(const char *prog) {
-    ms_StateOptions opts = {
-        .print_bytecode = true,
-    };
-    ms_State *ms = ms_StateNewOptions(opts);
-    assert(ms);
+void ms_ErrorDestroy(ms_Error *err) {
+    if (!err) { return; }
 
-    char *input;
-    printf("mscript v0.1\n");
-    while ((input = readline("> ")) != NULL) {
-        if (strlen(input) == 0) {
-            free(input);
+    switch (err->type) {
+        case MS_ERROR_PARSER:
+            ms_TokenDestroy(err->detail.parse.tok);
+            err->detail.parse.tok = NULL;
             break;
-        }
-
-        const ms_Error *err;
-        if (ms_StateExecuteString(ms, input, &err) == MS_RESULT_ERROR) {
-            printf("%s: \n%s\n", prog, err->msg);
-        }
-
-        free(input);
+        case MS_ERROR_CODEGEN:
+            break;
+        case MS_ERROR_VM:
+            break;
     }
 
-    ms_StateDestroy(ms);
-    return EXIT_SUCCESS;
-}
-
-int main(int argc, char *argv[]) {
-    return StartREPL(argv[0]);
+    free(err->msg);
+    err->msg = NULL;
+    free(err);
 }

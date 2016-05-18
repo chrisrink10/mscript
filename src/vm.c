@@ -57,7 +57,7 @@ typedef struct {
 
 struct ms_VM {
     DSArray *fstack;                                /* call stack frame */
-    ms_VMError err;                                 /* current VM error */
+    ms_Error **err;                                 /* pointer to current VM error (not owned by VM) */
 
     DSDict *env;                                    /* global namespace */
 
@@ -74,7 +74,7 @@ static ms_VMFrame *VMFrameNew(ms_VMByteCode *bc);
 static void VMFrameDestroy(ms_VMFrame *f);
 static ms_VMBlock *VMBlockNew(void);
 static void VMBlockDestroy(ms_VMBlock *blk);
-static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
+static ms_Result VMFrameExecute(ms_VM *vm, ms_VMFrame *f);
 static ms_VMValue *VMPeek(const ms_VM *vm, int index);
 static bool VMStackIsEmpty(const ms_VM *vm);
 static inline ms_VMFrame *VMCurrentFrame(const ms_VM *vm);
@@ -129,44 +129,48 @@ ms_VM *ms_VMNew(void) {
         return NULL;
     }
 
-    vm->err.msg = NULL;
+    vm->err = NULL;
     return vm;
 }
 
-ms_VMExecResult ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc, const ms_VMError **err) {
+ms_Result ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc, ms_Error **err) {
     if ((!vm) || (!bc)) {
-        return VMEXEC_ERROR;
+        return MS_RESULT_ERROR;
     }
+
+    *err = NULL;
+    vm->err = err;
 
     ms_VMFrame *newf = VMFrameNew(bc);
     if (!newf) {
-        return VMEXEC_ERROR;
+        return MS_RESULT_ERROR;
     }
     dsarray_append(vm->fstack, newf);
 
-    ms_VMExecResult res = VMFrameExecute(vm, newf);
-    *err = &vm->err;
+    ms_Result res = VMFrameExecute(vm, newf);
     return res;
 }
 
-ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMError **err) {
+ms_Result ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, ms_Error **err) {
     if ((!vm) || (!bc)) {
-        return VMEXEC_ERROR;
+        return MS_RESULT_ERROR;
     }
+
+    *err = NULL;
+    vm->err = err;
 
     ms_VMFrame *newf = VMFrameNew(bc);
     if (!newf) {
-        return VMEXEC_ERROR;
+        return MS_RESULT_ERROR;
     }
     dsarray_append(vm->fstack, newf);
 
-    ms_VMExecResult res = VMFrameExecute(vm, newf);
-    if (res != VMEXEC_ERROR) {
+    ms_Result res = VMFrameExecute(vm, newf);
+    if (res != MS_RESULT_ERROR) {
         if (!VMStackIsEmpty(vm)) {
             (void) VMPrint(vm);
         }
     }
-    *err = &vm->err;
     return res;
 }
 
@@ -193,18 +197,34 @@ ms_VMValue ms_VMPop(ms_VM *vm) {
 
 void ms_VMErrorSet(ms_VM *vm, const char *msg, ...) {
     assert(vm);
-    if (vm->err.msg) { free(vm->err.msg); }
 
-    va_list args, args2;
-    va_start(args, msg);
-    va_copy(args2, args);
-    int len = vsnprintf(NULL, 0, msg, args);
-    vm->err.msg = malloc((size_t)len + 1);
-    if (vm->err.msg) {
-        vsnprintf(vm->err.msg, (size_t)len + 1, msg, args2);
+    ms_Error **err = vm->err;
+    assert(!(*err));
+    *err = malloc(sizeof(ms_Error));
+    if (!(*err)) {
+        return;
     }
-    va_end(args2);
+    (*err)->type = MS_ERROR_VM;
+
+    va_list args;
+    va_list argscpy;
+    va_start(args, msg);
+    va_copy(argscpy, args);
+
+    int len = vsnprintf(NULL, 0, msg, args);
+    if (len < 0) {
+        goto vm_close_error_va_args;
+    }
+
+    (*err)->len = (size_t)len;
+    (*err)->msg = malloc((size_t)len + 1);
+    if ((*err)->msg) {
+        vsnprintf((*err)->msg, len + 1, msg, argscpy);
+    }
+
+vm_close_error_va_args:
     va_end(args);
+    va_end(argscpy);
 }
 
 void ms_VMPush(ms_VM *vm, ms_VMValue val) {
@@ -324,8 +344,7 @@ void ms_VMDestroy(ms_VM *vm) {
     vm->null = NULL;
     dsarray_destroy(vm->fstack);
     vm->fstack = NULL;
-    free(vm->err.msg);
-    vm->err.msg = NULL;
+    vm->err = NULL;
     free(vm);
 }
 
@@ -463,7 +482,7 @@ static void VMBlockDestroy(ms_VMBlock *blk) {
     free(blk);
 }
 
-static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
+static ms_Result VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
     assert(vm);
     assert(f);
 
@@ -625,7 +644,7 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                     f->ip = dest;
                     continue;
                 }
-                return VMEXEC_ERROR;
+                return MS_RESULT_ERROR;
             }
             case OPC_GOTO:              /* fall through */
             case OPC_BREAK:             /* fall through */
@@ -633,11 +652,11 @@ static ms_VMExecResult VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 f->ip = (size_t)arg;
                 continue;
         }
-        if (inc == 0) { return VMEXEC_ERROR; }
+        if (inc == 0) { return MS_RESULT_ERROR; }
         f->ip += inc;
     }
 
-    return VMEXEC_SUCCESS;
+    return MS_RESULT_SUCCESS;
 }
 
 // Peek at a value a certain index of the stack without changing the pointer

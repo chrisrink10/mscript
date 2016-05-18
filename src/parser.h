@@ -19,20 +19,10 @@
 
 #include <stdbool.h>
 #include "bytecode.h"
+#include "error.h"
 #include "lang.h"
 
 typedef struct ms_Parser ms_Parser;
-
-typedef enum ms_ParseResult {
-    PARSE_SUCCESS,          /** Parsing succeeded */
-    PARSE_WARNINGS,         /** Parsing succeeded but there may be some issues */
-    PARSE_ERROR             /** Parsing could not be completed */
-} ms_ParseResult;
-
-typedef struct ms_ParseError {
-    char *msg;              /** Error message returned from the parser */
-    ms_Token *tok;          /** Token potentially associated with the error */
-} ms_ParseError;
 
 /**
 * @brief Create a new @c ms_Parser object.
@@ -58,8 +48,6 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 * @brief Parse the mscript string or file associated with this @c ms_Parser .
 *
 * @param prs a @c ms_Parser object
-* @param code a pointer to a pointer to hold the resultant byte-code; set to
-*        @c NULL if the return from this function is not @c PARSE_SUCCESS
 * @param ast if not @c NULL, the pointer will be set to the internal AST
 *        address; note that if another call is made to @c ms_ParserParse
 *        any previous pointer filled into this parameter will become invalid
@@ -69,7 +57,7 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 *          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
 *          examine the value of @c to determine what went wrong
 */
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_ParseError **err);
+ms_Result ms_ParserParse(ms_Parser *prs, const ms_AST **ast, ms_Error **err);
 
 /**
 * @brief Destroy a @c ms_Parser object.

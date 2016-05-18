@@ -30,7 +30,7 @@ include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/lib)
 
 # Compiler and Linker flags
-set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers")
+set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers -Wno-format-security")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
 
 #######################################################################
@@ -49,7 +49,9 @@ set(LIBDS_SOURCE_FILES deps/libds/array.c
 set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 
 # mscript source files
-set(MSCRIPT_SOURCE_FILES src/bytecode.c
+set(MSCRIPT_SOURCE_FILES src/mscript.c
+                         src/bytecode.c
+                         src/error.c
                          src/lang.c
                          src/lexer.c
                          src/obj.c
