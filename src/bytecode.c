@@ -34,7 +34,8 @@ typedef struct {
     DSArray *values;
     DSArray *idents;
     DSDict *ident_cache;        /** cache of previously used identifier names */
-    ms_Error **err;
+    ms_Result res;              /** indicates if any errors or warnings occurred */
+    ms_Error **err;             /** error details if an error occurred */
 } CodeGenContext;
 
 typedef struct {
@@ -104,6 +105,7 @@ static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAto
 static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx);
 static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx);
 static void PushOpCode(ms_VMOpCodeType type, int arg, CodeGenContext *ctx);
+static void CodeGenContextErrorSet(CodeGenContext *ctx, const char *msg);
 
 /*
  * PUBLIC FUNCTIONS
@@ -115,7 +117,7 @@ ms_Result ms_VMByteCodeGenerateFromAST(const ms_AST *ast, ms_VMByteCode **code, 
     }
 
     *err = NULL;
-    CodeGenContext ctx = { NULL, NULL, NULL, NULL, err };
+    CodeGenContext ctx = { .err = err, .res = MS_RESULT_SUCCESS };
     if (!CodeGenContextCreate(&ctx)) {
         return MS_RESULT_ERROR;
     }
@@ -128,7 +130,7 @@ ms_Result ms_VMByteCodeGenerateFromAST(const ms_AST *ast, ms_VMByteCode **code, 
 
     *code = VMByteCodeNew(&ctx);
     CodeGenContextClean(&ctx);
-    return MS_RESULT_SUCCESS;
+    return ctx.res;
 }
 
 void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {
@@ -480,7 +482,9 @@ static void StmtToOpCodes(const ms_Stmt *stmt, CodeGenContext *ctx) {
 
     switch (stmt->type) {
         case STMTTYPE_EMPTY:
-            assert(false && "should not have an empty statement");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "should not have an empty statement");
+            assert(false);
             break;
         case STMTTYPE_BREAK:
             PushOpCode(OPC_BREAK, 0, ctx);
@@ -525,10 +529,14 @@ static void StmtDeleteToOpCodes(const ms_StmtDelete *del, CodeGenContext *ctx) {
     ms_ExprIdentType type = ms_ExprGetIdentType(del->expr);
     switch (type) {
         case EXPRIDENT_NONE:
-            assert(false && "delete expression is not an identifier");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "delete expression is not an identifier");
+            assert(false);
             break;
         case EXPRIDENT_BUILTIN:
-            assert(false && "cannot delete a builtin name");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "cannot delete a builtin name");
+            assert(false);
             break;
         case EXPRIDENT_NAME: {
             int index;
@@ -1449,6 +1457,8 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
 
     ms_VMValue *newv = malloc(sizeof(ms_VMValue));
     if (!newv) {
+        ctx->res = MS_RESULT_ERROR;
+        CodeGenContextErrorSet(ctx, "could not allocate memory for a value");
         return;
     }
 
@@ -1469,16 +1479,27 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
             newv->type = VMVAL_STR;
             newv->val.s = dsbuf_dup(val->val.s);
             assert(newv->val.s);    /* TODO: real error handling */
+            if (!newv->val.s) {
+                ctx->res = MS_RESULT_ERROR;
+                CodeGenContextErrorSet(ctx, "could not allocate memory a string");
+            }
             break;
         case MSVAL_NULL:
             newv->type = VMVAL_NULL;
             newv->val.n = val->val.n;
             break;
         case MSVAL_FUNC: {
-            CodeGenContext fnctx = { NULL };
+            CodeGenContext fnctx = { .err = ctx->err, .res = MS_RESULT_SUCCESS };
             newv->type = VMVAL_FUNC;
             newv->val.fn = ExprFunctionExprToOpCodes(val->val.fn, &fnctx);
-            assert(newv->val.fn);   /* TODO: also here */
+            assert(newv->val.fn);
+            if (fnctx.res == MS_RESULT_ERROR) {
+                ctx->res = fnctx.res;
+                /* do not overwrite the error message from inner routines */
+            } else if (!newv->val.fn) {
+                ctx->res = MS_RESULT_ERROR;
+                CodeGenContextErrorSet(ctx, "could not allocate memory for a function value");
+            }
             break;
         }
     }
@@ -1506,6 +1527,9 @@ static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx) {
     /* push the identifer onto the context stack */
     DSBuffer *name = dsbuf_dup(ident->name);
     if (!name) {
+        ctx->res = MS_RESULT_ERROR;
+        CodeGenContextErrorSet(ctx, "could not allocate memory for an ident");
+        assert(false);
         return;
     }
 
@@ -1518,6 +1542,9 @@ static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx) {
     /* cache this identifier */
     size_t *new_index = malloc(sizeof(size_t));
     if (!new_index) {
+        ctx->res = MS_RESULT_ERROR;
+        CodeGenContextErrorSet(ctx, "could not allocate memory for an ident index");
+        assert(false);
         return;
     }
     *new_index = (size_t)(*index);
@@ -1530,8 +1557,37 @@ static void PushOpCode(ms_VMOpCodeType type, int arg, CodeGenContext *ctx) {
 
     ms_VMOpCode *o = malloc(sizeof(ms_VMOpCode));
     if (!o) {
+        ctx->res = MS_RESULT_ERROR;
+        CodeGenContextErrorSet(ctx, "could not allocate memory for an opcode");
+        assert(false);
         return;
     }
     *o = ms_VMOpCodeWithArg(type, arg);
     dsarray_append(ctx->opcodes, o);
+}
+
+static void CodeGenContextErrorSet(CodeGenContext *ctx, const char *msg) {
+    assert(ctx);
+
+    ms_Error **err = ctx->err;
+    assert(!(*err));
+    *err = malloc(sizeof(ms_Error));
+    if (!(*err)) {
+        return;
+    }
+    (*err)->type = MS_ERROR_CODEGEN;
+
+    int len = snprintf(NULL, 0, msg);
+    if (len < 0) {
+        goto codegen_close_error;
+    }
+
+    (*err)->len = (size_t)len;
+    (*err)->msg = malloc((size_t)len + 1);
+    if ((*err)->msg) {
+        snprintf((*err)->msg, len + 1, msg);
+    }
+
+codegen_close_error:
+    return;
 }

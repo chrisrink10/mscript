@@ -30,7 +30,7 @@ include_directories(${PROJECT_SOURCE_DIR}/deps)
 include_directories(${PROJECT_SOURCE_DIR}/lib)
 
 # Compiler and Linker flags
-set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers")
+set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers -Wno-format-security")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
 
 #######################################################################
