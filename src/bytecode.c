@@ -34,6 +34,7 @@ typedef struct {
     DSArray *values;
     DSArray *idents;
     DSDict *ident_cache;        /** cache of previously used identifier names */
+    ms_Error **err;
 } CodeGenContext;
 
 typedef struct {
@@ -108,12 +109,15 @@ static void PushOpCode(ms_VMOpCodeType type, int arg, CodeGenContext *ctx);
  * PUBLIC FUNCTIONS
  */
 
-ms_VMByteCode *ms_ASTToOpCodes(ms_AST *ast) {
-    if (!ast) { return NULL; }
+ms_Result ms_VMByteCodeGenerateFromAST(const ms_AST *ast, ms_VMByteCode **code, ms_Error **err) {
+    if (!ast) {
+        return MS_RESULT_ERROR;
+    }
 
-    CodeGenContext ctx = { NULL, NULL, NULL };
+    *err = NULL;
+    CodeGenContext ctx = { NULL, NULL, NULL, NULL, err };
     if (!CodeGenContextCreate(&ctx)) {
-        return NULL;
+        return MS_RESULT_ERROR;
     }
 
     size_t len = dsarray_len(ast);
@@ -122,9 +126,9 @@ ms_VMByteCode *ms_ASTToOpCodes(ms_AST *ast) {
         StmtToOpCodes(stmt, &ctx);
     }
 
-    ms_VMByteCode *bc = VMByteCodeNew(&ctx);
+    *code = VMByteCodeNew(&ctx);
     CodeGenContextClean(&ctx);
-    return bc;
+    return MS_RESULT_SUCCESS;
 }
 
 void ms_VMByteCodeDestroy(ms_VMByteCode *bc) {

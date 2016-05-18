@@ -43,7 +43,7 @@ struct ms_Parser {
     size_t line;                            /** current line */
     size_t col;                             /** current column */
     ms_AST *ast;                            /** current abstract syntax tree */
-    ms_Error *err;                          /** current parser error */
+    ms_Error **err;                         /** pointer to current parser error (not owned by the parser) */
 };
 
 static const char *const ERR_OUT_OF_MEMORY = "Out of memory";
@@ -108,7 +108,7 @@ static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static inline bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
-static void ParseErrorDestroy(ms_Error *err);
+static void ParserErrorClear(ms_Parser *prs);
 
 /*
  * PUBLIC FUNCTIONS
@@ -155,11 +155,7 @@ bool ms_ParserInitFile(ms_Parser *prs, const char *fname) {
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
-
-    if (prs->err) {
-        ParseErrorDestroy(prs->err);
-        prs->err = NULL;
-    }
+    prs->err = NULL;
     return true;
 }
 
@@ -189,17 +185,13 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len) {
 
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
-
-    if (prs->err) {
-        ParseErrorDestroy(prs->err);
-        prs->err = NULL;
-    }
+    prs->err = NULL;
     return true;
 }
 
-ms_Result ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_Error **err) {
+ms_Result ms_ParserParse(ms_Parser *prs, const ms_AST **ast, ms_Error **err) {
     assert(prs);
-    assert(code);
+    assert(ast);
     assert(err);
 
     if (prs->ast) {
@@ -208,27 +200,20 @@ ms_Result ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **as
     }
 
     *err = NULL;
+    prs->err = err;
     ms_Result res = ParserParseModule(prs, &prs->ast);
 
-    if ((res != MS_RESULT_ERROR) && (prs->cur)) {
-        ParserErrorSet(prs, ERR_INVALID_SYNTAX_GOT_TOK, prs->cur,
-                       dsbuf_char_ptr(prs->cur->value), prs->line, prs->col);
-        res = MS_RESULT_ERROR;
-    }
-
     if (res == MS_RESULT_ERROR) {
-        *err = prs->err;
-        *code = NULL;
+        return res;
     } else {
-        *code = ms_ASTToOpCodes(prs->ast);
-#ifndef NDEBUG
-        /* bitfield type structure to easily examine generated opcodes and args */
-        ms_VMOpCodeDebug *dbg = (ms_VMOpCodeDebug *)(*code)->code;
-#endif
-        if (ast) {
-            *ast = prs->ast;
+        if (prs->cur) {
+            ParserErrorSet(prs, ERR_INVALID_SYNTAX_GOT_TOK, prs->cur,
+                           dsbuf_char_ptr(prs->cur->value), prs->line, prs->col);
+            return MS_RESULT_ERROR;
         }
     }
+
+    *ast = prs->ast;
     return res;
 }
 
@@ -242,7 +227,6 @@ void ms_ParserDestroy(ms_Parser *prs) {
     prs->nxt = NULL;
     ms_ASTDestroy(prs->ast);
     prs->ast = NULL;
-    ParseErrorDestroy(prs->err);
     prs->err = NULL;
     free(prs);
 }
@@ -572,6 +556,7 @@ static ms_Result ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool de
     ParserConsumeToken(prs);
 
     if (ParserParseExpression(prs, &(*inc)->end) == MS_RESULT_ERROR) {
+        ParserErrorClear(prs);      /* clear the previous error to replace it */
         ParserErrorSet(prs, ERR_FOR_LOOP_MUST_END, prs->cur, prs->line, prs->col);
         return MS_RESULT_ERROR;
     }
@@ -2241,18 +2226,13 @@ static inline bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
 static void ParserErrorSet(ms_Parser *prs, const char *msg, const ms_Token *tok, ...) {
     assert(prs);
 
-    if (prs->err) {
-        ParseErrorDestroy(prs->err);
-        prs->err = NULL;
-    }
-
-    prs->err = malloc(sizeof(ms_Error));
-    if (!prs->err) {
+    ms_Error **err = prs->err;
+    assert(!(*err));
+    *err = malloc(sizeof(ms_Error));
+    if (!(*err)) {
         return;
     }
-
-    ms_Error *err = prs->err;
-    err->type = MS_ERROR_PARSER;
+    (*err)->type = MS_ERROR_PARSER;
 
     va_list args;
     va_list argscpy;
@@ -2264,16 +2244,16 @@ static void ParserErrorSet(ms_Parser *prs, const char *msg, const ms_Token *tok,
         goto parser_close_error_va_args;
     }
 
-    err->len = (size_t)len;
-    err->msg = malloc((size_t)len + 1);
-    if (err->msg) {
-        vsnprintf(err->msg, len + 1, msg, argscpy);
+    (*err)->len = (size_t)len;
+    (*err)->msg = malloc((size_t)len + 1);
+    if ((*err)->msg) {
+        vsnprintf((*err)->msg, len + 1, msg, argscpy);
     }
 
-    err->detail.parse.tok = (tok) ?
-                            ms_TokenNew(tok->type, dsbuf_char_ptr(tok->value),
-                                        dsbuf_len(tok->value), tok->line, tok->col) :
-                            NULL;
+    (*err)->detail.parse.tok = (tok) ?
+                               ms_TokenNew(tok->type, dsbuf_char_ptr(tok->value),
+                                           dsbuf_len(tok->value), tok->line, tok->col) :
+                               NULL;
 
 parser_close_error_va_args:
     va_end(args);
@@ -2281,13 +2261,12 @@ parser_close_error_va_args:
     return;
 }
 
-/* Clean up a Parse Error object. */
-static void ParseErrorDestroy(ms_Error *err) {
-    if (!err) { return; }
-    if (err->type != MS_ERROR_PARSER) { return; }
-    ms_TokenDestroy(err->detail.parse.tok);
-    err->detail.parse.tok = NULL;
-    free(err->msg);
-    err->msg = NULL;
-    free(err);
+/* Clear the parser error if a more relevant error exists */
+static void ParserErrorClear(ms_Parser *prs) {
+    assert(prs);
+    ms_Error **err = prs->err;
+    if ((*err)) {
+        ms_ErrorDestroy(*err);
+        *err = NULL;
+    }
 }

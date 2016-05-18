@@ -48,8 +48,6 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 * @brief Parse the mscript string or file associated with this @c ms_Parser .
 *
 * @param prs a @c ms_Parser object
-* @param code a pointer to a pointer to hold the resultant byte-code; set to
-*        @c NULL if the return from this function is not @c PARSE_SUCCESS
 * @param ast if not @c NULL, the pointer will be set to the internal AST
 *        address; note that if another call is made to @c ms_ParserParse
 *        any previous pointer filled into this parameter will become invalid
@@ -59,7 +57,7 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 *          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
 *          examine the value of @c to determine what went wrong
 */
-ms_Result ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_Error **err);
+ms_Result ms_ParserParse(ms_Parser *prs, const ms_AST **ast, ms_Error **err);
 
 /**
 * @brief Destroy a @c ms_Parser object.

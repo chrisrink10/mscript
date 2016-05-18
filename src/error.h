@@ -46,4 +46,6 @@ typedef struct {
     char *msg;                      /** Error message associated with the error */
 } ms_Error;
 
+void ms_ErrorDestroy(ms_Error *err);
+
 #endif //MSCRIPT_ERROR_H

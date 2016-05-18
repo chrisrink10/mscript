@@ -51,6 +51,7 @@ set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 # mscript source files
 set(MSCRIPT_SOURCE_FILES src/mscript.c
                          src/bytecode.c
+                         src/error.c
                          src/lang.c
                          src/lexer.c
                          src/obj.c

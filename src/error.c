@@ -14,23 +14,23 @@
  *  limitations under the License.
  *----------------------------------------------------------------------------*/
 
-#ifndef MSCRIPT_MSCRIPT_H
-#define MSCRIPT_MSCRIPT_H
-
 #include "error.h"
 
-typedef struct ms_State ms_State;
+void ms_ErrorDestroy(ms_Error *err) {
+    if (!err) { return; }
 
-typedef struct {
-    bool print_bytecode;
-} ms_StateOptions;
+    switch (err->type) {
+        case MS_ERROR_PARSER:
+            ms_TokenDestroy(err->detail.parse.tok);
+            err->detail.parse.tok = NULL;
+            break;
+        case MS_ERROR_CODEGEN:
+            break;
+        case MS_ERROR_VM:
+            break;
+    }
 
-ms_State *ms_StateNew(void);
-ms_State *ms_StateNewOptions(ms_StateOptions opts);
-ms_Result ms_StateExecuteString(ms_State *state, const char *str, const ms_Error **err);
-ms_Result ms_StateExecuteStringL(ms_State *state, const char *str, size_t len, const ms_Error **err);
-ms_Result ms_StateExecuteFile(ms_State *state, const char *fname, const ms_Error **err);
-void ms_StateErrorClear(ms_State *state);
-void ms_StateDestroy(ms_State *state);
-
-#endif //MSCRIPT_MSCRIPT_H
+    free(err->msg);
+    err->msg = NULL;
+    free(err);
+}

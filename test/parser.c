@@ -437,15 +437,15 @@ MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) 
     ms_Parser *prs = ms_ParserNew();
     munit_assert_non_null(prs);
 
-    ms_ParserInitString(prs, code);
-    ms_VMByteCode *bc;
-    const ms_Error *err;
-    ms_Result pres = ms_ParserParse(prs, &bc, NULL, &err);
+    munit_assert(ms_ParserInitString(prs, code));
+    const ms_AST *ast;
+    ms_Error *err;
+    ms_Result pres = ms_ParserParse(prs, &ast, &err);
 
     munit_assert_cmp_int(pres, ==, MS_RESULT_ERROR);
     munit_assert_non_null(err);
-    munit_assert_null(bc);
 
+    ms_ErrorDestroy(err);
     ms_ParserDestroy(prs);
     return MUNIT_OK;
 }
@@ -1764,18 +1764,19 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
         munit_logf(MUNIT_LOG_INFO, "  code='%s'", tuple->val);
 
         const ms_AST *ast;
-        ms_VMByteCode *code;
-        const ms_Error *err;
-        ms_Result pres = ms_ParserParse(prs, &code, &ast, &err);
-        if (err) { munit_logf(MUNIT_LOG_INFO, "err = %s", err->msg); }
+        ms_Error *err;
+        ms_Result pres = ms_ParserParse(prs, &ast, &err);
+        if (err) {
+            munit_logf(MUNIT_LOG_INFO, "err = %s", err->msg);
+        }
 
         munit_assert_cmp_int(pres, !=, MS_RESULT_ERROR);
         munit_assert_non_null(ast);
         munit_assert_null(err);
 
         CompareASTToComponent(ast, tuple->type, &tuple->cmpnt);
-        ms_VMByteCodeDestroy(code);
         CleanParseResultTuple(tuple);
+        ms_ErrorDestroy(err);
     }
 
     ms_ParserDestroy(prs);
