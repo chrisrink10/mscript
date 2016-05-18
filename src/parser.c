@@ -98,6 +98,7 @@ static ms_ParseResult ParserParseAccessor(ms_Parser *prs, ms_Expr **expr, ms_Exp
 static ms_ParseResult ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_TokenType closer);
 static ms_ParseResult ParserParseAtom(ms_Parser *prs, ms_Expr **expr);
 static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require_name, ms_Expr **expr);
+static ms_ParseResult ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_ParseResult ParserExprCombineConditional(ms_Parser *prs, ms_Expr *cond, ms_Expr *iftrue, ms_Expr *iffalse, ms_Expr **newexpr);
 static ms_ParseResult ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_ParseResult ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_ExprUnaryOp op, ms_Expr **newexpr);
@@ -1712,10 +1713,11 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
     }
 
     while (ParserExpectToken(prs, LPAREN) ||
-            ParserExpectToken(prs, LBRACKET) ||
-            ParserExpectToken(prs, PERIOD) ||
-            ParserExpectToken(prs, OP_SAFE_REFERENCE) ||
-            ParserExpectToken(prs, OP_SAFE_GETATTR)) {
+           ParserExpectToken(prs, LBRACKET) ||
+           ParserExpectToken(prs, PERIOD) ||
+           ParserExpectToken(prs, OP_SAFE_REFERENCE) ||
+           ParserExpectToken(prs, OP_SAFE_GETATTR)) {
+        ms_TokenType ttype = prs->cur->type;
         ms_ExprBinaryOp op;
         ms_Expr *right;
         if ((res = ParserParseAccessor(prs, &right, &op)) == PARSE_ERROR) {
@@ -1724,10 +1726,22 @@ static ms_ParseResult ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
         }
 
         ms_Expr *combined;
-        if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
-            ms_ExprDestroy(right);
-            ms_ExprDestroy(left);
-            return res;
+        if ((ttype == LBRACKET) || (ttype == OP_SAFE_GETATTR)) {
+            /* rewrite attribute access from an expression list to nested
+             * expressions, since that is easier to deal with in bytecode
+             * and is more representative of the actual meaning of attribute
+             * access via brackets */
+            if ((res = ParserExprRewriteAttrAccess(prs, left, op, right, &combined)) == PARSE_ERROR) {
+                ms_ExprDestroy(right);
+                ms_ExprDestroy(left);
+                return res;
+            }
+        } else {
+            if ((res = ParserExprCombineBinary(prs, left, op, right, &combined)) == PARSE_ERROR) {
+                ms_ExprDestroy(right);
+                ms_ExprDestroy(left);
+                return res;
+            }
         }
         left = combined;
     }
@@ -2067,6 +2081,67 @@ static ms_ParseResult ParserParseFunctionExpression(ms_Parser *prs, bool require
 
     ParserConsumeToken(prs);
     return ParserParseBlock(prs, &fn->block);
+}
+
+static ms_ParseResult ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr) {
+    assert(prs);
+    assert(left);
+    assert(right);
+    assert(right->type == EXPRTYPE_UNARY);
+    assert(right->cmpnt.u->type == EXPRATOM_EXPRLIST);
+    assert(newexpr);
+
+    /* Rewrite attribute accesses syntactically of the form
+     *
+     *     name[expr1, expr1, ...]
+     *
+     * from
+     *
+     *     EXPR(IDENT(name), BINARY_GETATTR, LIST(expr1, expr2, ...))
+     *
+     * to
+     *
+     *     EXPR(EXPR(IDENT(name), BINARY_GETATTR, EXPR(expr1)), BINARY_GETATTR, EXPR(expr2))
+     *
+     * primarily since this makes it easier to deal with the individual
+     * attribute accesses later; the original syntax is syntactic sugar for
+     *
+     *     name[expr1][expr2]
+     *
+     * which would produce AST nodes in the same form as the rewritten
+     * AST anyway, so this means we don't have to special case one syntactic
+     * form for syntactic sugar */
+
+    ms_Expr *cur = NULL;
+    ms_Expr *lcur = left;
+
+    ms_ExprUnary *u = right->cmpnt.u;
+    size_t nattrs = dsarray_len(u->atom.list);
+    for (size_t i = 0; i < nattrs; i++) {
+        cur = ms_ExprNew(EXPRTYPE_BINARY);
+        if (!cur) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, NULL);
+            return PARSE_ERROR;
+        }
+
+        ms_Expr *rcur = dsarray_get(u->atom.list, i);
+        cur = ms_ExprFlatten(cur, lcur, EXPRLOC_LEFT);
+        cur = ms_ExprFlatten(cur, rcur, EXPRLOC_RIGHT);
+        cur->cmpnt.b->op = op;
+
+        lcur = cur;             /* current expression becomes left */
+    }
+
+    /* clear the list so we don't accidentally try to double free expressions;
+     * references to the expressions are kept inside the new AST nodes, so
+     * this will not leak memory */
+    for (size_t i = 0; i < nattrs; i++) {
+        (void)dsarray_pop(u->atom.list);
+    }
+
+    *newexpr = cur;
+    ms_ExprDestroy(right);
+    return PARSE_SUCCESS;
 }
 
 static ms_ParseResult ParserExprCombineConditional(ms_Parser *prs, ms_Expr *cond, ms_Expr *iftrue, ms_Expr *iffalse, ms_Expr **newexpr) {

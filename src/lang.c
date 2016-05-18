@@ -383,7 +383,7 @@ ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
             if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
                 return EXPRIDENT_NONE;
             }
-        } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
+        } else if (expr->cmpnt.b->rtype == EXPRATOM_EXPRLIST) {
             return EXPRIDENT_NONE;
         }
 

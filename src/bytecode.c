@@ -53,7 +53,6 @@ typedef struct {
     CodeGenContext *parent;
     size_t attrcount;           /** count of attributes seen in a single expr */
     size_t attrdepth;           /** depth of attributes in current stack frame */
-    size_t attrlenlast;         /** count of the number of attributes in the most recent stack */
     bool suppress_get_attr;     /** suppress GET_ATTR opcodes */
     bool get_name_as_push;      /** convert GET_NAME opcodes to PUSH */
 } CodeGenContextExpr;
@@ -87,7 +86,7 @@ static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenCont
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenContext *ctx);
 static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool new_name);
 static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx);
-static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx);
+static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, CodeGenContext *ctx);
 static void IdentExprToOpCodes(const ms_Expr *ident, int *index, CodeGenContext *ctx);
 static void ExprToOpCodes(const ms_Expr *expr, CodeGenContext *ctx);
 static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx);
@@ -539,9 +538,8 @@ static void StmtDeleteToOpCodes(const ms_StmtDelete *del, CodeGenContext *ctx) {
             break;
         }
         case EXPRIDENT_QUALIFIED: {
-            int nsubscripts = 0;
-            QualifiedIdentExprToOpCodes(del->expr, &nsubscripts, ctx);
-            PushOpCode(OPC_DEL_ATTR, nsubscripts, ctx);
+            QualifiedIdentExprToOpCodes(del->expr, ctx);
+            PushOpCode(OPC_DEL_ATTR, 0, ctx);
             break;
         }
     }
@@ -987,9 +985,8 @@ static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool ne
             break;
         }
         case EXPRIDENT_QUALIFIED: {
-            int nsubscripts = 0;
-            QualifiedIdentExprToOpCodes(ident, &nsubscripts, ctx);
-            PushOpCode(OPC_SET_ATTR, nsubscripts, ctx);
+            QualifiedIdentExprToOpCodes(ident, ctx);
+            PushOpCode(OPC_SET_ATTR, 0, ctx);
             break;
         }
     }
@@ -1015,7 +1012,7 @@ static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, Cod
     /* intentionally provide no opcode */
 }
 
-static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx) {
+static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, CodeGenContext *ctx) {
     assert(ident);
     assert(ident->type == EXPRTYPE_BINARY);
     assert(ident->cmpnt.b->op == BINARY_GETATTR);
@@ -1023,14 +1020,6 @@ static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, 
     assert(ctx);
 
     const ms_ExprBinary *b = ident->cmpnt.b;
-    if (b->rtype == EXPRATOM_EXPRLIST) {
-        size_t len = dsarray_len(b->ratom.list);
-        assert(len <= (size_t)OPC_ARG_MAX);
-        *nsubscripts = (int)len;
-    } else {
-        *nsubscripts = 1;
-    }
-
     CodeGenContextExpr ctxe = { ctx };
     ExprComponentToOpCodes(&b->latom, b->ltype, &ctxe);
     ExprComponentToOpCodes(&b->ratom, b->rtype, &ctxe);
@@ -1122,7 +1111,7 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
                 }
             } else {
                 if (!ctx->suppress_get_attr) {
-                    PushOpCode(OPC_GET_ATTR, (int)ctx->attrlenlast, ctx->parent);
+                    PushOpCode(OPC_GET_ATTR, 0, ctx->parent);
                 }
             }
             break;
@@ -1318,8 +1307,6 @@ static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExp
     ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
     ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
     ctx->attrdepth -= len;
-
-    ctx->attrlenlast = len;
 }
 
 static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx) {

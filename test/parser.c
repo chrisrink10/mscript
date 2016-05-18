@@ -365,10 +365,6 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_BEXPR_IV(li, bop, rv)   AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(li), bop, EXPRATOM_VALUE, AST_EXPRATOM_VAL(rv))
 #define AST_FNCALL_E(e, lst)        AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_FNCALL_I(id, lst)       AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_CALL, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_GETATTR_E(e, lst)       AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_GETATTR_I(id, lst)      AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_GETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_SAFEGETATTR_E(e, lst)   AST_BINARY(EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e), BINARY_SAFEGETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
-#define AST_SAFEGETATTR_I(id, lst)  AST_BINARY(EXPRATOM_IDENT, AST_EXPRATOM_IDENT(id), BINARY_SAFEGETATTR, EXPRATOM_EXPRLIST, AST_EXPRATOM_LIST(lst))
 #define AST_CEXPR_VVV(v1, v2, v3)   AST_COND(AST_EXPRATOM_VAL(v1), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v2), EXPRATOM_VALUE, AST_EXPRATOM_VAL(v3), EXPRATOM_VALUE)
 #define AST_CEXPR_EEE(e1, e2, e3)   AST_COND(AST_EXPRATOM_EXPR(e1), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e2), EXPRATOM_EXPRESSION, AST_EXPRATOM_EXPR(e3), EXPRATOM_EXPRESSION)
 #define AST_CEXPR_III(i1, i2, i3)   AST_COND(AST_EXPRATOM_IDENT(i1), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i2), EXPRATOM_IDENT, AST_EXPRATOM_IDENT(i3), EXPRATOM_IDENT)
@@ -904,17 +900,17 @@ MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *us
         {
             .val = "name[\"first\"];",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")))),
+            .cmpnt.expr = AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("first")),
         },
         {
             .val = "name?[\"first\"];",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_SAFEGETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")))),
+            .cmpnt.expr = AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SAFEGETATTR, VM_STR("first")),
         },
         {
             .val = "name?[\"first\", \"second\"];",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_SAFEGETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")), &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))),
+            .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SAFEGETATTR, VM_STR("first")), BINARY_SAFEGETATTR, VM_STR("second")),
         },
         {
             .val = "name.first.second.third;",
@@ -929,7 +925,7 @@ MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *us
         {
             .val = "name[\"first\", \"second\"]?.third;",
             .type = ASTCMPNT_EXPR,
-            .cmpnt.expr = AST_BEXPR_EV(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("first")), &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))), BINARY_SAFEGETATTR, VM_STR("third")),
+            .cmpnt.expr = AST_BEXPR_EV(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("first")), BINARY_GETATTR, VM_STR("second")), BINARY_SAFEGETATTR, VM_STR("third")),
         },
     };
 
@@ -1347,12 +1343,12 @@ MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_da
         {
             .val = "name[\"second\"] := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(1, &AST_UEXPR_V(UNARY_NONE, VM_STR("second")))), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
             .val = "name[\"second\", \"third\"] := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_GETATTR_I(AST_IDENT(IDENT_NAME, "name"), AST_EXPRLIST(2, &AST_UEXPR_V(UNARY_NONE, VM_STR("second")), &AST_UEXPR_V(UNARY_NONE, VM_STR("third")))), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
     };
 

@@ -1541,7 +1541,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -1558,7 +1558,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -1577,11 +1577,11 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]) {
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 2),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                 },
                 .idents = ((DSBuffer *[]) {
                     VM_IDENT("name"),
@@ -1600,15 +1600,16 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_GET_ATTR, 2),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 2),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
                 }),
-                .nops = 6, .nvals = 3, .nidents = 1
+                .nops = 7, .nvals = 3, .nidents = 1
             },
         },
     };
@@ -1818,7 +1819,7 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_DEL_ATTR, 1),
+                    VM_OPC(OPC_DEL_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -1835,7 +1836,7 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_DEL_ATTR, 1),
+                    VM_OPC(OPC_DEL_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -1853,9 +1854,9 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_DEL_ATTR, 1),
+                    VM_OPC(OPC_DEL_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -1873,13 +1874,14 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_DEL_ATTR, 2),
+                    VM_OPC(OPC_DEL_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
                 }),
-                .nops = 4, .nvals = 2, .nidents = 1
+                .nops = 5, .nvals = 2, .nidents = 1
             }
         },
         {
@@ -1892,9 +1894,9 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_DEL_ATTR, 1),
+                    VM_OPC(OPC_DEL_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -2140,7 +2142,7 @@ MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void
                     VM_OPC(OPC_PUSH_BLOCK, 0),
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_CALL, 0),
                     VM_OPC(OPC_JUMP_IF_FALSE, 7),
                     VM_OPC(OPC_GOTO, 1),
@@ -2497,7 +2499,7 @@ MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_RETURN, 0),
                 },
                 .idents = (DSBuffer*[]){
@@ -2730,7 +2732,7 @@ MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_SET_ATTR, 1),
+                    VM_OPC(OPC_SET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -2749,7 +2751,7 @@ MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_SET_ATTR, 1),
+                    VM_OPC(OPC_SET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("name"),
@@ -2769,9 +2771,9 @@ MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_GET_ATTR, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 2),
-                    VM_OPC(OPC_SET_ATTR, 1),
+                    VM_OPC(OPC_SET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("data"),
@@ -2791,13 +2793,14 @@ MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_NAME, 0),
                     VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
                     VM_OPC(OPC_PUSH, 2),
-                    VM_OPC(OPC_SET_ATTR, 2),
+                    VM_OPC(OPC_SET_ATTR, 0),
                 },
                 .idents = ((DSBuffer*[]){
                     VM_IDENT("data"),
                 }),
-                .nops = 5, .nvals = 3, .nidents = 1
+                .nops = 6, .nvals = 3, .nidents = 1
             }
         },
         {
