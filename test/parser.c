@@ -439,10 +439,10 @@ MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) 
 
     ms_ParserInitString(prs, code);
     ms_VMByteCode *bc;
-    const ms_ParseError *err;
-    ms_ParseResult pres = ms_ParserParse(prs, &bc, NULL, &err);
+    const ms_Error *err;
+    ms_Result pres = ms_ParserParse(prs, &bc, NULL, &err);
 
-    munit_assert_cmp_int(pres, ==, PARSE_ERROR);
+    munit_assert_cmp_int(pres, ==, MS_RESULT_ERROR);
     munit_assert_non_null(err);
     munit_assert_null(bc);
 
@@ -1765,11 +1765,11 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
 
         const ms_AST *ast;
         ms_VMByteCode *code;
-        const ms_ParseError *err;
-        ms_ParseResult pres = ms_ParserParse(prs, &code, &ast, &err);
+        const ms_Error *err;
+        ms_Result pres = ms_ParserParse(prs, &code, &ast, &err);
         if (err) { munit_logf(MUNIT_LOG_INFO, "err = %s", err->msg); }
 
-        munit_assert_cmp_int(pres, !=, PARSE_ERROR);
+        munit_assert_cmp_int(pres, !=, MS_RESULT_ERROR);
         munit_assert_non_null(ast);
         munit_assert_null(err);
 

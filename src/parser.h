@@ -19,20 +19,10 @@
 
 #include <stdbool.h>
 #include "bytecode.h"
+#include "error.h"
 #include "lang.h"
 
 typedef struct ms_Parser ms_Parser;
-
-typedef enum ms_ParseResult {
-    PARSE_SUCCESS,          /** Parsing succeeded */
-    PARSE_WARNINGS,         /** Parsing succeeded but there may be some issues */
-    PARSE_ERROR             /** Parsing could not be completed */
-} ms_ParseResult;
-
-typedef struct ms_ParseError {
-    char *msg;              /** Error message returned from the parser */
-    ms_Token *tok;          /** Token potentially associated with the error */
-} ms_ParseError;
 
 /**
 * @brief Create a new @c ms_Parser object.
@@ -69,7 +59,7 @@ bool ms_ParserInitStringL(ms_Parser *prs, const char *str, size_t len);
 *          if the value is PARSE_ERROR or PARSE_WARNINGS, the caller can
 *          examine the value of @c to determine what went wrong
 */
-ms_ParseResult ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_ParseError **err);
+ms_Result ms_ParserParse(ms_Parser *prs, ms_VMByteCode **code, const ms_AST **ast, const ms_Error **err);
 
 /**
 * @brief Destroy a @c ms_Parser object.
