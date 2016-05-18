@@ -1116,7 +1116,6 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
         }
         case BINARY_GETATTR: {
             assert(b->rtype != EXPRATOM_EXPRLIST);
-            assert(b->rtype == EXPRATOM_VALUE);
             ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
             ExprBinaryAttrListToOpCode(b, ctx);
 
