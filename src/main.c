@@ -18,48 +18,32 @@
 #include <stdlib.h>
 #include <string.h>
 #include <readline/readline.h>
-#include "parser.h"
-#include "vm.h"
+#include "mscript.h"
 
 static int StartREPL(const char *prog) {
-    ms_Parser *prs = ms_ParserNew();
-    assert(prs);
-    ms_VM *vm = ms_VMNew();
-    assert(vm);
+    ms_StateOptions opts = {
+        .print_bytecode = true,
+    };
+    ms_State *ms = ms_StateNewOptions(opts);
+    assert(ms);
 
     char *input;
     printf("mscript v0.1\n");
     while ((input = readline("> ")) != NULL) {
         if (strlen(input) == 0) {
-            ms_VMClear(vm);
             free(input);
             break;
         }
 
-        ms_ParserInitString(prs, input);
-
-        ms_VMByteCode *code;    /* freed by the VM */
-        const ms_ParseError *err;
-        if (ms_ParserParse(prs, &code, NULL, &err) == PARSE_ERROR) {
+        const ms_Error *err;
+        if (ms_StateExecuteString(ms, input, &err) == MS_RESULT_ERROR) {
             printf("%s: \n%s\n", prog, err->msg);
-            free(input);
-            continue;
         }
 
-        assert(code);
-        assert(!err);
-
-        const ms_VMError *vmerr;
-        if (ms_VMExecuteAndPrint(vm, code, &vmerr) != VMEXEC_SUCCESS) {
-            printf("%s: \n%s\n", prog, vmerr->msg);
-        }
-
-        ms_VMClear(vm);
         free(input);
     }
 
-    ms_ParserDestroy(prs);
-    ms_VMDestroy(vm);
+    ms_StateDestroy(ms);
     return EXIT_SUCCESS;
 }
 

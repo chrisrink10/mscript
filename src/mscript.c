@@ -75,7 +75,7 @@ ms_Result ms_StateExecuteStringL(ms_State *state, const char *str, size_t len, c
     }
 
     assert(code);
-    assert(!err);
+    assert(!(*err));
     if (state->opts.print_bytecode) {
         ms_VMByteCodePrint(code);
     }
@@ -104,7 +104,7 @@ ms_Result ms_StateExecuteFile(ms_State *state, const char *fname, const ms_Error
     }
 
     assert(code);
-    assert(!err);
+    assert(!(*err));
     if (state->opts.print_bytecode) {
         ms_VMByteCodePrint(code);
     }
