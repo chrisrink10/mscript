@@ -49,7 +49,8 @@ set(LIBDS_SOURCE_FILES deps/libds/array.c
 set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 
 # mscript source files
-set(MSCRIPT_SOURCE_FILES src/bytecode.c
+set(MSCRIPT_SOURCE_FILES src/mscript.c
+                         src/bytecode.c
                          src/lang.c
                          src/lexer.c
                          src/obj.c
