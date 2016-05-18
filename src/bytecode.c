@@ -53,7 +53,6 @@ typedef struct {
     CodeGenContext *parent;
     size_t attrcount;           /** count of attributes seen in a single expr */
     size_t attrdepth;           /** depth of attributes in current stack frame */
-    size_t attrlenlast;         /** count of the number of attributes in the most recent stack */
     bool suppress_get_attr;     /** suppress GET_ATTR opcodes */
     bool get_name_as_push;      /** convert GET_NAME opcodes to PUSH */
 } CodeGenContextExpr;
@@ -87,12 +86,14 @@ static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenCont
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenContext *ctx);
 static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool new_name);
 static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx);
-static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx);
+static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, CodeGenContext *ctx);
 static void IdentExprToOpCodes(const ms_Expr *ident, int *index, CodeGenContext *ctx);
 static void ExprToOpCodes(const ms_Expr *expr, CodeGenContext *ctx);
 static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx);
 static void ExprUnaryToOpCodes(const ms_ExprUnary *u, CodeGenContextExpr *ctx);
 static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
+static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
+static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx);
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx);
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
@@ -538,9 +539,8 @@ static void StmtDeleteToOpCodes(const ms_StmtDelete *del, CodeGenContext *ctx) {
             break;
         }
         case EXPRIDENT_QUALIFIED: {
-            int nsubscripts = 0;
-            QualifiedIdentExprToOpCodes(del->expr, &nsubscripts, ctx);
-            PushOpCode(OPC_DEL_ATTR, nsubscripts, ctx);
+            QualifiedIdentExprToOpCodes(del->expr, ctx);
+            PushOpCode(OPC_DEL_ATTR, 0, ctx);
             break;
         }
     }
@@ -986,9 +986,8 @@ static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool ne
             break;
         }
         case EXPRIDENT_QUALIFIED: {
-            int nsubscripts = 0;
-            QualifiedIdentExprToOpCodes(ident, &nsubscripts, ctx);
-            PushOpCode(OPC_SET_ATTR, nsubscripts, ctx);
+            QualifiedIdentExprToOpCodes(ident, ctx);
+            PushOpCode(OPC_SET_ATTR, 0, ctx);
             break;
         }
     }
@@ -1014,7 +1013,7 @@ static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, Cod
     /* intentionally provide no opcode */
 }
 
-static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx) {
+static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, CodeGenContext *ctx) {
     assert(ident);
     assert(ident->type == EXPRTYPE_BINARY);
     assert(ident->cmpnt.b->op == BINARY_GETATTR);
@@ -1022,14 +1021,6 @@ static void QualifiedIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, 
     assert(ctx);
 
     const ms_ExprBinary *b = ident->cmpnt.b;
-    if (b->rtype == EXPRATOM_EXPRLIST) {
-        size_t len = dsarray_len(b->ratom.list);
-        assert(len <= (size_t)OPC_ARG_MAX);
-        *nsubscripts = (int)len;
-    } else {
-        *nsubscripts = 1;
-    }
-
     CodeGenContextExpr ctxe = { ctx };
     ExprComponentToOpCodes(&b->latom, b->ltype, &ctxe);
     ExprComponentToOpCodes(&b->ratom, b->rtype, &ctxe);
@@ -1069,6 +1060,9 @@ static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx) {
         case EXPRTYPE_BINARY:
             ExprBinaryToOpCodes(expr->cmpnt.b, ctx);
             break;
+        case EXPRTYPE_CONDITIONAL:
+            ExprConditionalToOpCodes(expr->cmpnt.c, ctx);
+            break;
     }
 }
 
@@ -1104,8 +1098,13 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             PushOpCode(opc, (int) len, ctx->parent);
             break;
         }
+        case BINARY_SAFEGETATTR: {
+            ExprSafeGetAttrToOpCodes(b, ctx);
+            break;
+        }
         case BINARY_GETATTR: {
-            assert((b->rtype == EXPRATOM_EXPRLIST) || (b->rtype == EXPRATOM_VALUE));
+            assert(b->rtype != EXPRATOM_EXPRLIST);
+            assert(b->rtype == EXPRATOM_VALUE);
             ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
             ExprBinaryAttrListToOpCode(b, ctx);
 
@@ -1115,7 +1114,7 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
                 }
             } else {
                 if (!ctx->suppress_get_attr) {
-                    PushOpCode(OPC_GET_ATTR, (int)ctx->attrlenlast, ctx->parent);
+                    PushOpCode(OPC_GET_ATTR, 0, ctx->parent);
                 }
             }
             break;
@@ -1137,6 +1136,128 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             break;
         }
     }
+}
+
+static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
+    assert(b);
+    assert(ctx);
+    assert(b->op == BINARY_SAFEGETATTR);
+    assert(b->rtype != EXPRATOM_EXPRLIST);
+    assert(b->rtype == EXPRATOM_VALUE);
+    assert(ExprAtomGetIdentType(&b->latom, b->ltype) != EXPRIDENT_GLOBAL);
+
+    /***************************************************************************
+     * Safe-get attribute should end up looking like this in bytecode:
+     *
+     * index        instruction     arg
+     * -----        -----------     ----
+     * ...          (expr)                      <--- object
+     * ...          DUP                         <--- duplicate the object reference
+     * ...          PUSH                        <--- push a null onto the stack
+     * ...          EQ                          <--- compare the object to null
+     * i            IF              k           <--- if the object is not null, jump to the GET_ATTR
+     * ...          POP                         <--- pop the attribute
+     * ...          PUSH                        <--- push the null back onto the stack
+     * j            GOTO            k+1         <--- skip past the GET_ATTR
+     * k            GET_ATTR
+     ***************************************************************************/
+
+    size_t i = 0;
+    size_t j = 0;
+    size_t k = 0;
+
+    ctx->attrdepth += 1;
+    ctx->attrcount += 1;
+    ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
+
+    if (!ctx->suppress_get_attr) {
+        PushOpCode(OPC_DUP, 0, ctx->parent);
+
+        int val_index;
+        ms_Value v = { .type = MSVAL_NULL, .val = { .n = MS_VM_NULL_POINTER } };
+        PushValue(&v, &val_index, ctx->parent);
+        PushOpCode(OPC_PUSH, val_index, ctx->parent);
+        PushOpCode(OPC_EQ, 0, ctx->parent);
+
+        i = dsarray_len(ctx->parent->opcodes);
+        PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx->parent);
+
+        PushOpCode(OPC_POP, 0, ctx->parent);
+        PushOpCode(OPC_PUSH, val_index, ctx->parent);
+
+        j = dsarray_len(ctx->parent->opcodes);
+        PushOpCode(OPC_GOTO, 0, ctx->parent);
+
+        k = dsarray_len(ctx->parent->opcodes);
+    }
+
+    ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
+    ctx->attrdepth -= 1;
+
+    /* fix opcode arguments */
+    if (!ctx->suppress_get_attr) {
+        PushOpCode(OPC_GET_ATTR, 0, ctx->parent);
+        size_t diff = dsarray_len(ctx->parent->opcodes) - k;
+
+        ms_VMOpCode *opcif = dsarray_get(ctx->parent->opcodes, i);
+        *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)k);
+
+        ms_VMOpCode *opcgoto = dsarray_get(ctx->parent->opcodes, j);
+        *opcgoto = ms_VMOpCodeWithArg(OPC_GOTO, (int)(k+diff));
+    }
+}
+
+static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx) {
+    assert(c);
+    assert(ctx);
+    assert(ctx->parent);
+
+    /***************************************************************************
+     * Conditional expressions should end up looking like this in bytecode:
+     *
+     * index        instruction     arg
+     * -----        -----------     ----
+     * ...          (expr)                      <--- conditional expression
+     * i            IF              j           <--- if TOS evaluated to false, jump to false value
+     * ...          (expr)                      <--- expression if true
+     * ...          GOTO            k           <--- jump past false expression
+     * j            (expr)                      <--- expression if false
+     * k            (...)                       <--- end of branch
+     ***************************************************************************/
+
+    ms_ExprIdentType cond_ident_type = ExprAtomGetIdentType(&c->cond, c->condtype);
+    ExprComponentToOpCodes(&c->cond, c->condtype, ctx);
+
+    if (cond_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    size_t i = dsarray_len(ctx->parent->opcodes);
+    PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx->parent);
+
+    ms_ExprIdentType true_ident_type = ExprAtomGetIdentType(&c->iftrue, c->truetype);
+    ExprComponentToOpCodes(&c->iftrue, c->truetype, ctx);
+
+    if (true_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    PushOpCode(OPC_GOTO, 0, ctx->parent);
+    size_t j = dsarray_len(ctx->parent->opcodes);
+
+    ms_ExprIdentType false_ident_type = ExprAtomGetIdentType(&c->iffalse, c->falsetype);
+    ExprComponentToOpCodes(&c->iffalse, c->falsetype, ctx);
+
+    if (false_ident_type == EXPRIDENT_GLOBAL) {
+        PushOpCode(OPC_GET_GLO, 0, ctx->parent);
+    }
+
+    /* fix the opcode arguments */
+    size_t k = dsarray_len(ctx->parent->opcodes);
+    ms_VMOpCode *ifopc = dsarray_get(ctx->parent->opcodes, i);
+    *ifopc = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)j);
+    ms_VMOpCode *gotoopc = dsarray_get(ctx->parent->opcodes, j-1);
+    *gotoopc = ms_VMOpCodeWithArg(OPC_GOTO, (int)k);
 }
 
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx) {
@@ -1231,6 +1352,9 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
         case BINARY_GETATTR:
             assert(false && "should not be generating getattr opcode here");
             break;
+        case BINARY_SAFEGETATTR:
+            assert(false && "should not be generating safegetattr opcode here");
+            break;
         default:
             assert(false && "invalid binary expression op found");
             return;
@@ -1241,22 +1365,13 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
 
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
     assert(b);
+    assert(b->rtype != EXPRATOM_EXPRLIST);
     assert(ctx);
-
-    size_t len = 1;
-
-    if (b->rtype == EXPRATOM_EXPRLIST) {
-        len = dsarray_len(b->ratom.list);
-        assert(len <= (size_t)OPC_ARG_MAX);
-    }
-
-    ctx->attrdepth += len;
-    ctx->attrcount += len;
+    ctx->attrdepth += 1;
+    ctx->attrcount += 1;
     ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
     ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
-    ctx->attrdepth -= len;
-
-    ctx->attrlenlast = len;
+    ctx->attrdepth -= 1;
 }
 
 static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx) {

@@ -21,77 +21,81 @@
 #include <stdlib.h>
 #include "libds/buffer.h"
 
-static const char *const TOK_ERROR = "ERROR";
-static const char *const TOK_RESERVED_KW = "RESERVED_KW";
-static const char *const TOK_IDENTIFIER = "IDENTIFIER";
-static const char *const TOK_BUILTIN_FUNC = "BUILTIN_FUNC";
-static const char *const TOK_GLOBAL = "GLOBAL";
-static const char *const TOK_NEWLINE = "NEWLINE";
-static const char *const TOK_SEMICOLON = "SEMICOLON";
-static const char *const TOK_COMMA = "COMMA";
-static const char *const TOK_PERIOD = "PERIOD";
-static const char *const TOK_RBRACE = "RBRACE";
-static const char *const TOK_LBRACE = "LBRACE";
-static const char *const TOK_RBRACKET = "RBRACKET";
-static const char *const TOK_LBRACKET = "LBRACKET";
-static const char *const TOK_RPAREN = "RPAREN";
-static const char *const TOK_LPAREN = "LPAREN";
-static const char *const TOK_COLON = "COLON";
-static const char *const TOK_OP_BITWISE_AND_EQUALS = "OP_BITWISE_AND_EQUALS";
-static const char *const TOK_OP_BITWISE_OR_EQUALS = "OP_BITWISE_OR_EQUALS";
-static const char *const TOK_OP_BITWISE_XOR_EQUALS = "OP_BITWISE_XOR_EQUALS";
-static const char *const TOK_OP_SHIFT_LEFT_EQUALS = "OP_SHIFT_LEFT_EQUALS";
-static const char *const TOK_OP_SHIFT_RIGHT_EQUALS = "OP_SHIFT_RIGHT_EQUALS";
-static const char *const TOK_OP_BITWISE_AND = "OP_BITWISE_AND";
-static const char *const TOK_OP_BITWISE_OR = "OP_BITWISE_OR";
-static const char *const TOK_OP_BITWISE_XOR = "OP_BITWISE_XOR";
-static const char *const TOK_OP_BITWISE_NOT = "OP_BITWISE_NOT";
-static const char *const TOK_OP_SHIFT_LEFT = "OP_SHIFT_LEFT";
-static const char *const TOK_OP_SHIFT_RIGHT = "OP_SHIFT_RIGHT";
-static const char *const TOK_OP_LE = "OP_LE";
-static const char *const TOK_OP_GE = "OP_GE";
-static const char *const TOK_NOT_EQ = "OP_NOT_EQ";
-static const char *const TOK_OP_NOT = "OP_NOT";
-static const char *const TOK_OP_EQ = "OP_EQ";
-static const char *const TOK_OP_LT = "OP_LT";
-static const char *const TOK_OP_GT = "OP_GT";
-static const char *const TOK_OP_DOUBLE_EQ = "OP_DOUBLE_EQ";
-static const char *const TOK_OP_EXPONENTIATE = "OP_EXPONENTIATE";
-static const char *const TOK_OP_OR = "OP_OR";
-static const char *const TOK_OP_AND = "OP_AND";
-static const char *const TOK_OP_MODULO_EQUALS = "OP_MODULO_EQUALS";
-static const char *const TOK_OP_IDIVIDE_EQUALS = "OP_IDIVIDE_EQUALS";
-static const char *const TOK_OP_DIVIDE_EQUALS = "OP_DIVIDE_EQUALS";
-static const char *const TOK_OP_TIMES_EQUALS = "OP_TIMES_EQUALS";
-static const char *const TOK_OP_MINUS_EQUALS = "OP_MINUS_EQUALS";
-static const char *const TOK_OP_PLUS_EQUALS = "OP_PLUS_EQUALS";
-static const char *const TOK_OP_MODULO = "OP_MODULO";
-static const char *const TOK_OP_IDIVIDE = "OP_IDIVIDE";
-static const char *const TOK_OP_DIVIDE = "OP_DIVIDE";
-static const char *const TOK_OP_TIMES = "OP_TIMES";
-static const char *const TOK_OP_MINUS = "OP_MINUS";
-static const char *const TOK_OP_PLUS = "OP_PLUS";
-static const char *const TOK_OP_UMINUS = "OP_UMINUS";
-static const char *const TOK_KW_MERGE = "KW_MERGE";
-static const char *const TOK_KW_NULL = "KW_NULL";
-static const char *const TOK_KW_FALSE = "KW_FALSE";
-static const char *const TOK_KW_TRUE = "KW_TRUE";
-static const char *const TOK_KW_DEL = "KW_DEL";
-static const char *const TOK_KW_VAR = "KW_VAR";
-static const char *const TOK_KW_BREAK = "KW_BREAK";
-static const char *const TOK_KW_CONTINUE = "KW_CONTINUE";
-static const char *const TOK_KW_IMPORT = "KW_IMPORT";
-static const char *const TOK_KW_FOR = "KW_FOR";
-static const char *const TOK_KW_RETURN = "KW_RETURN";
-static const char *const TOK_KW_ELSE = "KW_ELSE";
-static const char *const TOK_KW_IF = "KW_IF";
-static const char *const TOK_KW_FUNC = "KW_FUNC";
-static const char *const TOK_KW_IS = "KW_IS";
-static const char *const TOK_KW_IN = "KW_IN";
-static const char *const TOK_STRING = "STRING";
-static const char *const TOK_INT_NUMBER = "INT_NUMBER";
-static const char *const TOK_FLOAT_NUMBER = "FLOAT_NUMBER";
-static const char *const TOK_HEX_NUMBER = "HEX_NUMBER";
+extern const char *const TOK_ERROR;
+extern const char *const TOK_RESERVED_KW;
+extern const char *const TOK_IDENTIFIER;
+extern const char *const TOK_BUILTIN_FUNC;
+extern const char *const TOK_GLOBAL;
+extern const char *const TOK_NEWLINE;
+extern const char *const TOK_QUESTION_MARK;
+extern const char *const TOK_SEMICOLON;
+extern const char *const TOK_COMMA;
+extern const char *const TOK_PERIOD;
+extern const char *const TOK_RBRACE;
+extern const char *const TOK_LBRACE;
+extern const char *const TOK_RBRACKET;
+extern const char *const TOK_LBRACKET;
+extern const char *const TOK_RPAREN;
+extern const char *const TOK_LPAREN;
+extern const char *const TOK_COLON;
+extern const char *const TOK_OP_SAFE_GETATTR;
+extern const char *const TOK_OP_SAFE_REFERENCE;
+extern const char *const TOK_OP_BITWISE_AND_EQUALS;
+extern const char *const TOK_OP_BITWISE_OR_EQUALS;
+extern const char *const TOK_OP_BITWISE_XOR_EQUALS;
+extern const char *const TOK_OP_SHIFT_LEFT_EQUALS;
+extern const char *const TOK_OP_SHIFT_RIGHT_EQUALS;
+extern const char *const TOK_OP_BITWISE_AND;
+extern const char *const TOK_OP_BITWISE_OR;
+extern const char *const TOK_OP_BITWISE_XOR;
+extern const char *const TOK_OP_BITWISE_NOT;
+extern const char *const TOK_OP_SHIFT_LEFT;
+extern const char *const TOK_OP_SHIFT_RIGHT;
+extern const char *const TOK_OP_LE;
+extern const char *const TOK_OP_GE;
+extern const char *const TOK_NOT_EQ;
+extern const char *const TOK_OP_NOT;
+extern const char *const TOK_OP_EQ;
+extern const char *const TOK_OP_LT;
+extern const char *const TOK_OP_GT;
+extern const char *const TOK_OP_DOUBLE_EQ;
+extern const char *const TOK_OP_EXPONENTIATE;
+extern const char *const TOK_OP_OR;
+extern const char *const TOK_OP_AND;
+extern const char *const TOK_OP_MODULO_EQUALS;
+extern const char *const TOK_OP_IDIVIDE_EQUALS;
+extern const char *const TOK_OP_DIVIDE_EQUALS;
+extern const char *const TOK_OP_TIMES_EQUALS;
+extern const char *const TOK_OP_MINUS_EQUALS;
+extern const char *const TOK_OP_PLUS_EQUALS;
+extern const char *const TOK_OP_MODULO;
+extern const char *const TOK_OP_IDIVIDE;
+extern const char *const TOK_OP_DIVIDE;
+extern const char *const TOK_OP_TIMES;
+extern const char *const TOK_OP_MINUS;
+extern const char *const TOK_OP_PLUS;
+extern const char *const TOK_OP_UMINUS;
+extern const char *const TOK_KW_MERGE;
+extern const char *const TOK_KW_NULL;
+extern const char *const TOK_KW_FALSE;
+extern const char *const TOK_KW_TRUE;
+extern const char *const TOK_KW_DEL;
+extern const char *const TOK_KW_VAR;
+extern const char *const TOK_KW_BREAK;
+extern const char *const TOK_KW_CONTINUE;
+extern const char *const TOK_KW_IMPORT;
+extern const char *const TOK_KW_FOR;
+extern const char *const TOK_KW_RETURN;
+extern const char *const TOK_KW_ELSE;
+extern const char *const TOK_KW_IF;
+extern const char *const TOK_KW_FUNC;
+extern const char *const TOK_KW_IS;
+extern const char *const TOK_KW_IN;
+extern const char *const TOK_KW_SELECT;
+extern const char *const TOK_STRING;
+extern const char *const TOK_INT_NUMBER;
+extern const char *const TOK_FLOAT_NUMBER;
+extern const char *const TOK_HEX_NUMBER;
 
 /**
  * @brief Enumeration of mscript token types.
@@ -122,6 +126,7 @@ typedef enum ms_TokenType {
     KW_MERGE,
     KW_IS,
     KW_IN,
+    KW_SELECT,
     OP_UMINUS,
     OP_PLUS,
     OP_MINUS,
@@ -157,6 +162,8 @@ typedef enum ms_TokenType {
     OP_BITWISE_XOR_EQUALS,
     OP_SHIFT_LEFT_EQUALS,
     OP_SHIFT_RIGHT_EQUALS,
+    OP_SAFE_REFERENCE,
+    OP_SAFE_GETATTR,
     COLON,
     LPAREN,
     RPAREN,
@@ -167,6 +174,7 @@ typedef enum ms_TokenType {
     PERIOD,
     COMMA,
     SEMICOLON,
+    QUESTION_MARK,
     NEWLINE_TOK
 } ms_TokenType;
 

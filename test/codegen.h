@@ -26,6 +26,7 @@
 MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data);
+MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data);

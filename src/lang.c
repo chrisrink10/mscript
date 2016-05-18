@@ -66,6 +66,19 @@ ms_Expr *ms_ExprNew(ms_ExprType type) {
             expr->cmpnt.b->rtype = EXPRATOM_EMPTY;
             expr->cmpnt.b->ratom.expr = NULL;
             break;
+        case EXPRTYPE_CONDITIONAL:
+            expr->cmpnt.c = malloc(sizeof(ms_ExprConditional));
+            if (!expr->cmpnt.c) {
+                free(expr);
+                return NULL;
+            }
+            expr->cmpnt.c->cond.expr = NULL;
+            expr->cmpnt.c->condtype = EXPRATOM_EMPTY;
+            expr->cmpnt.c->iftrue.expr = NULL;
+            expr->cmpnt.c->truetype = EXPRATOM_EMPTY;
+            expr->cmpnt.c->iffalse.expr = NULL;
+            expr->cmpnt.c->falsetype = EXPRATOM_EMPTY;
+            break;
     }
 
     return expr;
@@ -211,6 +224,18 @@ ms_Expr *ms_ExprDup(const ms_Expr *src) {
                 goto expr_dup_fail;
             }
             break;
+        case EXPRTYPE_CONDITIONAL:
+            assert(expr->cmpnt.c);
+            if (!ExprAtomDup(&src->cmpnt.c->cond, &expr->cmpnt.c->cond, expr->cmpnt.c->condtype)) {
+                goto expr_dup_fail;
+            }
+            if (!ExprAtomDup(&src->cmpnt.c->iftrue, &expr->cmpnt.c->iftrue, expr->cmpnt.c->truetype)) {
+                goto expr_dup_fail;
+            }
+            if (!ExprAtomDup(&src->cmpnt.c->iffalse, &expr->cmpnt.c->iffalse, expr->cmpnt.c->falsetype)) {
+                goto expr_dup_fail;
+            }
+            break;
     }
 
     return expr;
@@ -255,6 +280,36 @@ ms_Expr *ms_ExprFlatten(ms_Expr *outer, ms_Expr *inner, ms_ExprLocation loc) {
             } else {
                 outer->cmpnt.b->ratom = inner->cmpnt.u->atom;
                 outer->cmpnt.b->rtype = inner->cmpnt.u->type;
+            }
+            break;
+        case EXPRLOC_COND:
+            assert(outer->type == EXPRTYPE_CONDITIONAL);
+            if (!should_flatten) {
+                outer->cmpnt.c->cond.expr = inner;
+                outer->cmpnt.c->condtype = EXPRATOM_EXPRESSION;
+            } else {
+                outer->cmpnt.c->cond = inner->cmpnt.u->atom;
+                outer->cmpnt.c->condtype = inner->cmpnt.u->type;
+            }
+            break;
+        case EXPRLOC_TRUE:
+            assert(outer->type == EXPRTYPE_CONDITIONAL);
+            if (!should_flatten) {
+                outer->cmpnt.c->iftrue.expr = inner;
+                outer->cmpnt.c->truetype = EXPRATOM_EXPRESSION;
+            } else {
+                outer->cmpnt.c->iftrue = inner->cmpnt.u->atom;
+                outer->cmpnt.c->truetype = inner->cmpnt.u->type;
+            }
+            break;
+        case EXPRLOC_FALSE:
+            assert(outer->type == EXPRTYPE_CONDITIONAL);
+            if (!should_flatten) {
+                outer->cmpnt.c->iffalse.expr = inner;
+                outer->cmpnt.c->falsetype = EXPRATOM_EXPRESSION;
+            } else {
+                outer->cmpnt.c->iffalse = inner->cmpnt.u->atom;
+                outer->cmpnt.c->falsetype = inner->cmpnt.u->type;
             }
             break;
     }
@@ -314,12 +369,13 @@ ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
         }
 
         return EXPRIDENT_NONE;
-    } else {
+    } else if (expr->type == EXPRTYPE_BINARY) {
         if (!expr->cmpnt.b) {
             return EXPRIDENT_NONE;
         }
 
-        if (expr->cmpnt.b->op != BINARY_GETATTR) {
+        if ((expr->cmpnt.b->op != BINARY_GETATTR) &&
+            (expr->cmpnt.b->op != BINARY_SAFEGETATTR)) {
             return EXPRIDENT_NONE;
         }
 
@@ -327,7 +383,7 @@ ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
             if (expr->cmpnt.b->ratom.val.type != MSVAL_STR) {
                 return EXPRIDENT_NONE;
             }
-        } else if (expr->cmpnt.b->rtype != EXPRATOM_EXPRLIST) {
+        } else if (expr->cmpnt.b->rtype == EXPRATOM_EXPRLIST) {
             return EXPRIDENT_NONE;
         }
 
@@ -350,6 +406,8 @@ ms_ExprIdentType ms_ExprGetIdentType(const ms_Expr *expr) {
             }
         }
 
+        return EXPRIDENT_NONE;
+    } else {
         return EXPRIDENT_NONE;
     }
 }
@@ -402,6 +460,15 @@ void ms_ExprDestroy(ms_Expr *expr) {
                 ExprAtomDestroy(&expr->cmpnt.b->ratom, expr->cmpnt.b->rtype);
                 free(expr->cmpnt.b);
                 expr->cmpnt.b = NULL;
+            }
+            break;
+        case EXPRTYPE_CONDITIONAL:
+            if (expr->cmpnt.c) {
+                ExprAtomDestroy(&expr->cmpnt.c->cond, expr->cmpnt.c->condtype);
+                ExprAtomDestroy(&expr->cmpnt.c->iftrue, expr->cmpnt.c->truetype);
+                ExprAtomDestroy(&expr->cmpnt.c->iffalse, expr->cmpnt.c->falsetype);
+                free(expr->cmpnt.c);
+                expr->cmpnt.c = NULL;
             }
             break;
     }

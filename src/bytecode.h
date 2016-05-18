@@ -57,9 +57,9 @@ typedef enum {
     OPC_PUSH_BLOCK,     /*              push a new block context onto the frame                                                 */
     OPC_POP_BLOCK,      /*              pop the top block context from the stack                                                */
     OPC_RETURN,         /*              return TOS to calling context                                                           */
-    OPC_GET_ATTR,       /*  opt         TOS := TOS[TOS1, ...]                                                                   */
-    OPC_SET_ATTR,       /*  opt         TOS[TOS1, ...] := TOSN                                                                  */
-    OPC_DEL_ATTR,       /*  opt         delete TOS[TOS1, ...]                                                                   */
+    OPC_GET_ATTR,       /*              TOS := TOS[TOS1]                                                                        */
+    OPC_SET_ATTR,       /*              TOS[TOS1] := TOSN                                                                       */
+    OPC_DEL_ATTR,       /*              delete TOS[TOS1]                                                                        */
     OPC_GET_GLO,        /*  req         TOS := db[..., TOS1, TOS]                                                               */
     OPC_SET_GLO,        /*  req         db[..., TOS1, TOS] := TOSN                                                              */
     OPC_DEL_GLO,        /*  req         delete db[..., TOS1, TOS]                                                               */
