@@ -120,6 +120,7 @@ static ms_Result StateParseAndExecute(ms_State *state, const ms_Error **err) {
     assert(state);
     assert(err);
 
+    *err = NULL;
     ms_StateErrorClear(state);
 
     const ms_AST *ast;
@@ -135,16 +136,15 @@ static ms_Result StateParseAndExecute(ms_State *state, const ms_Error **err) {
         return MS_RESULT_ERROR;
     }
 
-    assert(!state->err);
     if (state->opts.print_bytecode) {
         ms_VMByteCodePrint(code);
     }
 
-    const ms_VMError *vmerr;
-    if (ms_VMExecuteAndPrint(state->vm, code, &vmerr) != VMEXEC_SUCCESS) {
+    assert(!state->err);
+    if (ms_VMExecuteAndPrint(state->vm, code, &state->err) == MS_RESULT_ERROR) {
+        *err = state->err;
         return MS_RESULT_ERROR;
     }
 
-    ms_VMClear(state->vm);
     return MS_RESULT_SUCCESS;
 }

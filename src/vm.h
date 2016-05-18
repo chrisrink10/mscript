@@ -21,44 +21,18 @@
 #include "libds/array.h"
 #include "libds/buffer.h"
 #include "bytecode.h"
+#include "error.h"
 #include "lang.h"
 
-/**
-* @brief Virtual machine object for executing mscript byte code
-*/
 typedef struct ms_VM ms_VM;
 
-/**
-* @brief Function signature for VM C functions
-*/
 typedef int (*ms_Function)(ms_VM *vm);
 
-/**
-* @brief Prototype of all objects
-*/
 typedef struct {
     const char *name;
     ms_Function func;
 } ms_FuncDef;
 
-/*
-* @brief Enumeration of VM result values
-*/
-typedef enum {
-    VMEXEC_SUCCESS,
-    VMEXEC_ERROR,
-} ms_VMExecResult;
-
-/*
-* @brief Structure describing an error that occurred in the mscript VM
-*/
-typedef struct {
-    char *msg;
-} ms_VMError;
-
-/**
-* @brief The explicit NULL pointer for the mscript VM.
-*/
 extern const void *MS_VM_NULL_POINTER;
 
 /**
@@ -74,13 +48,13 @@ ms_VM *ms_VMNew(void);
 * @param VM a @c ms_VM object
 * @param bc a @c ms_VMByteCode script container
 */
-ms_VMExecResult ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc, const ms_VMError **err);
+ms_Result ms_VMExecute(ms_VM *vm, ms_VMByteCode *bc, ms_Error **err);
 
 /**
 * @brief Execute a bytecode script on the mscript VM and print any expression
 * left on the data stack.
 */
-ms_VMExecResult ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, const ms_VMError **err);
+ms_Result ms_VMExecuteAndPrint(ms_VM *vm, ms_VMByteCode *bc, ms_Error **err);
 
 /**
 * @brief Peek at the top data value on the current VM frame.
