@@ -92,6 +92,7 @@ static void ExprToOpCodes(const ms_Expr *expr, CodeGenContext *ctx);
 static void ExprToOpCodesInner(const ms_Expr *expr, CodeGenContextExpr *ctx);
 static void ExprUnaryToOpCodes(const ms_ExprUnary *u, CodeGenContextExpr *ctx);
 static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
+static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
 static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx);
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx);
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
@@ -1098,10 +1099,12 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             break;
         }
         case BINARY_SAFEGETATTR: {
+            ExprSafeGetAttrToOpCodes(b, ctx);
             break;
         }
         case BINARY_GETATTR: {
-            assert((b->rtype == EXPRATOM_EXPRLIST) || (b->rtype == EXPRATOM_VALUE));
+            assert(b->rtype != EXPRATOM_EXPRLIST);
+            assert(b->rtype == EXPRATOM_VALUE);
             ms_ExprIdentType ident_type = ExprAtomGetIdentType(&b->latom, b->ltype);
             ExprBinaryAttrListToOpCode(b, ctx);
 
@@ -1132,6 +1135,75 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
             ExprBinaryOpToOpCode(b->op, ctx->parent);
             break;
         }
+    }
+}
+
+static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
+    assert(b);
+    assert(ctx);
+    assert(b->op == BINARY_SAFEGETATTR);
+    assert(b->rtype != EXPRATOM_EXPRLIST);
+    assert(b->rtype == EXPRATOM_VALUE);
+    assert(ExprAtomGetIdentType(&b->latom, b->ltype) != EXPRIDENT_GLOBAL);
+
+    /***************************************************************************
+     * Safe-get attribute should end up looking like this in bytecode:
+     *
+     * index        instruction     arg
+     * -----        -----------     ----
+     * ...          (expr)                      <--- object
+     * ...          DUP                         <--- duplicate the object reference
+     * ...          PUSH                        <--- push a null onto the stack
+     * ...          EQ                          <--- compare the object to null
+     * i            IF              k           <--- if the object is not null, jump to the GET_ATTR
+     * ...          POP                         <--- pop the attribute
+     * ...          PUSH                        <--- push the null back onto the stack
+     * j            GOTO            k+1         <--- skip past the GET_ATTR
+     * k            GET_ATTR
+     ***************************************************************************/
+
+    size_t i = 0;
+    size_t j = 0;
+    size_t k = 0;
+
+    ctx->attrdepth += 1;
+    ctx->attrcount += 1;
+    ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
+
+    if (!ctx->suppress_get_attr) {
+        PushOpCode(OPC_DUP, 0, ctx->parent);
+
+        int val_index;
+        ms_Value v = { .type = MSVAL_NULL, .val = { .n = MS_VM_NULL_POINTER } };
+        PushValue(&v, &val_index, ctx->parent);
+        PushOpCode(OPC_PUSH, val_index, ctx->parent);
+        PushOpCode(OPC_EQ, 0, ctx->parent);
+
+        i = dsarray_len(ctx->parent->opcodes);
+        PushOpCode(OPC_JUMP_IF_FALSE, 0, ctx->parent);
+
+        PushOpCode(OPC_POP, 0, ctx->parent);
+        PushOpCode(OPC_PUSH, val_index, ctx->parent);
+
+        j = dsarray_len(ctx->parent->opcodes);
+        PushOpCode(OPC_GOTO, 0, ctx->parent);
+
+        k = dsarray_len(ctx->parent->opcodes);
+    }
+
+    ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
+    ctx->attrdepth -= 1;
+
+    /* fix opcode arguments */
+    if (!ctx->suppress_get_attr) {
+        PushOpCode(OPC_GET_ATTR, 0, ctx->parent);
+        size_t diff = dsarray_len(ctx->parent->opcodes) - k;
+
+        ms_VMOpCode *opcif = dsarray_get(ctx->parent->opcodes, i);
+        *opcif = ms_VMOpCodeWithArg(OPC_JUMP_IF_FALSE, (int)k);
+
+        ms_VMOpCode *opcgoto = dsarray_get(ctx->parent->opcodes, j);
+        *opcgoto = ms_VMOpCodeWithArg(OPC_GOTO, (int)(k+diff));
     }
 }
 
@@ -1293,20 +1365,13 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
 
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx) {
     assert(b);
+    assert(b->rtype != EXPRATOM_EXPRLIST);
     assert(ctx);
-
-    size_t len = 1;
-
-    if (b->rtype == EXPRATOM_EXPRLIST) {
-        len = dsarray_len(b->ratom.list);
-        assert(len <= (size_t)OPC_ARG_MAX);
-    }
-
-    ctx->attrdepth += len;
-    ctx->attrcount += len;
+    ctx->attrdepth += 1;
+    ctx->attrcount += 1;
     ExprComponentToOpCodes(&b->latom, b->ltype, ctx);
     ExprComponentToOpCodes(&b->ratom, b->rtype, ctx);
-    ctx->attrdepth -= len;
+    ctx->attrdepth -= 1;
 }
 
 static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx) {

@@ -1550,6 +1550,31 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
             }
         },
         {
+            .val = "name?.first;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_NULL(),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 8),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GOTO, 10),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("name"),
+                }),
+                .nops = 10, .nvals = 2, .nidents = 1
+            }
+        },
+        {
             .val = "name[\"first\"];",
             .bc = &(ms_VMByteCode){
                 .values = (ms_VMValue[]){
@@ -1564,6 +1589,31 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
                     VM_IDENT("name"),
                 }),
                 .nops = 3, .nvals = 1, .nidents = 1
+            }
+        },
+        {
+            .val = "name?[\"first\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_NULL(),
+                    VM_STR("first"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 8),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GOTO, 10),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("name"),
+                }),
+                .nops = 10, .nvals = 2, .nidents = 1
             }
         },
         {
@@ -1590,26 +1640,95 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
             },
         },
         {
-            .val = "name[\"first\", \"second\"].third;",
-            .bc = &(ms_VMByteCode){
-                .values = (ms_VMValue[]){
+            .val = "name.first?.second?.third;",
+            .bc = &(ms_VMByteCode) {
+                .values = (ms_VMValue[]) {
                     VM_STR("first"),
+                    VM_NULL(),
                     VM_STR("second"),
+                    VM_NULL(),
                     VM_STR("third"),
                 },
-                .code = (ms_VMOpCode[]){
+                .code = (ms_VMOpCode[]) {
                     VM_OPC(OPC_GET_NAME, 0),
+
                     VM_OPC(OPC_PUSH, 0),
                     VM_OPC(OPC_GET_ATTR, 0),
+
+                    VM_OPC(OPC_DUP, 0),
                     VM_OPC(OPC_PUSH, 1),
-                    VM_OPC(OPC_GET_ATTR, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 10),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GOTO, 12),
                     VM_OPC(OPC_PUSH, 2),
                     VM_OPC(OPC_GET_ATTR, 0),
+
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 19),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_GOTO, 21),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_GET_ATTR, 0),
                 },
-                .idents = ((DSBuffer*[]){
+                .idents = ((DSBuffer *[]) {
                     VM_IDENT("name"),
                 }),
-                .nops = 7, .nvals = 3, .nidents = 1
+                .nops = 21, .nvals = 5, .nidents = 1
+            },
+        },
+        {
+            .val = "name?[\"first\", \"second\"]?.third;",
+            .bc = &(ms_VMByteCode) {
+                .values = (ms_VMValue[]) {
+                    VM_NULL(),
+                    VM_STR("first"),
+                    VM_NULL(),
+                    VM_STR("second"),
+                    VM_NULL(),
+                    VM_STR("third"),
+                },
+                .code = (ms_VMOpCode[]) {
+                    VM_OPC(OPC_GET_NAME, 0),
+
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 8),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GOTO, 10),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_ATTR, 0),
+
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 17),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_GOTO, 19),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_GET_ATTR, 0),
+
+                    VM_OPC(OPC_DUP, 0),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_EQ, 0),
+                    VM_OPC(OPC_JUMP_IF_FALSE, 26),
+                    VM_OPC(OPC_POP, 0),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_GOTO, 28),
+                    VM_OPC(OPC_PUSH, 5),
+                    VM_OPC(OPC_GET_ATTR, 0),
+                },
+                .idents = ((DSBuffer *[]) {
+                    VM_IDENT("name"),
+                }),
+                .nops = 28, .nvals = 6, .nidents = 1
             },
         },
     };
