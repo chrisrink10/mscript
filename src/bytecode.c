@@ -1154,7 +1154,6 @@ static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr 
     assert(ctx);
     assert(b->op == BINARY_SAFEGETATTR);
     assert(b->rtype != EXPRATOM_EXPRLIST);
-    assert(b->rtype == EXPRATOM_VALUE);
     assert(ExprAtomGetIdentType(&b->latom, b->ltype) != EXPRIDENT_GLOBAL);
 
     /***************************************************************************
