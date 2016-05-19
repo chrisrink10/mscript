@@ -24,10 +24,15 @@
  * FORWARD DECLARATIONS
  */
 
+static ms_StateOptions DEFAULT_STATE_OPTIONS = {
+    .interactive_mode = false,
+    .print_bytecode = false,
+};
+
 struct ms_State {
     ms_Parser *prs;
     ms_VM *vm;
-    ms_StateOptions opts;
+    ms_StateOptions *opts;
     ms_Error *err;
 };
 
@@ -38,13 +43,10 @@ static ms_Result StateParseAndExecute(ms_State *state, const ms_Error **err);
  */
 
 ms_State *ms_StateNew(void) {
-    ms_StateOptions opts = {
-        .print_bytecode = false,
-    };
-    return ms_StateNewOptions(opts);
+    return ms_StateNewOptions(&DEFAULT_STATE_OPTIONS);
 }
 
-ms_State *ms_StateNewOptions(ms_StateOptions opts) {
+ms_State *ms_StateNewOptions(ms_StateOptions *opts) {
     ms_State *state = malloc(sizeof(ms_State));
     if (!state) {
         return NULL;
@@ -136,12 +138,15 @@ static ms_Result StateParseAndExecute(ms_State *state, const ms_Error **err) {
         return MS_RESULT_ERROR;
     }
 
-    if (state->opts.print_bytecode) {
+    if (state->opts->print_bytecode) {
         ms_VMByteCodePrint(code);
     }
 
     assert(!state->err);
-    if (ms_VMExecuteAndPrint(state->vm, code, &state->err) == MS_RESULT_ERROR) {
+    ms_Result res = (state->opts->interactive_mode) ?
+                    ms_VMExecuteAndPrint(state->vm, code, &state->err) :
+                    ms_VMExecute(state->vm, code, &state->err);
+    if (res == MS_RESULT_ERROR) {
         *err = state->err;
         return MS_RESULT_ERROR;
     }

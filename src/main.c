@@ -22,9 +22,10 @@
 
 static int StartREPL(const char *prog) {
     ms_StateOptions opts = {
+        .interactive_mode = true,
         .print_bytecode = true,
     };
-    ms_State *ms = ms_StateNewOptions(opts);
+    ms_State *ms = ms_StateNewOptions(&opts);
     assert(ms);
 
     char *input;

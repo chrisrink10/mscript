@@ -22,11 +22,12 @@
 typedef struct ms_State ms_State;
 
 typedef struct {
+    bool interactive_mode;
     bool print_bytecode;
 } ms_StateOptions;
 
 ms_State *ms_StateNew(void);
-ms_State *ms_StateNewOptions(ms_StateOptions opts);
+ms_State *ms_StateNewOptions(ms_StateOptions *opts);
 ms_Result ms_StateExecuteString(ms_State *state, const char *str, const ms_Error **err);
 ms_Result ms_StateExecuteStringL(ms_State *state, const char *str, size_t len, const ms_Error **err);
 ms_Result ms_StateExecuteFile(ms_State *state, const char *fname, const ms_Error **err);
