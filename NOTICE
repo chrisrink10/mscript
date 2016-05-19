@@ -3,3 +3,6 @@ Copyright 2016 Chris RInk
 
 This product bundles munit which is available under an "MIT"
 license. For details, see deps/munit/COPYING.
+
+This produce bundles linenoise which is available under a "BSD" style
+license. For details, see deps/linenoise/LICENSE.

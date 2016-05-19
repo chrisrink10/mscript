@@ -48,6 +48,8 @@ set(LIBDS_SOURCE_FILES deps/libds/array.c
                        deps/libds/iter.c
                        deps/libds/list.c)
 
+set(LINENOISE_SOURCE_FILES deps/linenoise/linenoise.c)
+
 # Library code
 set(STREAM_SOURCE_FILES lib/stream/streamreader.c)
 
@@ -64,11 +66,11 @@ set(MSCRIPT_SOURCE_FILES src/mscript.c
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
                        ${STREAM_SOURCE_FILES}
                        ${LIBDS_SOURCE_FILES}
+                       ${LINENOISE_SOURCE_FILES}
                        src/main.c)
 if(UNIX)
     target_link_libraries(mscript m)
 endif(UNIX)
-target_link_libraries(mscript readline)
 
 #######################################################################
 # TEST EXECUTABLE
@@ -94,4 +96,3 @@ set_target_properties(mscript_test PROPERTIES
 if(UNIX)
     target_link_libraries(mscript_test m)
 endif(UNIX)
-target_link_libraries(mscript_test readline)

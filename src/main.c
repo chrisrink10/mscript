@@ -16,9 +16,12 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
-#include <readline/readline.h>
+#include "../deps/linenoise/linenoise.h"
 #include "mscript.h"
+
+static int MS_LINENOISE_HISTORY_LEN = 50;
 
 typedef struct {
     bool show_help;
@@ -102,7 +105,10 @@ static int ExecuteScript(const char *prog, CommandLineArgs *args) {
         .print_bytecode = args->print_bytecode,
     };
     ms_State *ms = ms_StateNewOptions(&opts);
-    assert(ms);
+    if (!ms) {
+        printf("%s: could not create the state object\n", prog);
+        return EXIT_FAILURE;
+    }
 
     const ms_Error *err;
     if (ms_StateExecuteFile(ms, args->script, &err) == MS_RESULT_ERROR) {
@@ -119,7 +125,10 @@ static int ExecuteString(const char *prog, CommandLineArgs *args) {
         .print_bytecode = args->print_bytecode,
     };
     ms_State *ms = ms_StateNewOptions(&opts);
-    assert(ms);
+    if (!ms) {
+        printf("%s: could not create the state object\n", prog);
+        return EXIT_FAILURE;
+    }
 
     const ms_Error *err;
     if (ms_StateExecuteString(ms, args->code, &err) == MS_RESULT_ERROR) {
@@ -136,22 +145,29 @@ static int StartREPL(const char *prog, CommandLineArgs *args) {
         .print_bytecode = args->print_bytecode,
     };
     ms_State *ms = ms_StateNewOptions(&opts);
-    assert(ms);
+    if (!ms) {
+        printf("%s: could not create the state object\n", prog);
+        return EXIT_FAILURE;
+    }
+
+    linenoiseSetMultiLine(1);
+    linenoiseHistorySetMaxLen(MS_LINENOISE_HISTORY_LEN);
 
     char *input;
     puts("mscript v0.1");
-    while ((input = readline("> ")) != NULL) {
+    while ((input = linenoise("> ")) != NULL) {
         if (strlen(input) == 0) {
-            free(input);
-            break;
+            linenoiseFree(input);
+            continue;
         }
+        linenoiseHistoryAdd(input);
 
         const ms_Error *err;
         if (ms_StateExecuteString(ms, input, &err) == MS_RESULT_ERROR) {
             printf("%s: \n%s\n", prog, err->msg);
         }
 
-        free(input);
+        linenoiseFree(input);
     }
 
     ms_StateDestroy(ms);
