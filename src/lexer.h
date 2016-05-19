@@ -97,9 +97,6 @@ extern const char *const TOK_INT_NUMBER;
 extern const char *const TOK_FLOAT_NUMBER;
 extern const char *const TOK_HEX_NUMBER;
 
-/**
- * @brief Enumeration of mscript token types.
- */
 typedef enum ms_TokenType {
     ERROR,
     RESERVED_KW,
@@ -178,9 +175,6 @@ typedef enum ms_TokenType {
     NEWLINE_TOK
 } ms_TokenType;
 
-/**
- * @brief Lexer token value
- */
 typedef struct ms_Token {
     ms_TokenType type;
     DSBuffer *value;
@@ -188,9 +182,6 @@ typedef struct ms_Token {
     size_t col;
 } ms_Token;
 
-/**
-* @brief Lexer object
-*/
 typedef struct ms_Lexer ms_Lexer;
 
 /**
