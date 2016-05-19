@@ -32,6 +32,9 @@ include_directories(${PROJECT_SOURCE_DIR}/lib)
 # Compiler and Linker flags
 set(C_WARNING_FLAGS "-Wall -Wextra -pedantic -Werror=return-type -Wno-missing-field-initializers -Wno-format-security")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99 -g ${C_WARNING_FLAGS}")
+if ($ENV{MS_USE_ADDRESS_SANITIZER})
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+endif($ENV{MS_USE_ADDRESS_SANITIZER})
 
 #######################################################################
 # MAIN EXECUTABLE
