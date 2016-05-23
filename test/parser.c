@@ -67,6 +67,9 @@ static char* bad_code[] = {
     "true.;",
     "name.;",
     "name.second.;",
+    "[;",
+    "[,;",
+    "[,];",
     "select( ;",
     "select(name ;",
     "select(name);",
@@ -133,6 +136,14 @@ MunitTest parser_tests[] = {
     {
         "/Literals",
         prs_TestParseLiterals,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ArrayLiterals",
+        prs_TestParseArrayLiterals,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -312,6 +323,7 @@ static void CleanIfElseStatement(ms_StmtIfElse *elif);
 static void CleanDeclaration(ms_StmtDeclaration *decl);
 static void CleanExpression(ms_Expr *expr);
 static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom);
+static void CleanArray(ms_ValArray *arr);
 static void CleanFunction(ms_ValFunc *func);
 static void CleanExpressionList(ms_ExprList *list);
 static void CleanParseResultTuple(ParseResultTuple *tuple);
@@ -421,6 +433,8 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define VM_STR(v)                   ((ms_Value){ .type = MSVAL_STR,   .val = (ms_ValData){ .s = dsbuf_new_l(v, sizeof(v)-1) } })
 #define VM_BOOL(v)                  ((ms_Value){ .type = MSVAL_BOOL,  .val = (ms_ValData){ .b = v } })
 #define VM_NULL()                   ((ms_Value){ .type = MSVAL_NULL,  .val = (ms_ValData){ .n = MS_VM_NULL_POINTER } })
+#define VM_ARR(l, ...)              ((ms_Value){ .type = MSVAL_ARRAY, .val = (ms_ValData){ .a = (dsarray_new_lit((void **)(((ms_Expr*[]){ __VA_ARGS__ , })), l, l, NULL, NULL)) } })
+#define VM_EMPTY_ARR()              ((ms_Value){ .type = MSVAL_ARRAY, .val = (ms_ValData){ .a = (dsarray_new_cap(1, NULL, NULL)) } })
 #define VM_FUNC(id, arglist, b)     ((ms_Value){ .type = MSVAL_FUNC,  .val = (ms_ValData){ .fn = &((ms_ValFunc){ .ident = id, .args = (arglist), .block = b }) } })
 #define AST_ARGLIST(l, ...)         (dsarray_new_lit((void **)(((ms_Ident*[]){ __VA_ARGS__ , })), l, l, NULL, NULL))
 
@@ -486,6 +500,50 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
             .val = "null;",
             .type = ASTCMPNT_EXPR,
             .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_NULL()),
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "[];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_EMPTY_ARR()),
+        },
+        {
+            .val = "[1];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(1, &AST_UEXPR_V(UNARY_NONE, VM_INT(1)))),
+        },
+        {
+            .val = "[1,];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(1, &AST_UEXPR_V(UNARY_NONE, VM_INT(1)))),
+        },
+        {
+            .val = "[1 + 3];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(1, &AST_BEXPR_VV(VM_INT(1), BINARY_PLUS, VM_INT(3)))),
+        },
+        {
+            .val = "[1 + 3,];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(1, &AST_BEXPR_VV(VM_INT(1), BINARY_PLUS, VM_INT(3)))),
+        },
+        {
+            .val = "[1 + 3, \"shifty\"];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(2, &AST_BEXPR_VV(VM_INT(1), BINARY_PLUS, VM_INT(3)), &AST_UEXPR_V(UNARY_NONE, VM_STR("shifty")))),
+        },
+        {
+            .val = "[1 + 3, \"shifty\",];",
+            .type = ASTCMPNT_EXPR,
+            .cmpnt.expr = AST_UEXPR_V(UNARY_NONE, VM_ARR(2, &AST_BEXPR_VV(VM_INT(1), BINARY_PLUS, VM_INT(3)), &AST_UEXPR_V(UNARY_NONE, VM_STR("shifty")))),
         },
     };
 
@@ -1733,6 +1791,17 @@ static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
         case MSVAL_NULL:
             munit_assert(val1->val.n == val2->val.n);
             break;
+        case MSVAL_ARRAY: {
+            size_t len1 = dsarray_len(val1->val.a);
+            size_t len2 = dsarray_len(val2->val.a);
+            munit_assert_cmp_size(len1, ==, len2);
+            for(size_t i = 0; i < len1; i++) {
+                ms_Expr *expr1 = dsarray_get(val1->val.a, i);
+                ms_Expr *expr2 = dsarray_get(val2->val.a, i);
+                CompareExpressions(expr1, expr2);
+            }
+            break;
+        }
         case MSVAL_FUNC:
             CompareFunctions(val1->val.fn, val2->val.fn);
             break;
@@ -1941,6 +2010,11 @@ static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom) {
                 atom->val.val.s = NULL;
             } else if (atom->val.type == MSVAL_FUNC) {
                 CleanFunction(atom->val.val.fn);
+                /* no need to NULL out the function struct since it is
+                 * statically allocated */
+            } else if (atom->val.type == MSVAL_ARRAY) {
+                CleanArray(atom->val.val.a);
+                atom->val.val.a = NULL;
             }
             break;
         case EXPRATOM_IDENT:
@@ -1954,6 +2028,17 @@ static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom) {
         case EXPRATOM_EMPTY:
             break;
     }
+}
+
+static void CleanArray(ms_ValArray *arr) {
+    if (!arr) { return; }
+
+    size_t len = dsarray_len(arr);
+    for (size_t i = 0; i < len; i++) {
+        ms_Expr *expr = dsarray_get(arr, i);
+        CleanExpression(expr);
+    }
+    dsarray_destroy(arr);
 }
 
 static void CleanFunction(ms_ValFunc *func) {

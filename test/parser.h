@@ -25,6 +25,7 @@
 
 MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data);
+MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *user_data);

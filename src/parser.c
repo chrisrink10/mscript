@@ -99,6 +99,7 @@ static ms_Result ParserParseAccessor(ms_Parser *prs, ms_Expr **expr, ms_ExprBina
 static ms_Result ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_TokenType closer);
 static ms_Result ParserParseAtom(ms_Parser *prs, ms_Expr **expr);
 static ms_Result ParserParseFunctionExpression(ms_Parser *prs, bool require_name, ms_Expr **expr);
+static ms_Result ParserParseArrayExpression(ms_Parser *prs, ms_Expr **expr);
 static ms_Result ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_Result ParserExprCombineConditional(ms_Parser *prs, ms_Expr *cond, ms_Expr *iftrue, ms_Expr *iffalse, ms_Expr **newexpr);
 static ms_Result ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
@@ -257,8 +258,6 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * assign:          expr (':=' | '+=' | '-=' | '*=' | '/=' | '\=' | '%='
  *                  '&=' | '|=' | '^=' | '<<=' | '>>=') expr
  *
- * expr_pair:       cond_expr ':' cond_expr
- *
  * expr:            'select' '(' expr_pair (',' expr_pair)* (',' cond_expr) ')' |
  *                  cond_expr '?' cond_expr ':' cond_expr
  * cond_expr:       or_expr ('||' or_expr)*
@@ -277,7 +276,12 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * atom:            NUMBER | STRING | KW_TRUE | KW_FALSE | KW_NULL | GLOBAL |
  *                  IDENTIFIER | BUILTIN_FUNC | func_expr | expr | '(' expr ')'
  * func_expr:       'func' (IDENTIFIER) '(' ident_list ')' block
+ * array_expr:      '[' (arr_expr_list) ']'
+ * obj_expr:        '{' (expr_pair)* '}'
  *
+ * arr_expr_list:   expr (',' expr)* (',')
+ * obj_pair_list:   expr_pair (',' expr_pair)* (',')
+ * expr_pair:       expr ':' expr
  * accessor:        arg_list | sub_list | '.' IDENTIFIER | '?' '.' IDENTIFIER
  * expr_list:       (expr (',' expr)*)
  * arg_list:        '(' expr_list ')'
@@ -1933,6 +1937,16 @@ static ms_Result ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
             }
             break;
 
+            /* array literal */
+        case LBRACKET:
+            return ParserParseArrayExpression(prs, expr);
+
+            /* object literal */
+        case LBRACE:
+            ParserErrorSet(prs, "Not implemented yet", prs->cur, prs->line, prs->col);
+            res = MS_RESULT_ERROR;
+            break;
+
             /* encountered another expression perhaps */
         default:
             ParserErrorSet(prs, ERR_EXPECTED_EXPRESSION, prs->cur, prs->line, prs->col);
@@ -2067,6 +2081,63 @@ static ms_Result ParserParseFunctionExpression(ms_Parser *prs, bool require_name
 
     ParserConsumeToken(prs);
     return ParserParseBlock(prs, &fn->block);
+}
+
+static ms_Result ParserParseArrayExpression(ms_Parser *prs, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    DSArray *arr = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_CAP, NULL,
+                                   (dsarray_free_fn)ms_ExprDestroy);
+    if (!arr) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+
+    ms_ValData d = { .a = arr };
+    *expr = ms_ExprNewWithVal(MSVAL_ARRAY, d);
+    if (!(*expr)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        dsarray_destroy(arr);
+        return MS_RESULT_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, LBRACKET)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, "[", prs->line, prs->col);
+        return MS_RESULT_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    /* no contents, close and return */
+    if (ParserExpectToken(prs, RBRACKET)) {
+        ParserConsumeToken(prs);
+        return MS_RESULT_SUCCESS;
+    }
+
+    while(prs->cur) {
+        ms_Expr *e;
+        if (ParserParseExpression(prs, &e) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
+        dsarray_append(arr, e);
+
+        if (ParserExpectToken(prs, RBRACKET)) {
+            ParserConsumeToken(prs);
+            break;
+        }
+
+        if (ParserExpectToken(prs, COMMA)) {
+            ParserConsumeToken(prs);
+
+            /* allow trailing comma */
+            if (ParserExpectToken(prs, RBRACKET)) {
+                ParserConsumeToken(prs);
+                break;
+            }
+        }
+    }
+
+    return MS_RESULT_SUCCESS;
 }
 
 static ms_Result ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr) {

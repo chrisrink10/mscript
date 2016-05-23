@@ -59,6 +59,7 @@ typedef long long ms_ValInt;
 typedef DSBuffer ms_ValStr;
 typedef bool ms_ValBool;
 typedef const void ms_ValNull;
+typedef DSArray ms_ValArray;
 
 typedef struct {
     ms_Ident *ident;
@@ -72,6 +73,7 @@ typedef enum {
     MSVAL_STR,
     MSVAL_BOOL,
     MSVAL_NULL,
+    MSVAL_ARRAY,
     MSVAL_FUNC,
 } ms_ValDataType;
 
@@ -81,6 +83,7 @@ typedef union {
     ms_ValStr *s;
     ms_ValBool b;
     ms_ValNull *n;
+    ms_ValArray *a;
     ms_ValFunc *fn;
 } ms_ValData;
 

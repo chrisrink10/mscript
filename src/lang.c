@@ -22,7 +22,9 @@
 #include "lang.h"
 
 static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomType type);
+static bool ExprAtomValDup(const ms_Value *src, ms_Value *dest);
 static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type);
+static void ExprAtomValDestroy(ms_Value *val);
 static void StmtDeleteDestroy(ms_StmtDelete *del);
 static void StmtForDestroy(ms_StmtFor *forstmt);
 static void StmtIfDestroy(ms_StmtIf *ifstmt);
@@ -554,8 +556,8 @@ static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomTy
             break;
         case EXPRATOM_EXPRLIST: {
             size_t srclen = dsarray_cap(src->list);
-            DSArray *exprlist = dsarray_new_cap(srclen, NULL, (dsarray_free_fn) ms_ExprDestroy);
-            if (!exprlist) {
+            dest->list = dsarray_new_cap(srclen, NULL, (dsarray_free_fn)ms_ExprDestroy);
+            if (!dest->list) {
                 goto expr_atom_dup_fail;
             }
 
@@ -567,19 +569,14 @@ static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomTy
                     goto expr_atom_dup_fail;
                 }
 
-                dsarray_append(exprlist, e2);
+                dsarray_append(dest->list, e2);
             }
-
-            dest->list = exprlist;
             break;
         }
         case EXPRATOM_VALUE:
             dest->val = src->val;
-            if (dest->val.type == MSVAL_STR) {
-                dest->val.val.s = dsbuf_dup(src->val.val.s);
-                if (!dest->val.val.s) {
-                    goto expr_atom_dup_fail;
-                }
+            if (!ExprAtomValDup(&src->val, &dest->val)) {
+                goto expr_atom_dup_fail;
             }
             break;
         case EXPRATOM_EMPTY:
@@ -591,6 +588,47 @@ static bool ExprAtomDup(const ms_ExprAtom *src, ms_ExprAtom *dest, ms_ExprAtomTy
 
 expr_atom_dup_fail:
     return false;
+}
+
+static bool ExprAtomValDup(const ms_Value *src, ms_Value *dest) {
+    assert(src);
+    assert(dest);
+
+    switch (dest->type) {
+        case MSVAL_FLOAT:       /* fall through */
+        case MSVAL_INT:         /* fall through */
+        case MSVAL_BOOL:        /* fall through */
+        case MSVAL_NULL:        /* fall through */
+        case MSVAL_FUNC:
+            break;
+        case MSVAL_STR:
+            dest->val.s = dsbuf_dup(src->val.s);
+            if (!dest->val.s) {
+                return false;
+            }
+            break;
+        case MSVAL_ARRAY: {
+            size_t srclen = dsarray_cap(src->val.a);
+            dest->val.a = dsarray_new_cap(srclen, NULL, (dsarray_free_fn)ms_ExprDestroy);
+            if (!dest->val.a) {
+                return false;
+            }
+
+            size_t len = dsarray_len(src->val.a);
+            for (size_t i = 0; i < len; i++) {
+                const ms_Expr *e = dsarray_get(src->val.a, i);
+                ms_Expr *e2 = ms_ExprDup(e);
+                if (!e2) {
+                    return false;
+                }
+
+                dsarray_append(dest->val.a, e2);
+            }
+            break;
+        }
+    }
+
+    return true;
 }
 
 static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
@@ -609,15 +647,33 @@ static void ExprAtomDestroy(ms_ExprAtom *atom, ms_ExprAtomType type) {
             atom->list = NULL;
             break;
         case EXPRATOM_VALUE:
-            if (atom->val.type == MSVAL_FUNC) {
-                ms_ValFuncDestroy(atom->val.val.fn);
-                atom->val.val.fn = NULL;
-            } else if (atom->val.type == MSVAL_STR) {
-                dsbuf_destroy(atom->val.val.s);
-                atom->val.val.s = NULL;
-            }
+            ExprAtomValDestroy(&atom->val);
             break;
         case EXPRATOM_EMPTY:    /* no free required */
+            break;
+    }
+}
+
+static void ExprAtomValDestroy(ms_Value *val) {
+    assert(val);
+
+    switch (val->type) {
+        case MSVAL_FLOAT:       /* fall through */
+        case MSVAL_INT:         /* fall through */
+        case MSVAL_BOOL:        /* fall through */
+        case MSVAL_NULL:
+            break;
+        case MSVAL_STR:
+            dsbuf_destroy(val->val.s);
+            val->val.s = NULL;
+            break;
+        case MSVAL_ARRAY:
+            dsarray_destroy(val->val.a);
+            val->val.a = NULL;
+            break;
+        case MSVAL_FUNC:
+            ms_ValFuncDestroy(val->val.fn);
+            val->val.fn = NULL;
             break;
     }
 }

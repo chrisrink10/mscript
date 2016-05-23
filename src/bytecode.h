@@ -68,6 +68,7 @@ typedef enum {
     OPC_GET_NAME,       /*  req         TOS := env[names[i]]                                                                    */
     OPC_SET_NAME,       /*  req         env[names[i]] := TOS                                                                    */
     OPC_DEL_NAME,       /*  req         delete env[names[i]]                                                                    */
+    OPC_MAKE_LIST,      /*  req         create a list from TOS to TOSi; push to TOS     opcode arg can be 0 for empty list      */
     OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
     OPC_MERGE,          /*              merge TOS1 := TOS                                                                       */
     OPC_IMPORT,         /*  opt         TOS := import TOS.TOS1...                                                               */

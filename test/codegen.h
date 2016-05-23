@@ -24,6 +24,7 @@
  */
 
 MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data);
+MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data);
 MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data);

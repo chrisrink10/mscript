@@ -102,7 +102,7 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
 static ms_VMFunc *ExprFunctionExprToOpCodes(const ms_ValFunc *fn, CodeGenContext *ctx);
 static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAtomType type);
-static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx);
+static void PushValue(const ms_Value *val, int *index_or_len, CodeGenContext *ctx);
 static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx);
 static void PushOpCode(ms_VMOpCodeType type, int arg, CodeGenContext *ctx);
 static void CodeGenContextErrorSet(CodeGenContext *ctx, const char *msg);
@@ -226,6 +226,7 @@ const char *ms_VMOpCodeToString(ms_VMOpCode c) {
         case OPC_GET_NAME:          return "GET_NAME";
         case OPC_SET_NAME:          return "SET_NAME";
         case OPC_DEL_NAME:          return "DEL_NAME";
+        case OPC_MAKE_LIST:         return "MAKE_LIST";
         case OPC_NEXT:              return "NEXT";
         case OPC_MERGE:             return "MERGE";
         case OPC_IMPORT:            return "IMPORT";
@@ -390,6 +391,7 @@ static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
         case OPC_GET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_SET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_DEL_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
+        case OPC_MAKE_LIST:         return ByteCodeArgToString(bc, arg);
         case OPC_IMPORT:            return ByteCodeArgToString(bc, arg);
         case OPC_JUMP_IF_FALSE:     return ByteCodeArgToString(bc, arg);
         case OPC_GOTO:              return ByteCodeArgToString(bc, arg);
@@ -888,10 +890,14 @@ static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx
     ms_ExprIdentType type = ms_ExprGetIdentType(import->ident);
     switch (type) {
         case EXPRIDENT_NONE:
-            assert(false && "import identifier is not an identifier");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "import identifier is not an identifier");
+            assert(false);
             break;
         case EXPRIDENT_BUILTIN:
-            assert(false && "cannot import a builtin name");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "cannot import a builtin name");
+            assert(false);
             break;
         case EXPRIDENT_NAME: {
             assert(import->ident->type == EXPRTYPE_UNARY);
@@ -905,7 +911,9 @@ static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx
             break;
         }
         case EXPRIDENT_GLOBAL:
-            assert(false && "cannot import a global");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "cannot import a global");
+            assert(false);
             break;
         case EXPRIDENT_QUALIFIED: {
             assert(import->ident->type == EXPRTYPE_BINARY);
@@ -977,10 +985,14 @@ static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool ne
     ms_ExprIdentType type = ms_ExprGetIdentType(ident);
     switch (type) {
         case EXPRIDENT_NONE:
-            assert(false && "assignment identifier is not an identifier");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "assignment identifier is not an identifier");
+            assert(false);
             break;
         case EXPRIDENT_BUILTIN:
-            assert(false && "cannot assign to builtin name");
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "cannot assign to builtin name");
+            assert(false);
             break;
         case EXPRIDENT_NAME: {
             int index;
@@ -1279,9 +1291,13 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
             ExprToOpCodesInner(a->expr, ctx);
             break;
         case EXPRATOM_VALUE: {
-            int index;
-            PushValue(&a->val, &index, ctx->parent);
-            PushOpCode(OPC_PUSH, index, ctx->parent);
+            int index_or_len;
+            PushValue(&a->val, &index_or_len, ctx->parent);
+            if (a->val.type == MSVAL_ARRAY) {
+                PushOpCode(OPC_MAKE_LIST, index_or_len, ctx->parent);
+            } else {
+                PushOpCode(OPC_PUSH, index_or_len, ctx->parent);
+            }
             break;
         }
         case EXPRATOM_IDENT: {
@@ -1324,7 +1340,9 @@ static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx) {
             /* this function may be called with UNARY_NONE expressions */
             return;
         default:
-            assert(false && "invalid unary expression op found");
+            assert(false);
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "invalid unary expression op found");
             return;
     }
 
@@ -1357,16 +1375,24 @@ static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx) {
         case BINARY_AND:                o = OPC_AND;            break;
         case BINARY_OR:                 o = OPC_OR;             break;
         case BINARY_CALL:
-            assert(false && "should not be generating call opcode here");
-            break;
+            assert(false);
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "should not be generating call opcode here");
+            return;
         case BINARY_GETATTR:
-            assert(false && "should not be generating getattr opcode here");
-            break;
+            assert(false);
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "should not be generating getattr opcode here");
+            return;
         case BINARY_SAFEGETATTR:
-            assert(false && "should not be generating safegetattr opcode here");
-            break;
+            assert(false);
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "should not be generating safegetattr opcode here");
+            return;
         default:
-            assert(false && "invalid binary expression op found");
+            assert(false);
+            ctx->res = MS_RESULT_ERROR;
+            CodeGenContextErrorSet(ctx, "invalid binary expression op found");
             return;
     }
 
@@ -1448,9 +1474,9 @@ static ms_ExprIdentType ExprAtomGetIdentType(const ms_ExprAtom *atom, ms_ExprAto
     return ident_type;
 }
 
-static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
+static void PushValue(const ms_Value *val, int *index_or_len, CodeGenContext *ctx) {
     assert(val);
-    assert(index);
+    assert(index_or_len);
     assert(ctx);
 
     ms_VMValue *newv = malloc(sizeof(ms_VMValue));
@@ -1476,21 +1502,30 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
         case MSVAL_STR:
             newv->type = VMVAL_STR;
             newv->val.s = dsbuf_dup(val->val.s);
-            assert(newv->val.s);    /* TODO: real error handling */
             if (!newv->val.s) {
                 ctx->res = MS_RESULT_ERROR;
                 CodeGenContextErrorSet(ctx, "could not allocate memory a string");
             }
+            assert(newv->val.s);
             break;
         case MSVAL_NULL:
             newv->type = VMVAL_NULL;
             newv->val.n = val->val.n;
             break;
+        case MSVAL_ARRAY: {
+            size_t len = dsarray_len(val->val.a);
+            for (size_t i = 0; i < len; i++) {
+                ms_Expr *elem = dsarray_get(val->val.a, i);
+                ExprToOpCodes(elem, ctx);
+            }
+            *index_or_len = (int)len;
+            free(newv);
+            return;     /* return so length isn't overwritten */
+        }
         case MSVAL_FUNC: {
             CodeGenContext fnctx = { .err = ctx->err, .res = MS_RESULT_SUCCESS };
             newv->type = VMVAL_FUNC;
             newv->val.fn = ExprFunctionExprToOpCodes(val->val.fn, &fnctx);
-            assert(newv->val.fn);
             if (fnctx.res == MS_RESULT_ERROR) {
                 ctx->res = fnctx.res;
                 /* do not overwrite the error message from inner routines */
@@ -1498,6 +1533,7 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
                 ctx->res = MS_RESULT_ERROR;
                 CodeGenContextErrorSet(ctx, "could not allocate memory for a function value");
             }
+            assert(newv->val.fn);
             break;
         }
     }
@@ -1506,7 +1542,7 @@ static void PushValue(const ms_Value *val, int *index, CodeGenContext *ctx) {
     size_t nvals = dsarray_len(ctx->values);
     assert(nvals != 0);
     assert(nvals <= OPC_ARG_MAX);
-    *index = (int)(nvals - 1);
+    *index_or_len = (int)(nvals - 1);
 }
 
 static void PushIdent(const ms_Ident *ident, int *index, CodeGenContext *ctx) {

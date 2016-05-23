@@ -38,6 +38,14 @@ MunitTest codegen_tests[] = {
         NULL
     },
     {
+        "/ArrayLiterals",
+        prs_TestCodeGenArrayLiterals,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/UnaryExpressions",
         prs_TestCodeGenUnaryExprs,
         NULL,
@@ -314,6 +322,126 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
                     VM_OPC(OPC_PUSH, 0),
                 },
                 .nops = 1, .nvals = 1,
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "[];",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_MAKE_LIST, 0),
+                },
+                .idents = NULL,
+                .nops = 1, .nvals = 0, .nidents = 0
+            }
+        },
+        {
+            .val = "[1];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_MAKE_LIST, 1),
+                },
+                .idents = NULL,
+                .nops = 2, .nvals = 1, .nidents = 0
+            }
+        },
+        {
+            .val = "[1,];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_MAKE_LIST, 1),
+                },
+                .idents = NULL,
+                .nops = 2, .nvals = 1, .nidents = 0
+            }
+        },
+        {
+            .val = "[1 + 3];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_MAKE_LIST, 1),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "[1 + 3,];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_MAKE_LIST, 1),
+                },
+                .idents = NULL,
+                .nops = 4, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "[1 + 3, \"shifty\"];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                    VM_INT(3),
+                    VM_STR("shifty"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_MAKE_LIST, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "[1 + 3, \"shifty\",];",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(1),
+                    VM_INT(3),
+                    VM_STR("shifty"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_MAKE_LIST, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 3, .nidents = 0
             }
         },
     };
