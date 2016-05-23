@@ -42,6 +42,28 @@ typedef struct ParseResultTuple {
  * TEST DEFINITIONS
  */
 
+static MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data);
+
 static char* bad_code[] = {
     "(;",
     "(3 ;",
@@ -446,7 +468,7 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
  * language grammar elements.
  */
 
-MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
     const char *code = munit_parameters_get(params, "code");
     ms_Parser *prs = ms_ParserNew();
     munit_assert_non_null(prs);
@@ -464,7 +486,7 @@ MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) 
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "0;",
@@ -508,7 +530,7 @@ MunitResult prs_TestParseLiterals(const MunitParameter params[], void *user_data
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "[];",
@@ -552,7 +574,7 @@ MunitResult prs_TestParseArrayLiterals(const MunitParameter params[], void *user
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "-3;",
@@ -591,7 +613,7 @@ MunitResult prs_TestParseUnaryExprs(const MunitParameter params[], void *user_da
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "7 + 3.6;",
@@ -716,7 +738,7 @@ MunitResult prs_TestParseBinaryExprs(const MunitParameter params[], void *user_d
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "(use_degrees) ? 360 : 2.0 * pi;",
@@ -745,7 +767,7 @@ MunitResult prs_TestParseConditionalExprs(const MunitParameter params[], void *u
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *user_data) {
 
     ParseResultTuple exprs[] = {
         {
@@ -899,7 +921,7 @@ MunitResult prs_TestParseExprPrecedence(const MunitParameter params[], void *use
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "$len();",
@@ -938,7 +960,7 @@ MunitResult prs_TestParseFunctionCalls(const MunitParameter params[], void *user
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "name;",
@@ -992,7 +1014,7 @@ MunitResult prs_TestParseQualifiedIdents(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "del @global;",
@@ -1016,7 +1038,7 @@ MunitResult prs_TestParseDeleteStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "for var i := 0 : lim { }",
@@ -1067,7 +1089,7 @@ MunitResult prs_TestParseForIncStatements(const MunitParameter params[], void *u
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "for var i in range { }",
@@ -1094,7 +1116,7 @@ MunitResult prs_TestParseForIterStatements(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "for cond { }",
@@ -1131,7 +1153,7 @@ MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "if cost >= money { }",
@@ -1208,7 +1230,7 @@ MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "import Sys;",
@@ -1232,7 +1254,7 @@ MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "merge name := other;",
@@ -1261,7 +1283,7 @@ MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *use
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "return;",
@@ -1300,7 +1322,7 @@ MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "func Sum(a, b) { return a + b; }",
@@ -1347,7 +1369,7 @@ MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "var name;",
@@ -1381,7 +1403,7 @@ MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_d
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "name := 10;",
@@ -1415,7 +1437,7 @@ MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_da
     return MUNIT_OK;
 }
 
-MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
             .val = "name.second += 10;",

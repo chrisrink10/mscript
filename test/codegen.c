@@ -28,6 +28,29 @@ typedef struct {
  * TEST DEFINITIONS
  */
 
+static MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenForIncStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data);
+
 MunitTest codegen_tests[] = {
     {
         "/Literals",
@@ -238,7 +261,7 @@ static void CleanValue(ms_VMValue *v);
  * TEST CASE FUNCTIONS
  */
 
-MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "0;",
@@ -331,7 +354,7 @@ MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_da
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "[];",
@@ -451,7 +474,7 @@ MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "-3;",
@@ -541,7 +564,7 @@ MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "7 + 3.6;",
@@ -899,7 +922,7 @@ MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "(use_degrees) ? 360 : 2.0 * pi;",
@@ -1002,7 +1025,7 @@ MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void 
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "false || false && true;",
@@ -1541,7 +1564,7 @@ MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *u
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "$len();",
@@ -1645,7 +1668,7 @@ MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *us
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "name;",
@@ -1866,7 +1889,7 @@ MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "@glo;",
@@ -1997,7 +2020,7 @@ MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void 
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "for true { break; }",
@@ -2042,7 +2065,7 @@ MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter param
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "del name;",
@@ -2258,11 +2281,11 @@ MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenForIncStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenForIncStatements(const MunitParameter params[], void *user_data) {
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "for var i in range { }",
@@ -2322,7 +2345,7 @@ MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data)  {
+static MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data)  {
     CodeGenResultTuple exprs[] = {
         {
             .val = "for true { }",
@@ -2408,7 +2431,7 @@ MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "if cost >= money { }",
@@ -2562,7 +2585,7 @@ MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *use
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "import Http;",
@@ -2675,11 +2698,11 @@ MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data) {
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "return;",
@@ -2777,7 +2800,7 @@ MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "func MakeName(first, last) { return first + last; }",
@@ -2852,7 +2875,7 @@ MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "var name;",
@@ -2950,7 +2973,7 @@ MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "name := \"Daenerys Stormborn\";",
@@ -3169,7 +3192,7 @@ MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_
     return MUNIT_OK;
 }
 
-MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data) {
+static MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data) {
     CodeGenResultTuple exprs[] = {
         {
             .val = "name += 10;",

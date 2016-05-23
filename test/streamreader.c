@@ -17,6 +17,17 @@
 #include <string.h>
 #include "streamreader.h"
 
+/*
+ * TEST DEFINITIONS
+ */
+
+static MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file);
+static MunitResult sr_TestFileUnread(const MunitParameter params[], void *file);
+static MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na);
+static MunitResult sr_TestStringUnread(const MunitParameter params[], void *na);
+static void *sr_CreateTempFile(const MunitParameter params[], void *user_data);
+static void sr_CleanUpTempFile(void *file);
+
 MunitTest streamreader_tests[] = {
     {
         "/FILE-NextChar",
@@ -57,7 +68,11 @@ static const char * const TestString = "This value is going to be the test\n"
                                        "string for the functions of the\n"
                                        "bundled StreamReader library.\n";
 
-void *sr_CreateTempFile(const MunitParameter params[], void *user_data) {
+/*
+ * SETUP AND TEARDOWN FUNCTIONS
+ */
+
+static void *sr_CreateTempFile(const MunitParameter params[], void *user_data) {
     char *tmpname = munit_malloc(19);
     memcpy(tmpname, "streamreaderXXXXXX", 18);
     mkstemp(tmpname);
@@ -69,11 +84,15 @@ void *sr_CreateTempFile(const MunitParameter params[], void *user_data) {
     return tmpname;
 }
 
-void sr_CleanUpTempFile(void *file) {
+static void sr_CleanUpTempFile(void *file) {
     munit_assert_cmp_int(remove((char *)file), ==, 0);
 }
 
-MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file) {
+/*
+ * UNIT TEST FUNCTIONS
+ */
+
+static MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file) {
     ms_StreamReader *stream = ms_StreamNewFile((char *) file);
     munit_assert_non_null(stream);
 
@@ -88,7 +107,7 @@ MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file) {
     return MUNIT_OK;
 }
 
-MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) {
+static MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) {
     ms_StreamReader *stream = ms_StreamNewFile((char *) file);
     munit_assert_non_null(stream);
 
@@ -107,7 +126,7 @@ MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) {
     return MUNIT_OK;
 }
 
-MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na) {
+static MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na) {
     ms_StreamReader *stream = ms_StreamNewString(TestString);
     munit_assert_non_null(stream);
 
@@ -122,7 +141,7 @@ MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na) {
     return MUNIT_OK;
 }
 
-MunitResult sr_TestStringUnread(const MunitParameter params[], void *na) {
+static MunitResult sr_TestStringUnread(const MunitParameter params[], void *na) {
     ms_StreamReader *stream = ms_StreamNewString(TestString);
     munit_assert_non_null(stream);
 

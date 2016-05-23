@@ -20,12 +20,9 @@
 #include "munit/munit.h"
 #include "stream/streamreader.h"
 
-void *sr_CreateTempFile(const MunitParameter params[], void *user_data);
-void sr_CleanUpTempFile(void *file);
-MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file);
-MunitResult sr_TestFileUnread(const MunitParameter params[], void *file);
-MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na);
-MunitResult sr_TestStringUnread(const MunitParameter params[], void *na);
+/*
+ * TEST DEFINITIONS
+ */
 
 extern MunitTest streamreader_tests[];
 

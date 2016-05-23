@@ -20,33 +20,6 @@
 #include "munit/munit.h"
 
 /*
- * FUNCTION DECLARATIONS
- */
-
-MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenExprPrecedence(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenFunctionCalls(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenQualifiedIdents(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenGlobalReferences(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenBreakAndContinueStatements(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenDeleteStatement(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenForIncStatements(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data);
-MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data);
-
-/*
  * TEST DEFINITIONS
  */
 

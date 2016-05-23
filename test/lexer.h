@@ -20,25 +20,6 @@
 #include "munit/munit.h"
 
 /*
- * FUNCTION DECLARATIONS
- */
-
-MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexBadNumerics(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexNonKeywords(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexReservedKeywords(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexGlobals(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexBuiltins(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexInvalidIdentifiers(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexOperators(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexPunctuation(const MunitParameter *params, void *user_data);
-MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data);
-MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_data);
-
-/*
  * TEST DEFINITIONS
  */
 

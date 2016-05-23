@@ -153,6 +153,21 @@ static MunitParameterEnum invalid_string_params[] = {
  * TEST DEFINITIONS
  */
 
+static MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexBadNumerics(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexNonKeywords(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexReservedKeywords(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexGlobals(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexBuiltins(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexInvalidIdentifiers(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexOperators(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexPunctuation(const MunitParameter *params, void *user_data);
+static MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data);
+static MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_data);
+
 MunitTest lexer_tests[] = {
     {
         "/IntNumeric",
@@ -273,35 +288,35 @@ MunitTest lexer_tests[] = {
  * FORWARD DECLARATIONS
  */
 
-MunitResult LexCompareStrings(const char *param, const char *val);
-MunitResult LexExpect(const char *param, ms_TokenType type);
-MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len);
+static MunitResult LexCompareStrings(const char *param, const char *val);
+static MunitResult LexExpect(const char *param, ms_TokenType type);
+static MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len);
 
 /*
  * UNIT TEST FUNCTIONS
  */
 
-MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexIntNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
     return LexExpect(num, INT_NUMBER);
 }
 
-MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexFloatNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
     return LexExpect(num, FLOAT_NUMBER);
 }
 
-MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexHexNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
     return LexExpect(num, HEX_NUMBER);
 }
 
-MunitResult lex_TestLexBadNumerics(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexBadNumerics(const MunitParameter params[], void *user_data) {
     const char *num = munit_parameters_get(params, "num");
     return LexExpect(num, ERROR);
 }
 
-MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data) {
     static LexResultTuple tokens[] = {
         { "if", KW_IF },
         { "else", KW_ELSE },
@@ -326,32 +341,32 @@ MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user_data) 
     return TestLexResultTuple(tokens, len);
 }
 
-MunitResult lex_TestLexNonKeywords(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexNonKeywords(const MunitParameter params[], void *user_data) {
     const char *kw = munit_parameters_get(params, "kw");
     return LexExpect(kw, IDENTIFIER);
 }
 
-MunitResult lex_TestLexReservedKeywords(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexReservedKeywords(const MunitParameter params[], void *user_data) {
     const char *kw = munit_parameters_get(params, "kw");
     return LexExpect(kw, RESERVED_KW);
 }
 
-MunitResult lex_TestLexGlobals(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexGlobals(const MunitParameter params[], void *user_data) {
     const char *global = munit_parameters_get(params, "global");
     return LexExpect(global, GLOBAL);
 }
 
-MunitResult lex_TestLexBuiltins(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexBuiltins(const MunitParameter params[], void *user_data) {
     const char *builtin = munit_parameters_get(params, "builtin");
     return LexExpect(builtin, BUILTIN_FUNC);
 }
 
-MunitResult lex_TestLexInvalidIdentifiers(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexInvalidIdentifiers(const MunitParameter params[], void *user_data) {
     const char *ident = munit_parameters_get(params, "ident");
     return LexExpect(ident, ERROR);
 }
 
-MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data) {
     static LexResultTuple tokens[] = {
         { "+", OP_PLUS },
         { "+=", OP_PLUS_EQUALS },
@@ -395,7 +410,7 @@ MunitResult lex_TestLexOperators(const MunitParameter params[], void *user_data)
     return TestLexResultTuple(tokens, len);
 }
 
-MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_data) {
     static LexResultTuple tokens[] = {
         { "[", LBRACKET },
         { "]", RBRACKET },
@@ -414,12 +429,12 @@ MunitResult lex_TestLexPunctuation(const MunitParameter params[], void *user_dat
     return TestLexResultTuple(tokens, len);
 }
 
-MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexStrings(const MunitParameter params[], void *user_data) {
     const char *str = munit_parameters_get(params, "str");
     return LexExpect(str, STRING);
 }
 
-MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_data) {
+static MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_data) {
     const char *str = munit_parameters_get(params, "str");
     return LexExpect(str, ERROR);
 }
@@ -428,7 +443,7 @@ MunitResult lex_TestLexInvalidStrings(const MunitParameter params[], void *user_
  * PRIVATE FUNCTIONS
  */
 
-MunitResult LexCompareStrings(const char *param, const char *val) {
+static MunitResult LexCompareStrings(const char *param, const char *val) {
     /* `param` is the input string surrounded by single or double quotes, so
      * we need to only compare that string to the lexed value which will
      * exclude the surrounding quotes*/
@@ -439,7 +454,7 @@ MunitResult LexCompareStrings(const char *param, const char *val) {
     return MUNIT_OK;
 }
 
-MunitResult LexExpect(const char *param, ms_TokenType type) {
+static MunitResult LexExpect(const char *param, ms_TokenType type) {
     ms_Lexer *lex = ms_LexerNew();
     munit_assert_non_null(lex);
     munit_assert(ms_LexerInitString(lex, param));
@@ -459,7 +474,7 @@ MunitResult LexExpect(const char *param, ms_TokenType type) {
     return MUNIT_OK;
 }
 
-MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
+static MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
     ms_Lexer *lex = ms_LexerNew();
     munit_assert_non_null(lex);
 
