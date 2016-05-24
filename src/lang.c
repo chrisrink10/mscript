@@ -434,6 +434,15 @@ void ms_IdentDestroy(ms_Ident *ident) {
     free(ident);
 }
 
+void ms_ValObjectTupleDestroy(ms_ValObjectTuple *tuple) {
+    if (!tuple) { return; }
+    ms_ExprDestroy(tuple->key);
+    tuple->key = NULL;
+    ms_ExprDestroy(tuple->val);
+    tuple->val = NULL;
+    free(tuple);
+}
+
 void ms_ValFuncDestroy(ms_ValFunc *fn) {
     if (!fn) { return; }
     ms_IdentDestroy(fn->ident);
@@ -608,13 +617,12 @@ static bool ExprAtomValDup(const ms_Value *src, ms_Value *dest) {
             }
             break;
         case MSVAL_ARRAY: {
-            size_t srclen = dsarray_cap(src->val.a);
-            dest->val.a = dsarray_new_cap(srclen, NULL, (dsarray_free_fn)ms_ExprDestroy);
+            size_t len = dsarray_cap(src->val.a);
+            dest->val.a = dsarray_new_cap(len, NULL, (dsarray_free_fn)ms_ExprDestroy);
             if (!dest->val.a) {
                 return false;
             }
 
-            size_t len = dsarray_len(src->val.a);
             for (size_t i = 0; i < len; i++) {
                 const ms_Expr *e = dsarray_get(src->val.a, i);
                 ms_Expr *e2 = ms_ExprDup(e);
@@ -623,6 +631,40 @@ static bool ExprAtomValDup(const ms_Value *src, ms_Value *dest) {
                 }
 
                 dsarray_append(dest->val.a, e2);
+            }
+            break;
+        }
+        case MSVAL_OBJECT: {
+            size_t len = dsarray_cap(src->val.o);
+            dest->val.o = dsarray_new_cap(len, NULL, (dsarray_free_fn)ms_ValObjectTupleDestroy);
+            if (!dest->val.o) {
+                return false;
+            }
+
+            for (size_t i = 0; i < len; i++) {
+                const ms_ValObjectTuple *srctuple = dsarray_get(src->val.o, i);
+
+                ms_ValObjectTuple *desttuple = malloc(sizeof(ms_ValObjectTuple));
+                if (!desttuple) {
+                    return false;
+                }
+
+                ms_Expr *key = ms_ExprDup(srctuple->key);
+                if (!key) {
+                    free(desttuple);
+                    return false;
+                }
+
+                ms_Expr *val = ms_ExprDup(srctuple->val);
+                if (!val) {
+                    free(desttuple);
+                    ms_ExprDestroy(key);
+                    return false;
+                }
+
+                desttuple->key = key;
+                desttuple->val = val;
+                dsarray_append(dest->val.o, desttuple);
             }
             break;
         }
@@ -670,6 +712,10 @@ static void ExprAtomValDestroy(ms_Value *val) {
         case MSVAL_ARRAY:
             dsarray_destroy(val->val.a);
             val->val.a = NULL;
+            break;
+        case MSVAL_OBJECT:
+            dsarray_destroy(val->val.o);
+            val->val.o = NULL;
             break;
         case MSVAL_FUNC:
             ms_ValFuncDestroy(val->val.fn);

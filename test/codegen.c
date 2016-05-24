@@ -30,6 +30,7 @@ typedef struct {
 
 static MunitResult prs_TestCodeGenLiterals(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenObjectLiterals(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenUnaryExprs(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenBinaryExprs(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenConditionalExprs(const MunitParameter params[], void *user_data);
@@ -64,6 +65,14 @@ MunitTest codegen_tests[] = {
     {
         "/ArrayLiterals",
         prs_TestCodeGenArrayLiterals,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ObjectLiterals",
+        prs_TestCodeGenObjectLiterals,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -474,6 +483,148 @@ static MunitResult prs_TestCodeGenArrayLiterals(const MunitParameter params[], v
                 },
                 .idents = NULL,
                 .nops = 5, .nvals = 3, .nidents = 0
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+static MunitResult prs_TestCodeGenObjectLiterals(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "{};",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_MAKE_OBJ, 0),
+                },
+                .idents = NULL,
+                .nops = 1, .nvals = 0, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three\": 3};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three"),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_MAKE_OBJ, 2),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three\": 3,};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three"),
+                    VM_INT(3),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_MAKE_OBJ, 2),
+                },
+                .idents = NULL,
+                .nops = 3, .nvals = 2, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three plus one\": 3 + 1};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three plus one"),
+                    VM_INT(3),
+                    VM_INT(1),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_MAKE_OBJ, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three plus one\": 3 + 1,};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three plus one"),
+                    VM_INT(3),
+                    VM_INT(1),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_MAKE_OBJ, 2),
+                },
+                .idents = NULL,
+                .nops = 5, .nvals = 3, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three plus one\": 3 + 1, 12 + 8: \"corduroy\"};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three plus one"),
+                    VM_INT(3),
+                    VM_INT(1),
+                    VM_INT(12),
+                    VM_INT(8),
+                    VM_STR("corduroy"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 5),
+                    VM_OPC(OPC_MAKE_OBJ, 4),
+                },
+                .idents = NULL,
+                .nops = 9, .nvals = 6, .nidents = 0
+            }
+        },
+        {
+            .val = "{\"three plus one\": 3 + 1, 12 + 8: \"corduroy\",};",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("three plus one"),
+                    VM_INT(3),
+                    VM_INT(1),
+                    VM_INT(12),
+                    VM_INT(8),
+                    VM_STR("corduroy"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_PUSH, 4),
+                    VM_OPC(OPC_ADD, 0),
+                    VM_OPC(OPC_PUSH, 5),
+                    VM_OPC(OPC_MAKE_OBJ, 4),
+                },
+                .idents = NULL,
+                .nops = 9, .nvals = 6, .nidents = 0
             }
         },
     };

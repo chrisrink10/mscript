@@ -101,6 +101,7 @@ static ms_Result ParserParseExprList(ms_Parser *prs, ms_Expr **list, ms_TokenTyp
 static ms_Result ParserParseAtom(ms_Parser *prs, ms_Expr **expr);
 static ms_Result ParserParseFunctionExpression(ms_Parser *prs, bool require_name, ms_Expr **expr);
 static ms_Result ParserParseArrayExpression(ms_Parser *prs, ms_Expr **expr);
+static ms_Result ParserParseObjectExpression(ms_Parser *prs, ms_Expr **expr);
 static ms_Result ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_Result ParserExprCombineConditional(ms_Parser *prs, ms_Expr *cond, ms_Expr *iftrue, ms_Expr *iffalse, ms_Expr **newexpr);
 static ms_Result ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
@@ -2062,9 +2063,7 @@ static ms_Result ParserParseAtom(ms_Parser *prs, ms_Expr **expr) {
 
             /* object literal */
         case LBRACE:
-            ParserErrorSet(prs, "Not implemented yet", prs->cur, prs->line, prs->col);
-            res = MS_RESULT_ERROR;
-            break;
+            return ParserParseObjectExpression(prs, expr);
 
             /* encountered another expression perhaps */
         default:
@@ -2250,6 +2249,87 @@ static ms_Result ParserParseArrayExpression(ms_Parser *prs, ms_Expr **expr) {
 
             /* allow trailing comma */
             if (ParserExpectToken(prs, RBRACKET)) {
+                ParserConsumeToken(prs);
+                break;
+            }
+        }
+    }
+
+    return MS_RESULT_SUCCESS;
+}
+
+static ms_Result ParserParseObjectExpression(ms_Parser *prs, ms_Expr **expr) {
+    assert(prs);
+    assert(expr);
+
+    DSArray *obj = dsarray_new_cap(EXPRESSION_LIST_DEFAULT_CAP, NULL,
+                                   (dsarray_free_fn)ms_ValObjectTupleDestroy);
+    if (!obj) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+
+    ms_ValData d = { .o = obj };
+    *expr = ms_ExprNewWithVal(MSVAL_OBJECT, d);
+    if (!(*expr)) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        dsarray_destroy(obj);
+        return MS_RESULT_ERROR;
+    }
+
+    if (!ParserExpectToken(prs, LBRACE)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, "{", prs->line, prs->col);
+        return MS_RESULT_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    /* no contents, close and return */
+    if (ParserExpectToken(prs, RBRACE)) {
+        ParserConsumeToken(prs);
+        return MS_RESULT_SUCCESS;
+    }
+
+    while(prs->cur) {
+        ms_Expr *k;
+        if (ParserParseExpression(prs, &k) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
+
+        if (!ParserExpectToken(prs, COLON)) {
+            ms_ExprDestroy(k);
+            ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ":", prs->line, prs->col);
+            return MS_RESULT_ERROR;
+        }
+        ParserConsumeToken(prs);
+
+        ms_Expr *v;
+        if (ParserParseExpression(prs, &v) == MS_RESULT_ERROR) {
+            ms_ExprDestroy(k);
+            return MS_RESULT_ERROR;
+        }
+
+        ms_ValObjectTuple *tuple = malloc(sizeof(ms_ValObjectTuple));
+        if (!tuple) {
+            ms_ExprDestroy(k);
+            ms_ExprDestroy(v);
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return MS_RESULT_ERROR;
+        }
+
+        tuple->key = k;
+        tuple->val = v;
+        dsarray_append(obj, tuple);
+
+        if (ParserExpectToken(prs, RBRACE)) {
+            ParserConsumeToken(prs);
+            break;
+        }
+
+        if (ParserExpectToken(prs, COMMA)) {
+            ParserConsumeToken(prs);
+
+            /* allow trailing comma */
+            if (ParserExpectToken(prs, RBRACE)) {
                 ParserConsumeToken(prs);
                 break;
             }

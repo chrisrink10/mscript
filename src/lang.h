@@ -60,6 +60,12 @@ typedef DSBuffer ms_ValStr;
 typedef bool ms_ValBool;
 typedef const void ms_ValNull;
 typedef DSArray ms_ValArray;
+typedef DSArray ms_ValObject;
+
+typedef struct {
+    ms_Expr *key;
+    ms_Expr *val;
+} ms_ValObjectTuple;
 
 typedef struct {
     ms_Ident *ident;
@@ -74,6 +80,7 @@ typedef enum {
     MSVAL_BOOL,
     MSVAL_NULL,
     MSVAL_ARRAY,
+    MSVAL_OBJECT,
     MSVAL_FUNC,
 } ms_ValDataType;
 
@@ -84,6 +91,7 @@ typedef union {
     ms_ValBool b;
     ms_ValNull *n;
     ms_ValArray *a;
+    ms_ValObject *o;
     ms_ValFunc *fn;
 } ms_ValData;
 
@@ -428,6 +436,11 @@ ms_IdentType ms_IdentGetType(const char *ident);
 * @brief Destroy the given @c ms_Ident .
 */
 void ms_IdentDestroy(ms_Ident *ident);
+
+/**
+* @brief Destroy an object tuple.
+*/
+void ms_ValObjectTupleDestroy(ms_ValObjectTuple *tuple);
 
 /**
 * @brief Destroy the given @c ms_ValFunc and any nested arguments and statements.

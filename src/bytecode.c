@@ -98,6 +98,7 @@ static void ExprBinaryToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx)
 static void ExprSafeGetAttrToOpCodes(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
 static void ExprConditionalToOpCodes(const ms_ExprConditional *c, CodeGenContextExpr *ctx);
 static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, CodeGenContextExpr *ctx);
+static void ExprComponentValueToOpCodes(const ms_Value *val, int index_or_len, CodeGenContext *ctx);
 static void ExprUnaryOpToOpCode(ms_ExprUnaryOp op, CodeGenContext *ctx);
 static void ExprBinaryOpToOpCode(ms_ExprBinaryOp op, CodeGenContext *ctx);
 static void ExprBinaryAttrListToOpCode(const ms_ExprBinary *b, CodeGenContextExpr *ctx);
@@ -228,6 +229,7 @@ const char *ms_VMOpCodeToString(ms_VMOpCode c) {
         case OPC_SET_NAME:          return "SET_NAME";
         case OPC_DEL_NAME:          return "DEL_NAME";
         case OPC_MAKE_LIST:         return "MAKE_LIST";
+        case OPC_MAKE_OBJ:          return "MAKE_OBJ";
         case OPC_NEXT:              return "NEXT";
         case OPC_MERGE:             return "MERGE";
         case OPC_IMPORT:            return "IMPORT";
@@ -393,6 +395,7 @@ static char *OpCodeArgToString(const ms_VMByteCode *bc, size_t i) {
         case OPC_SET_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_DEL_NAME:          return ByteCodeIdentToString(bc, (size_t)arg);
         case OPC_MAKE_LIST:         return ByteCodeArgToString(bc, arg);
+        case OPC_MAKE_OBJ:          return ByteCodeArgToString(bc, arg);
         case OPC_IMPORT:            return ByteCodeArgToString(bc, arg);
         case OPC_JUMP_IF_FALSE:     return ByteCodeArgToString(bc, arg);
         case OPC_GOTO:              return ByteCodeArgToString(bc, arg);
@@ -1310,11 +1313,7 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
         case EXPRATOM_VALUE: {
             int index_or_len;
             PushValue(&a->val, &index_or_len, ctx->parent);
-            if (a->val.type == MSVAL_ARRAY) {
-                PushOpCode(OPC_MAKE_LIST, index_or_len, ctx->parent);
-            } else {
-                PushOpCode(OPC_PUSH, index_or_len, ctx->parent);
-            }
+            ExprComponentValueToOpCodes(&a->val, index_or_len, ctx->parent);
             break;
         }
         case EXPRATOM_IDENT: {
@@ -1342,6 +1341,29 @@ static void ExprComponentToOpCodes(const ms_ExprAtom *a, ms_ExprAtomType type, C
         }
         case EXPRATOM_EMPTY:
             assert(false);
+    }
+}
+
+static void ExprComponentValueToOpCodes(const ms_Value *val, int index_or_len, CodeGenContext *ctx) {
+    assert(val);
+    assert(ctx);
+
+    switch (val->type) {
+        case MSVAL_FLOAT:   /* fall through */
+        case MSVAL_INT:     /* fall through */
+        case MSVAL_BOOL:    /* fall through */
+        case MSVAL_NULL:    /* fall through */
+        case MSVAL_STR:     /* fall through */
+        case MSVAL_FUNC:
+            PushOpCode(OPC_PUSH, index_or_len, ctx);
+            break;
+        case MSVAL_ARRAY:
+            PushOpCode(OPC_MAKE_LIST, index_or_len, ctx);
+            break;
+        case MSVAL_OBJECT:
+            assert((index_or_len % 2) == 0);
+            PushOpCode(OPC_MAKE_OBJ, index_or_len, ctx);
+            break;
     }
 }
 
@@ -1536,6 +1558,17 @@ static void PushValue(const ms_Value *val, int *index_or_len, CodeGenContext *ct
                 ExprToOpCodes(elem, ctx);
             }
             *index_or_len = (int)len;
+            free(newv);
+            return;     /* return so length isn't overwritten */
+        }
+        case MSVAL_OBJECT: {
+            size_t len = dsarray_len(val->val.o);
+            for (size_t i = 0; i < len; i++) {
+                ms_ValObjectTuple *tuple = dsarray_get(val->val.o, i);
+                ExprToOpCodes(tuple->key, ctx);
+                ExprToOpCodes(tuple->val, ctx);
+            }
+            *index_or_len = (int)(len * 2);
             free(newv);
             return;     /* return so length isn't overwritten */
         }

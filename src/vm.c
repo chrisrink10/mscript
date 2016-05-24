@@ -630,6 +630,10 @@ static ms_Result VMFrameExecute(ms_VM *vm, ms_VMFrame *f) {
                 ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
                 inc = 0;
                 break;
+            case OPC_MAKE_OBJ:
+                ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
+                inc = 0;
+                break;
             case OPC_NEXT:
                 ms_VMErrorSet(vm, ERR_NOT_IMPLEMENTED);
                 inc = 0;
