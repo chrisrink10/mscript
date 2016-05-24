@@ -784,10 +784,27 @@ static void StmtReturnDestroy(ms_StmtReturn *ret) {
 
 static void StmtAssignmentDestroy(ms_StmtAssignment *assign) {
     if (!assign) { return; }
-    ms_ExprDestroy(assign->ident);
-    assign->ident = NULL;
-    ms_ExprDestroy(assign->expr);
-    assign->expr = NULL;
+
+    ms_StmtAssignTarget *ident = assign->ident;
+    while (ident) {
+        ms_StmtAssignTarget *prev = ident;
+        ms_ExprDestroy(ident->target);
+        ident->target = NULL;
+        ident = ident->next;
+        prev->next = NULL;
+        free(prev);
+    }
+
+    ms_StmtAssignExpr *expr = assign->expr;
+    while (expr) {
+        ms_StmtAssignExpr *prev = expr;
+        ms_ExprDestroy(expr->expr);
+        expr->expr = NULL;
+        expr = expr->next;
+        prev->next = NULL;
+        free(prev);
+    }
+
     free(assign);
 }
 

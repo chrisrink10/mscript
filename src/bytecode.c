@@ -955,8 +955,17 @@ static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenCont
     assert(assign);
     assert(ctx);
 
-    ExprToOpCodes(assign->expr, ctx);
-    IdentSetToOpCodes(assign->ident, ctx, false);
+    ms_StmtAssignExpr *expr = assign->expr;
+    while (expr) {
+        ExprToOpCodes(expr->expr, ctx);
+        expr = expr->next;
+    }
+
+    ms_StmtAssignTarget *ident = assign->ident;
+    while (ident) {
+        IdentSetToOpCodes(ident->target, ctx, false);
+        ident = ident->next;
+    }
 }
 
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenContext *ctx) {

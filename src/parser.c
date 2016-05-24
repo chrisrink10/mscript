@@ -255,7 +255,9 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * block:           '{' stmt* '}'
  * func_decl:       'func' IDENTIFIER '(' ident_list ')' block
  * declare:         'var' IDENTIFIER (':=' expr) (',' IDENTIFIER (':=' expr))*
- * assign:          expr (':=' | '+=' | '-=' | '*=' | '/=' | '\=' | '%='
+ * assign:          multi_assign | aug_assign
+ * multi_assign:    expr_list ':=' expr_list
+ * aug_assign:      expr ('+=' | '-=' | '*=' | '/=' | '\=' | '%='
  *                  '&=' | '|=' | '^=' | '<<=' | '>>=') expr
  *
  * expr:            'select' '(' expr_pair (',' expr_pair)* (',' cond_expr) ')' |
@@ -979,8 +981,22 @@ static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_S
     }
 
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
-    (*stmt)->cmpnt.assign->ident = name;
-    return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr);
+    (*stmt)->cmpnt.assign->ident = malloc(sizeof(ms_StmtAssignTarget));
+    if (!(*stmt)->cmpnt.assign->ident) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->cmpnt.assign->ident->target = name;
+    (*stmt)->cmpnt.assign->ident->next = NULL;
+
+    (*stmt)->cmpnt.assign->expr = malloc(sizeof(ms_StmtAssignExpr));
+    if (!(*stmt)->cmpnt.assign->expr) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->cmpnt.assign->expr->next = NULL;
+
+    return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr->expr);
 }
 
 static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt) {
@@ -1013,7 +1029,13 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
     }
 
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
-    (*stmt)->cmpnt.assign->ident = name;
+    (*stmt)->cmpnt.assign->ident = malloc(sizeof(ms_StmtAssignTarget));
+    if (!(*stmt)->cmpnt.assign->ident) {
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->cmpnt.assign->ident->target = name;
+    (*stmt)->cmpnt.assign->ident->next = NULL;
     ms_Expr *right = NULL;
 
     /* parse the right piece of the expanded compound expression  */
@@ -1038,7 +1060,14 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
         return MS_RESULT_ERROR;
     }
 
-    (*stmt)->cmpnt.assign->expr = combined;
+    (*stmt)->cmpnt.assign->expr = malloc(sizeof(ms_StmtAssignExpr));
+    if (!(*stmt)->cmpnt.assign->expr) {
+        ms_ExprDestroy(combined);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->cmpnt.assign->expr->expr = combined;
+    (*stmt)->cmpnt.assign->expr->next = NULL;
     return MS_RESULT_SUCCESS;
 }
 

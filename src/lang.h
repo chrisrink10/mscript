@@ -285,9 +285,21 @@ typedef struct {
     ms_Expr *expr;
 } ms_StmtReturn;
 
-typedef struct {
-    ms_Expr *ident;
+typedef struct ms_StmtAssignTarget ms_StmtAssignTarget;
+struct ms_StmtAssignTarget {
+    ms_Expr *target;
+    ms_StmtAssignTarget *next;
+};
+
+typedef struct ms_StmtAssignExpr ms_StmtAssignExpr;
+struct ms_StmtAssignExpr {
     ms_Expr *expr;
+    ms_StmtAssignExpr *next;
+};
+
+typedef struct {
+    ms_StmtAssignTarget *ident;
+    ms_StmtAssignExpr *expr;
 } ms_StmtAssignment;
 
 typedef struct ms_StmtDeclaration ms_StmtDeclaration;

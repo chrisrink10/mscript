@@ -330,6 +330,7 @@ static MunitResult CompareBlocks(const ms_StmtBlock *blk1, const ms_StmtBlock *b
 static MunitResult CompareForStatement(const ms_StmtFor *for1, const ms_StmtFor *for2);
 static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_StmtIfElse *elif2);
 static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms_StmtDeclaration *decl2);
+static MunitResult CompareAssignment(const ms_StmtAssignment *assign1, const ms_StmtAssignment *assign2);
 static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2);
 static MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2);
 static MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2);
@@ -343,6 +344,7 @@ static void CleanBlock(ms_StmtBlock *block);
 static void CleanForStatement(ms_StmtFor *forstmt);
 static void CleanIfElseStatement(ms_StmtIfElse *elif);
 static void CleanDeclaration(ms_StmtDeclaration *decl);
+static void CleanAssignment(ms_StmtAssignment *assign);
 static void CleanExpression(ms_Expr *expr);
 static void CleanExpressionAtom(ms_ExprAtomType type, ms_ExprAtom *atom);
 static void CleanArray(ms_ValArray *arr);
@@ -439,7 +441,10 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
 #define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
+#define AST_ASSIGN_T(i, n)          ((ms_StmtAssignTarget){ .ident = &(i), .next = &(n) })
+#define AST_ASSIGN_E(e, n)          ((ms_StmtAssignExpr){ .expr = &(e), .next = &(n) })
 #define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGNMENT, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
+#define AST_ASSIGN_SNG(i, e)        AST_STMT(STMTTYPE_ASSIGNMENT, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &((ms_StmtAssignTarget){ .target = &(i), .next = NULL }), .expr = &((ms_StmtAssignExpr){ .expr = &(e), .next = NULL }) })))
 #define AST_DECL_CMPNT(i, n)        ((ms_StmtDeclaration){ .ident = i, .expr = NULL, .next = n })
 #define AST_DECL_CMPNT_V(i, e, n)   ((ms_StmtDeclaration){ .ident = i, .expr = &(e), .next = n })
 #define AST_DECLARE(i, n)           AST_STMT(STMTTYPE_DECLARATION, AST_STMTCOMPONENT(decl, AST_DECL_CMPNT(i, n)))
@@ -1408,27 +1413,27 @@ static MunitResult prs_TestParseAssignment(const MunitParameter params[], void *
         {
             .val = "name := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
             .val = "name.second := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
             .val = "name.second.third := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
             .val = "name[\"second\"] := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
         {
             .val = "name[\"second\", \"third\"] := 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
         },
     };
 
@@ -1442,62 +1447,62 @@ static MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[]
         {
             .val = "name.second += 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_PLUS, VM_INT(10))),
         },
         {
             .val = "name += 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_PLUS, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_PLUS, VM_INT(10))),
         },
         {
             .val = "name -= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MINUS, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MINUS, VM_INT(10))),
         },
         {
             .val = "name *= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_TIMES, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_TIMES, VM_INT(10))),
         },
         {
             .val = "name /= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_DIVIDE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_DIVIDE, VM_INT(10))),
         },
         {
             .val = "name \\= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_IDIVIDE, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_IDIVIDE, VM_INT(10))),
         },
         {
             .val = "name %= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MODULO, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_MODULO, VM_INT(10))),
         },
         {
             .val = "name &= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_AND, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_AND, VM_INT(10))),
         },
         {
             .val = "name |= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_OR, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_OR, VM_INT(10))),
         },
         {
             .val = "name ^= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_XOR, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_BITWISE_XOR, VM_INT(10))),
         },
         {
             .val = "name <<= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_LEFT, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_LEFT, VM_INT(10))),
         },
         {
             .val = "name >>= 10;",
             .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_ASSIGN(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_RIGHT, VM_INT(10))),
+            .cmpnt.stmt = AST_ASSIGN_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_SHIFT_RIGHT, VM_INT(10))),
         },
     };
 
@@ -1601,8 +1606,7 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
             CompareDeclarations(stmt1->cmpnt.decl, stmt2->cmpnt.decl);
             break;
         case STMTTYPE_ASSIGNMENT:
-            CompareExpressions(stmt1->cmpnt.assign->ident, stmt2->cmpnt.assign->ident);
-            CompareExpressions(stmt1->cmpnt.assign->expr, stmt2->cmpnt.assign->expr);
+            CompareAssignment(stmt1->cmpnt.assign, stmt2->cmpnt.assign);
             break;
         case STMTTYPE_EXPRESSION:
             CompareExpressions(stmt1->cmpnt.expr, stmt2->cmpnt.expr);
@@ -1702,6 +1706,33 @@ static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms
     if ((decl1->next) || (decl2->next)) {
         CompareDeclarations(decl1->next, decl2->next);
     }
+
+    return MUNIT_OK;
+}
+
+static MunitResult CompareAssignment(const ms_StmtAssignment *assign1, const ms_StmtAssignment *assign2) {
+    munit_assert_non_null(assign1);
+    munit_assert_non_null(assign2);
+
+    ms_StmtAssignTarget *ident1 = assign1->ident;
+    ms_StmtAssignTarget *ident2 = assign2->ident;
+    while ((ident1) && (ident2)) {
+        CompareExpressions(ident1->target, ident2->target);
+        ident1 = ident1->next;
+        ident2 = ident2->next;
+    }
+    munit_assert_null(ident1);
+    munit_assert_null(ident2);
+
+    ms_StmtAssignExpr *expr1 = assign1->expr;
+    ms_StmtAssignExpr *expr2 = assign1->expr;
+    while ((expr1) && (expr2)) {
+        CompareExpressions(expr1->expr, expr2->expr);
+        expr1 = expr1->next;
+        expr2 = expr2->next;
+    }
+    munit_assert_null(expr1);
+    munit_assert_null(expr2);
 
     return MUNIT_OK;
 }
@@ -1934,8 +1965,7 @@ static void CleanStatement(ms_Stmt *stmt) {
             CleanDeclaration(stmt->cmpnt.decl);
             break;
         case STMTTYPE_ASSIGNMENT:
-            CleanExpression(stmt->cmpnt.assign->ident);
-            CleanExpression(stmt->cmpnt.assign->expr);
+            CleanAssignment(stmt->cmpnt.assign);
             break;
         case STMTTYPE_EXPRESSION:
             CleanExpression(stmt->cmpnt.expr);
@@ -1999,6 +2029,22 @@ static void CleanDeclaration(ms_StmtDeclaration *decl) {
     decl->ident->name = NULL;
     CleanExpression(decl->expr);
     CleanDeclaration(decl->next);
+}
+
+static void CleanAssignment(ms_StmtAssignment *assign) {
+    if (!assign) { return; }
+
+    ms_StmtAssignTarget *ident = assign->ident;
+    while (ident) {
+        CleanExpression(ident->target);
+        ident = ident->next;
+    }
+
+    ms_StmtAssignExpr *expr = assign->expr;
+    while (expr) {
+        CleanExpression(expr->expr);
+        expr = expr->next;
+    }
 }
 
 static void CleanExpression(ms_Expr *expr) {
