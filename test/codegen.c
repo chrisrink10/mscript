@@ -49,6 +49,7 @@ static MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[],
 static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestCodeGenMultipleAssignment(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params[], void *user_data);
 
 MunitTest codegen_tests[] = {
@@ -215,6 +216,14 @@ MunitTest codegen_tests[] = {
     {
         "/Assignment",
         prs_TestCodeGenAssignment,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/MultipleAssignment",
+        prs_TestCodeGenMultipleAssignment,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -3183,6 +3192,104 @@ static MunitResult prs_TestCodeGenAssignment(const MunitParameter params[], void
                 },
                 .idents = NULL,
                 .nops = 5, .nvals = 4, .nidents = 0
+            }
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestCodeGenResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+static MunitResult prs_TestCodeGenMultipleAssignment(const MunitParameter params[], void *user_data) {
+    CodeGenResultTuple exprs[] = {
+        {
+            .val = "x, y := 0, 1;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(0),
+                    VM_INT(1),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_SET_NAME, 0),
+                    VM_OPC(OPC_SET_NAME, 1)
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("y"),
+                    VM_IDENT("x"),
+                }),
+                .nops = 4, .nvals = 2, .nidents = 2
+            }
+        },
+        {
+            .val = "x, y, z := 0, 1, 0;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_INT(0),
+                    VM_INT(1),
+                    VM_INT(0),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_NAME, 0),
+                    VM_OPC(OPC_SET_NAME, 1),
+                    VM_OPC(OPC_SET_NAME, 2),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("z"),
+                    VM_IDENT("y"),
+                    VM_IDENT("x"),
+                }),
+                .nops = 6, .nvals = 3, .nidents = 3
+            }
+        },
+        {
+            .val = "x, y := y, x;",
+            .bc = &(ms_VMByteCode){
+                .values = NULL,
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_SET_NAME, 0),
+                    VM_OPC(OPC_SET_NAME, 1)
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("y"),
+                    VM_IDENT("x"),
+                }),
+                .nops = 4, .nvals = 0, .nidents = 2
+            }
+        },
+        {
+            .val = "x.attr, y.attr := y.attr, 1;",
+            .bc = &(ms_VMByteCode){
+                .values = (ms_VMValue[]){
+                    VM_STR("attr"),
+                    VM_INT(1),
+                    VM_STR("attr"),
+                    VM_STR("attr"),
+                },
+                .code = (ms_VMOpCode[]){
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_GET_ATTR, 0),
+                    VM_OPC(OPC_PUSH, 1),
+                    VM_OPC(OPC_GET_NAME, 0),
+                    VM_OPC(OPC_PUSH, 2),
+                    VM_OPC(OPC_SET_ATTR, 0),
+                    VM_OPC(OPC_GET_NAME, 1),
+                    VM_OPC(OPC_PUSH, 3),
+                    VM_OPC(OPC_SET_ATTR, 0),
+                },
+                .idents = ((DSBuffer*[]){
+                    VM_IDENT("y"),
+                    VM_IDENT("x"),
+                }),
+                .nops = 10, .nvals = 4, .nidents = 2
             }
         },
     };

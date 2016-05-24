@@ -85,6 +85,7 @@ static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx
 static void StmtMergeToOpCodes(const ms_StmtMerge *merge, CodeGenContext *ctx);
 static void StmtReturnToOpCodes(const ms_StmtReturn *ret, CodeGenContext *ctx);
 static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenContext *ctx);
+static void StmtAssignmentTargetToOpCodes(const ms_StmtAssignTarget *target, CodeGenContext *ctx);
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenContext *ctx);
 static void IdentSetToOpCodes(const ms_Expr *ident, CodeGenContext *ctx, bool new_name);
 static void GlobalIdentExprToOpCodes(const ms_Expr *ident, int *nsubscripts, CodeGenContext *ctx);
@@ -961,11 +962,18 @@ static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenCont
         expr = expr->next;
     }
 
-    ms_StmtAssignTarget *ident = assign->ident;
-    while (ident) {
-        IdentSetToOpCodes(ident->target, ctx, false);
-        ident = ident->next;
+    StmtAssignmentTargetToOpCodes(assign->ident, ctx);
+}
+
+static void StmtAssignmentTargetToOpCodes(const ms_StmtAssignTarget *target, CodeGenContext *ctx) {
+    assert(target);
+    assert(ctx);
+
+    /* take advantage of the stack unwinding to reverse order sets in post-order */
+    if (target->next) {
+        StmtAssignmentTargetToOpCodes(target->next, ctx);
     }
+    IdentSetToOpCodes(target->target, ctx, false);
 }
 
 static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenContext *ctx) {

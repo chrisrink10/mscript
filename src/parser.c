@@ -76,6 +76,7 @@ static ms_Result ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclarati
 static ms_Result ParserParseDeclaration(ms_Parser *prs, bool req_keyword, ms_StmtDeclaration **decl);
 static ms_Result ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt);
 static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
+static ms_Result ParserParseMultipleAssignment(ms_Parser *prs, ms_Expr *first, ms_Stmt **stmt);
 static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt);
 static ms_Result ParserParseStatementTerminator(ms_Parser *prs);
 static ms_Result ParserParseExpression(ms_Parser *prs, ms_Expr **expr);
@@ -104,10 +105,12 @@ static ms_Result ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_E
 static ms_Result ParserExprCombineConditional(ms_Parser *prs, ms_Expr *cond, ms_Expr *iftrue, ms_Expr *iffalse, ms_Expr **newexpr);
 static ms_Result ParserExprCombineBinary(ms_Parser *prs, ms_Expr *left, ms_ExprBinaryOp op, ms_Expr *right, ms_Expr **newexpr);
 static ms_Result ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_ExprUnaryOp op, ms_Expr **newexpr);
+static bool ParserIdentIsInvalidAssignmentTarget(ms_ExprIdentType type);
 
 static inline ms_Token *ParserAdvanceToken(ms_Parser *prs);
 static inline void ParserConsumeToken(ms_Parser *prs);
 static inline bool ParserExpectToken(ms_Parser *prs, ms_TokenType type);
+static inline bool ParserExpectTokenAny(ms_Parser *prs, ms_TokenType type[], size_t n);
 static void ParserErrorSet(ms_Parser *prs, const char* msg, const ms_Token *tok, ...);
 static void ParserErrorClear(ms_Parser *prs);
 
@@ -534,9 +537,7 @@ static ms_Result ParserParseForIncrement(ms_Parser *prs, ms_Expr *ident, bool de
             return MS_RESULT_ERROR;
         }
     } else {
-        if ((ident_type != EXPRIDENT_NAME) &&
-            (ident_type != EXPRIDENT_QUALIFIED) &&
-            (ident_type != EXPRIDENT_GLOBAL)) {
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
             ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return MS_RESULT_ERROR;
@@ -602,9 +603,7 @@ static ms_Result ParserParseForIterator(ms_Parser *prs, ms_Expr *ident, bool dec
             return MS_RESULT_ERROR;
         }
     } else {
-        if ((ident_type != EXPRIDENT_NAME) &&
-            (ident_type != EXPRIDENT_QUALIFIED) &&
-            (ident_type != EXPRIDENT_GLOBAL)) {
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
             ms_ExprDestroy(ident);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return MS_RESULT_ERROR;
@@ -917,45 +916,47 @@ static ms_Result ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
         return MS_RESULT_ERROR;
     }
 
-    /* some sort of assignment (simple or compound) */
+    static ms_TokenType compound_ops[] = {
+        OP_PLUS_EQUALS, OP_MINUS_EQUALS, OP_TIMES_EQUALS, OP_DIVIDE_EQUALS,
+        OP_IDIVIDE_EQUALS, OP_MODULO_EQUALS, OP_BITWISE_AND_EQUALS,
+        OP_BITWISE_OR_EQUALS, OP_BITWISE_XOR_EQUALS, OP_SHIFT_LEFT_EQUALS,
+        OP_SHIFT_RIGHT_EQUALS
+    };
+
+    /* some sort of assignment (simple, multiple, or compound) */
     ms_ExprIdentType ident_type = ms_ExprGetIdentType(name);
     if (ParserExpectToken(prs, OP_EQ)) {
-        if ((ident_type != EXPRIDENT_NAME) &&
-            (ident_type != EXPRIDENT_QUALIFIED) &&
-            (ident_type != EXPRIDENT_GLOBAL)) {
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
             ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return MS_RESULT_ERROR;
         }
 
         if (ParserParseSimpleAssignment(prs, name, stmt) == MS_RESULT_ERROR) {
-            ms_ExprDestroy(name);
             return MS_RESULT_ERROR;
         }
 
         return ParserParseStatementTerminator(prs);
-    } else if (ParserExpectToken(prs, OP_PLUS_EQUALS) ||
-               ParserExpectToken(prs, OP_MINUS_EQUALS) ||
-               ParserExpectToken(prs, OP_TIMES_EQUALS) ||
-               ParserExpectToken(prs, OP_DIVIDE_EQUALS) ||
-               ParserExpectToken(prs, OP_IDIVIDE_EQUALS) ||
-               ParserExpectToken(prs, OP_MODULO_EQUALS) ||
-               ParserExpectToken(prs, OP_BITWISE_AND_EQUALS) ||
-               ParserExpectToken(prs, OP_BITWISE_OR_EQUALS) ||
-               ParserExpectToken(prs, OP_BITWISE_XOR_EQUALS) ||
-               ParserExpectToken(prs, OP_SHIFT_LEFT_EQUALS) ||
-               ParserExpectToken(prs, OP_SHIFT_RIGHT_EQUALS)) {
+    } else if (ParserExpectToken(prs, COMMA)) {
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
+            ms_ExprDestroy(name);
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return MS_RESULT_ERROR;
+        }
 
-        if ((ident_type != EXPRIDENT_NAME) &&
-            (ident_type != EXPRIDENT_QUALIFIED) &&
-            (ident_type != EXPRIDENT_GLOBAL)) {
+        if (ParserParseMultipleAssignment(prs, name, stmt) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
+
+        return ParserParseStatementTerminator(prs);
+    } else if (ParserExpectTokenAny(prs, compound_ops, sizeof(compound_ops))) {
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
             ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
             return MS_RESULT_ERROR;
         }
 
         if (ParserParseCompoundAssignment(prs, name, stmt) == MS_RESULT_ERROR) {
-            ms_ExprDestroy(name);
             return MS_RESULT_ERROR;
         }
 
@@ -976,6 +977,7 @@ static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_S
     ParserConsumeToken(prs);
     (*stmt)->cmpnt.assign = calloc(1, sizeof(ms_StmtAssignment));
     if (!((*stmt)->cmpnt.assign)) {
+        ms_ExprDestroy(name);
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return MS_RESULT_ERROR;
     }
@@ -983,6 +985,7 @@ static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_S
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
     (*stmt)->cmpnt.assign->ident = malloc(sizeof(ms_StmtAssignTarget));
     if (!(*stmt)->cmpnt.assign->ident) {
+        ms_ExprDestroy(name);
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return MS_RESULT_ERROR;
     }
@@ -997,6 +1000,91 @@ static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_S
     (*stmt)->cmpnt.assign->expr->next = NULL;
 
     return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr->expr);
+}
+
+static ms_Result ParserParseMultipleAssignment(ms_Parser *prs, ms_Expr *first, ms_Stmt **stmt) {
+    assert(prs);
+    assert(first);
+    assert(stmt);
+
+    (*stmt)->cmpnt.assign = calloc(1, sizeof(ms_StmtAssignment));
+    if (!((*stmt)->cmpnt.assign)) {
+        ms_ExprDestroy(first);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->type = STMTTYPE_ASSIGNMENT;
+
+    /* initial assignment target */
+    (*stmt)->cmpnt.assign->ident = malloc(sizeof(ms_StmtAssignTarget));
+    if (!(*stmt)->cmpnt.assign->ident) {
+        ms_ExprDestroy(first);
+        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+        return MS_RESULT_ERROR;
+    }
+    (*stmt)->cmpnt.assign->ident->target = first;
+    (*stmt)->cmpnt.assign->ident->next = NULL;
+
+    /* repeatedly look for targets */
+    size_t ntargets = 1;
+    ms_StmtAssignTarget **target = &(*stmt)->cmpnt.assign->ident->next;
+    do {
+        ParserConsumeToken(prs);
+
+        *target = malloc(sizeof(ms_StmtAssignTarget));
+        if (!(*target)) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return MS_RESULT_ERROR;
+        }
+        (*target)->next = NULL;
+
+        if (ParserParseExpression(prs, &(*target)->target) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
+
+        ms_ExprIdentType ident_type = ms_ExprGetIdentType((*target)->target);
+        if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
+            ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
+            return MS_RESULT_ERROR;
+        }
+
+        target = &(*target)->next;
+        ntargets += 1;
+    } while (ParserExpectToken(prs, COMMA));
+
+    if (!ParserExpectToken(prs, OP_EQ)) {
+        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ":=", prs->line, prs->col);
+        return MS_RESULT_ERROR;
+    }
+    ParserConsumeToken(prs);
+
+    /* repeatedly look for assignment expressions */
+    ms_StmtAssignExpr **expr = &(*stmt)->cmpnt.assign->expr;
+    for (size_t i = 0; i < ntargets; i++) {
+        if (i > 0) {
+            if (!ParserExpectToken(prs, COMMA)) {
+                ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, ",", prs->line, prs->col);
+                return MS_RESULT_ERROR;
+            } else {
+                ParserConsumeToken(prs);
+            }
+        }
+
+        *expr = malloc(sizeof(ms_StmtAssignExpr));
+        if (!(*expr)) {
+            ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
+            return MS_RESULT_ERROR;
+        }
+        (*expr)->next = NULL;
+
+        if (ParserParseExpression(prs, &(*expr)->expr) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
+
+        expr = &(*expr)->next;
+    }
+
+    return MS_RESULT_SUCCESS;
 }
 
 static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms_Stmt **stmt) {
@@ -1024,6 +1112,7 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
     ParserConsumeToken(prs);
     (*stmt)->cmpnt.assign = calloc(1, sizeof(ms_StmtAssignment));
     if (!((*stmt)->cmpnt.assign)) {
+        ms_ExprDestroy(name);
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return MS_RESULT_ERROR;
     }
@@ -1031,6 +1120,7 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
     (*stmt)->type = STMTTYPE_ASSIGNMENT;
     (*stmt)->cmpnt.assign->ident = malloc(sizeof(ms_StmtAssignTarget));
     if (!(*stmt)->cmpnt.assign->ident) {
+        ms_ExprDestroy(name);
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return MS_RESULT_ERROR;
     }
@@ -1731,11 +1821,11 @@ static ms_Result ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
         return res;
     }
 
-    while (ParserExpectToken(prs, LPAREN) ||
-           ParserExpectToken(prs, LBRACKET) ||
-           ParserExpectToken(prs, PERIOD) ||
-           ParserExpectToken(prs, OP_SAFE_REFERENCE) ||
-           ParserExpectToken(prs, OP_SAFE_GETATTR)) {
+    static ms_TokenType accessor_tokens[] = {
+        LPAREN, LBRACKET, PERIOD, OP_SAFE_REFERENCE, OP_SAFE_GETATTR
+    };
+
+    while (ParserExpectTokenAny(prs, accessor_tokens, sizeof(accessor_tokens))) {
         ms_TokenType ttype = prs->cur->type;
         ms_ExprBinaryOp op;
         ms_Expr *right;
@@ -2177,7 +2267,8 @@ static ms_Result ParserExprRewriteAttrAccess(ms_Parser *prs, ms_Expr *left, ms_E
     assert(right->cmpnt.u->type == EXPRATOM_EXPRLIST);
     assert(newexpr);
 
-    /* Rewrite attribute accesses syntactically of the form
+    /*
+     * Rewrite attribute accesses syntactically of the form
      *
      *     name[expr1, expr1, ...]
      *
@@ -2287,6 +2378,12 @@ static ms_Result ParserExprCombineUnary(ms_Parser *prs, ms_Expr *inner, ms_ExprU
     return MS_RESULT_SUCCESS;
 }
 
+static bool ParserIdentIsInvalidAssignmentTarget(ms_ExprIdentType type) {
+    return (type != EXPRIDENT_NAME) &&
+           (type != EXPRIDENT_QUALIFIED) &&
+           (type != EXPRIDENT_GLOBAL);
+}
+
 /* Move the pointer to the next token in the lexer stream without
  * discarding the previous token.
  *
@@ -2320,6 +2417,23 @@ static inline bool ParserExpectToken(ms_Parser *prs, ms_TokenType type) {
     }
 
     return true;
+}
+
+/* Check if the next token is any of an array of valid types */
+static inline bool ParserExpectTokenAny(ms_Parser *prs, ms_TokenType type[], size_t n) {
+    assert(prs);
+
+    if (!prs->cur) {
+        return false;
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        if (prs->cur->type == type[i]) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /* Generate a new ParseError object attached to the Parser. */

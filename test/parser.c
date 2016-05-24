@@ -62,6 +62,7 @@ static MunitResult prs_TestParseReturnStatement(const MunitParameter params[], v
 static MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseAssignment(const MunitParameter params[], void *user_data);
+static MunitResult prs_TestParseMultipleAssignment(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[], void *user_data);
 
 static char* bad_code[] = {
@@ -136,6 +137,10 @@ static char* bad_code[] = {
     "func { }",
     "var := 10;",
     "var name :=;",
+    "name :=;",
+    "x +=;",
+    "x, y := 10;",
+    "x, y := ;",
     "10 :=;",
     "10 := 12;",
     NULL
@@ -308,6 +313,14 @@ MunitTest parser_tests[] = {
         NULL
     },
     {
+        "/MultipleAssignment",
+        prs_TestParseMultipleAssignment,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
         "/CompoundAssignment",
         prs_TestParseCompoundAssignment,
         NULL,
@@ -441,8 +454,10 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
 #define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
-#define AST_ASSIGN_T(i, n)          ((ms_StmtAssignTarget){ .ident = &(i), .next = &(n) })
+#define AST_ASSIGN_T(i, n)          ((ms_StmtAssignTarget){ .target = &(i), .next = &(n) })
+#define AST_ASSIGN_T_SNG(i)         ((ms_StmtAssignTarget){ .target = &(i), .next = NULL })
 #define AST_ASSIGN_E(e, n)          ((ms_StmtAssignExpr){ .expr = &(e), .next = &(n) })
+#define AST_ASSIGN_E_SNG(e)         ((ms_StmtAssignExpr){ .expr = &(e), .next = NULL })
 #define AST_ASSIGN(i, e)            AST_STMT(STMTTYPE_ASSIGNMENT, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &(i), .expr = &(e) })))
 #define AST_ASSIGN_SNG(i, e)        AST_STMT(STMTTYPE_ASSIGNMENT, AST_STMTCOMPONENT(assign, ((ms_StmtAssignment){ .ident = &((ms_StmtAssignTarget){ .target = &(i), .next = NULL }), .expr = &((ms_StmtAssignExpr){ .expr = &(e), .next = NULL }) })))
 #define AST_DECL_CMPNT(i, n)        ((ms_StmtDeclaration){ .ident = i, .expr = NULL, .next = n })
@@ -1434,6 +1449,47 @@ static MunitResult prs_TestParseAssignment(const MunitParameter params[], void *
             .val = "name[\"second\", \"third\"] := 10;",
             .type = ASTCMPNT_STMT,
             .cmpnt.stmt = AST_ASSIGN_SNG(AST_BEXPR_EV(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), BINARY_GETATTR, VM_STR("third")), AST_UEXPR_V(UNARY_NONE, VM_INT(10))),
+        },
+    };
+
+    size_t len = sizeof(exprs) / sizeof(exprs[0]);
+    TestParseResultTuple(exprs, len);
+    return MUNIT_OK;
+}
+
+static MunitResult prs_TestParseMultipleAssignment(const MunitParameter params[], void *user_data) {
+    ParseResultTuple exprs[] = {
+        {
+            .val = "x, y := 0, 1;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(
+                AST_ASSIGN_T(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "x")), AST_ASSIGN_T_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "y")))),
+                AST_ASSIGN_E(AST_UEXPR_V(UNARY_NONE, VM_INT(0)), AST_ASSIGN_E_SNG(AST_UEXPR_V(UNARY_NONE, VM_INT(1))))
+            ),
+        },
+        {
+            .val = "x, y, z := 0, 1, 0;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(
+                AST_ASSIGN_T(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "x")), AST_ASSIGN_T(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "y")), AST_ASSIGN_T_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "z"))))),
+                AST_ASSIGN_E(AST_UEXPR_V(UNARY_NONE, VM_INT(0)), AST_ASSIGN_E(AST_UEXPR_V(UNARY_NONE, VM_INT(1)), AST_ASSIGN_E_SNG(AST_UEXPR_V(UNARY_NONE, VM_INT(0)))))
+            ),
+        },
+        {
+            .val = "x, y := y, x;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(
+                AST_ASSIGN_T(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "x")), AST_ASSIGN_T_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "y")))),
+                AST_ASSIGN_E(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "y")), AST_ASSIGN_E_SNG(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "x"))))
+            ),
+        },
+        {
+            .val = "x.attr, y.attr := y.attr, 1;",
+            .type = ASTCMPNT_STMT,
+            .cmpnt.stmt = AST_ASSIGN(
+                AST_ASSIGN_T(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "x"), BINARY_GETATTR, VM_STR("attr")), AST_ASSIGN_T_SNG(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "y"), BINARY_GETATTR, VM_STR("attr")))),
+                AST_ASSIGN_E(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "x"), BINARY_GETATTR, VM_STR("attr")), AST_ASSIGN_E_SNG(AST_UEXPR_V(UNARY_NONE, VM_INT(1))))
+            ),
         },
     };
 
