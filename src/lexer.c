@@ -80,7 +80,6 @@ const char *const TOK_OP_TIMES = "OP_TIMES";
 const char *const TOK_OP_MINUS = "OP_MINUS";
 const char *const TOK_OP_PLUS = "OP_PLUS";
 const char *const TOK_OP_UMINUS = "OP_UMINUS";
-const char *const TOK_KW_MERGE = "KW_MERGE";
 const char *const TOK_KW_NULL = "KW_NULL";
 const char *const TOK_KW_FALSE = "KW_FALSE";
 const char *const TOK_KW_TRUE = "KW_TRUE";
@@ -121,9 +120,8 @@ static KeywordTuple KEYWORDS[] = {
     { "if", KW_IF }, { "else", KW_ELSE }, { "return", KW_RETURN },
     { "true", KW_TRUE }, { "false", KW_FALSE }, { "null", KW_NULL },
     { "func", KW_FUNC }, { "del", KW_DEL }, { "continue", KW_CONTINUE },
-    { "break", KW_BREAK }, { "import", KW_IMPORT }, { "merge", KW_MERGE },
-    { "var", KW_VAR },  { "in", KW_IN }, { "is", KW_IS }, { "for", KW_FOR },
-    { "select", KW_SELECT },
+    { "break", KW_BREAK }, { "import", KW_IMPORT }, { "var", KW_VAR },
+    { "in", KW_IN }, { "is", KW_IS }, { "for", KW_FOR }, { "select", KW_SELECT },
 
     // Unused and reserved keywords
     { "switch", RESERVED_KW }, { "error", RESERVED_KW }, { "goto", RESERVED_KW },
@@ -138,7 +136,7 @@ static KeywordTuple KEYWORDS[] = {
     { "str", RESERVED_KW }, { "bool", RESERVED_KW }, { "datetime", RESERVED_KW },
     { "obj", RESERVED_KW }, { "as", RESERVED_KW }, { "package", RESERVED_KW },
     { "with", RESERVED_KW }, { "using", RESERVED_KW }, { "spawn", RESERVED_KW },
-    { "val", RESERVED_KW }
+    { "val", RESERVED_KW }, { "merge", RESERVED_KW }
 };
 
 /*
@@ -578,7 +576,6 @@ const char *ms_TokenTypeName(ms_TokenType type) {
         case KW_TRUE:                   return TOK_KW_TRUE;
         case KW_FALSE:                  return TOK_KW_FALSE;
         case KW_NULL:                   return TOK_KW_NULL;
-        case KW_MERGE:                  return TOK_KW_MERGE;
         case KW_IS:                     return TOK_KW_IS;
         case KW_IN:                     return TOK_KW_IN;
         case KW_SELECT:                 return TOK_KW_SELECT;

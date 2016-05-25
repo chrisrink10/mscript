@@ -58,7 +58,6 @@ static MunitResult prs_TestParseForIterStatements(const MunitParameter params[],
 static MunitResult prs_TestParseForExprStatements(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseIfStatements(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseImportStatement(const MunitParameter params[], void *user_data);
-static MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseFuncDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestParseDeclaration(const MunitParameter params[], void *user_data);
@@ -136,10 +135,6 @@ static char* bad_code[] = {
     "import 10;",
     "import Sys :;",
     "import Sys : true;",
-    "merge;",
-    "merge 10;",
-    "merge x :=;",
-    "merge var := y;",
     "return );",
     "return func;",
     "func { }",
@@ -283,14 +278,6 @@ MunitTest parser_tests[] = {
     {
         "/ImportStatement",
         prs_TestParseImportStatement,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/MergeStatement",
-        prs_TestParseMergeStatement,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -470,7 +457,6 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 #define AST_ELIF_IF(e, b, elseif)   AST_STMT_ELIF(IFELSE_IF, ifstmt, AST_STMT_IF(e, b, elseif))
 #define AST_ELIF_ELSE(b)            AST_STMT_ELIF(IFELSE_ELSE, elstmt, AST_STMT_ELSE(b))
 #define AST_IMPORT(e, a)            AST_STMT(STMTTYPE_IMPORT, AST_STMTCOMPONENT(import, ((ms_StmtImport){ .ident = &(e), .alias = a })))
-#define AST_MERGE(l, r)             AST_STMT(STMTTYPE_MERGE, AST_STMTCOMPONENT(merge, ((ms_StmtMerge){ .left = &(l), .right = &(r) })))
 #define AST_RETURN(e)               AST_STMT(STMTTYPE_RETURN, AST_STMTCOMPONENT(ret, ((ms_StmtReturn){ .expr = &(e) })))
 #define AST_ASSIGN_T(i, n)          ((ms_StmtAssignTarget){ .target = &(i), .next = &(n) })
 #define AST_ASSIGN_T_SNG(i)         ((ms_StmtAssignTarget){ .target = &(i), .next = NULL })
@@ -1345,35 +1331,6 @@ static MunitResult prs_TestParseImportStatement(const MunitParameter params[], v
     return MUNIT_OK;
 }
 
-static MunitResult prs_TestParseMergeStatement(const MunitParameter params[], void *user_data) {
-    ParseResultTuple exprs[] = {
-        {
-            .val = "merge name := other;",
-            .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "name")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
-        },
-        {
-            .val = "merge name.second := other;",
-            .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_BEXPR_IV(AST_IDENT(IDENT_NAME, "name"), BINARY_GETATTR, VM_STR("second")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
-        },
-        {
-            .val = "merge @global := other;",
-            .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_NAME, "other"))),
-        },
-        {
-            .val = "merge @global := \"some string\";",
-            .type = ASTCMPNT_STMT,
-            .cmpnt.stmt = AST_MERGE(AST_UEXPR_I(UNARY_NONE, AST_IDENT(IDENT_GLOBAL, "@global")), AST_UEXPR_V(UNARY_NONE, VM_STR("some string"))),
-        },
-    };
-
-    size_t len = sizeof(exprs) / sizeof(exprs[0]);
-    TestParseResultTuple(exprs, len);
-    return MUNIT_OK;
-}
-
 static MunitResult prs_TestParseReturnStatement(const MunitParameter params[], void *user_data) {
     ParseResultTuple exprs[] = {
         {
@@ -1721,10 +1678,6 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
             if ((stmt1->cmpnt.import->alias) || (stmt2->cmpnt.import->alias)) {
                 CompareIdent(stmt1->cmpnt.import->alias, stmt2->cmpnt.import->alias);
             }
-            break;
-        case STMTTYPE_MERGE:
-            CompareExpressions(stmt1->cmpnt.merge->left, stmt2->cmpnt.merge->left);
-            CompareExpressions(stmt1->cmpnt.merge->right, stmt2->cmpnt.merge->right);
             break;
         case STMTTYPE_RETURN:
             CompareExpressions(stmt1->cmpnt.ret->expr, stmt2->cmpnt.ret->expr);
@@ -2094,10 +2047,6 @@ static void CleanStatement(ms_Stmt *stmt) {
                 dsbuf_destroy(stmt->cmpnt.import->alias->name);
                 stmt->cmpnt.import->alias->name = NULL;
             }
-            break;
-        case STMTTYPE_MERGE:
-            CleanExpression(stmt->cmpnt.merge->left);
-            CleanExpression(stmt->cmpnt.merge->right);
             break;
         case STMTTYPE_RETURN:
             CleanExpression(stmt->cmpnt.ret->expr);

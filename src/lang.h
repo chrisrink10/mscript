@@ -285,11 +285,6 @@ typedef struct {
 } ms_StmtImport;
 
 typedef struct {
-    ms_Expr *left;
-    ms_Expr *right;
-} ms_StmtMerge;
-
-typedef struct {
     ms_Expr *expr;
 } ms_StmtReturn;
 
@@ -325,7 +320,6 @@ typedef enum {
     STMTTYPE_FOR,
     STMTTYPE_IF,
     STMTTYPE_IMPORT,
-    STMTTYPE_MERGE,
     STMTTYPE_RETURN,
     STMTTYPE_ASSIGNMENT,
     STMTTYPE_DECLARATION,
@@ -339,7 +333,6 @@ typedef union {
     ms_StmtFor *forstmt;
     ms_StmtIf *ifstmt;
     ms_StmtImport *import;
-    ms_StmtMerge *merge;
     ms_StmtReturn *ret;
     ms_StmtAssignment *assign;
     ms_StmtDeclaration *decl;

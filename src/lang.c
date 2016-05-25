@@ -30,7 +30,6 @@ static void StmtForDestroy(ms_StmtFor *forstmt);
 static void StmtIfDestroy(ms_StmtIf *ifstmt);
 static void StmtImportDestroy(ms_StmtImport *import);
 static void StmtElseDestroy(ms_StmtElse *elstmt);
-static void StmtMergeDestroy(ms_StmtMerge *merge);
 static void StmtReturnDestroy(ms_StmtReturn *ret);
 static void StmtAssignmentDestroy(ms_StmtAssignment *assign);
 static void StmtDeclarationDestroy(ms_StmtDeclaration *decl);
@@ -511,10 +510,6 @@ void ms_StmtDestroy(ms_Stmt *stmt) {
             StmtImportDestroy(stmt->cmpnt.import);
             stmt->cmpnt.import = NULL;
             break;
-        case STMTTYPE_MERGE:
-            StmtMergeDestroy(stmt->cmpnt.merge);
-            stmt->cmpnt.merge = NULL;
-            break;
         case STMTTYPE_RETURN:
             StmtReturnDestroy(stmt->cmpnt.ret);
             stmt->cmpnt.ret = NULL;
@@ -810,15 +805,6 @@ static void StmtElseDestroy(ms_StmtElse *elstmt) {
     dsarray_destroy(elstmt->block);
     elstmt->block = NULL;
     free(elstmt);
-}
-
-static void StmtMergeDestroy(ms_StmtMerge *merge) {
-    if (!merge) { return; }
-    ms_ExprDestroy(merge->left);
-    merge->left = NULL;
-    ms_ExprDestroy(merge->right);
-    merge->right = NULL;
-    free(merge);
 }
 
 static void StmtReturnDestroy(ms_StmtReturn *ret) {

@@ -75,7 +75,6 @@ extern const char *const TOK_OP_TIMES;
 extern const char *const TOK_OP_MINUS;
 extern const char *const TOK_OP_PLUS;
 extern const char *const TOK_OP_UMINUS;
-extern const char *const TOK_KW_MERGE;
 extern const char *const TOK_KW_NULL;
 extern const char *const TOK_KW_FALSE;
 extern const char *const TOK_KW_TRUE;
@@ -120,7 +119,6 @@ typedef enum ms_TokenType {
     KW_TRUE,
     KW_FALSE,
     KW_NULL,
-    KW_MERGE,
     KW_IS,
     KW_IN,
     KW_SELECT,

@@ -82,7 +82,6 @@ static void StmtForFixBreakAndContinue(CodeGenContextFor *ctx);
 static void StmtIfToOpCodes(const ms_StmtIf *ifstmt, CodeGenContext *ctx);
 static void StmtElseIfToOpCodes(const ms_StmtIfElse *elif, CodeGenContext *ctx);
 static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx);
-static void StmtMergeToOpCodes(const ms_StmtMerge *merge, CodeGenContext *ctx);
 static void StmtReturnToOpCodes(const ms_StmtReturn *ret, CodeGenContext *ctx);
 static void StmtAssignmentToOpCodes(const ms_StmtAssignment *assign, CodeGenContext *ctx);
 static void StmtAssignmentTargetToOpCodes(const ms_StmtAssignTarget *target, CodeGenContext *ctx);
@@ -231,7 +230,6 @@ const char *ms_VMOpCodeToString(ms_VMOpCode c) {
         case OPC_MAKE_LIST:         return "MAKE_LIST";
         case OPC_MAKE_OBJ:          return "MAKE_OBJ";
         case OPC_NEXT:              return "NEXT";
-        case OPC_MERGE:             return "MERGE";
         case OPC_IMPORT:            return "IMPORT";
         case OPC_JUMP_IF_FALSE:     return "JUMP_IF_FALSE";
         case OPC_GOTO:              return "GOTO";
@@ -509,9 +507,6 @@ static void StmtToOpCodes(const ms_Stmt *stmt, CodeGenContext *ctx) {
             break;
         case STMTTYPE_IMPORT:
             StmtImportToOpCodes(stmt->cmpnt.import, ctx);
-            break;
-        case STMTTYPE_MERGE:
-            StmtMergeToOpCodes(stmt->cmpnt.merge, ctx);
             break;
         case STMTTYPE_RETURN:
             StmtReturnToOpCodes(stmt->cmpnt.ret, ctx);
@@ -935,16 +930,6 @@ static void StmtImportToOpCodes(const ms_StmtImport *import, CodeGenContext *ctx
         PushIdent(import->alias, &index, ctx);
         PushOpCode(OPC_SET_NAME, index, ctx);
     }
-}
-
-static void StmtMergeToOpCodes(const ms_StmtMerge *merge, CodeGenContext *ctx) {
-    assert(merge);
-    assert(ctx);
-
-    /* TODO: figure out what to do here (does this statement even make sense) */
-    ExprToOpCodes(merge->right, ctx);
-    ExprToOpCodes(merge->left, ctx);
-    PushOpCode(OPC_MERGE, 0, ctx);
 }
 
 static void StmtReturnToOpCodes(const ms_StmtReturn *ret, CodeGenContext *ctx) {

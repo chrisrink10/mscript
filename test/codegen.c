@@ -45,7 +45,6 @@ static MunitResult prs_TestCodeGenForIterStatements(const MunitParameter params[
 static MunitResult prs_TestCodeGenForExprStatements(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenIfStatements(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[], void *user_data);
-static MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenReturnStatement(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[], void *user_data);
 static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], void *user_data);
@@ -185,14 +184,6 @@ MunitTest codegen_tests[] = {
     {
         "/ImportStatement",
         prs_TestCodeGenImportStatement,
-        NULL,
-        NULL,
-        MUNIT_TEST_OPTION_NONE,
-        NULL
-    },
-    {
-        "/MergeStatement",
-        prs_TestCodeGenMergeStatement,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -2855,10 +2846,6 @@ static MunitResult prs_TestCodeGenImportStatement(const MunitParameter params[],
     };
     size_t len = sizeof(exprs) / sizeof(exprs[0]);
     TestCodeGenResultTuple(exprs, len);
-    return MUNIT_OK;
-}
-
-static MunitResult prs_TestCodeGenMergeStatement(const MunitParameter params[], void *user_data) {
     return MUNIT_OK;
 }
 

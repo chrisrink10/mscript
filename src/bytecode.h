@@ -71,7 +71,6 @@ typedef enum {
     OPC_MAKE_LIST,      /*  req         create a list from TOS to TOSi; push to TOS     opcode arg can be 0 for empty list      */
     OPC_MAKE_OBJ,       /*  req         create an object from TOS to TOSi; push to TOS  opcode arg can be 0 for empty list      */
     OPC_NEXT,           /*              TOS := $next(TOS)                                                                       */
-    OPC_MERGE,          /*              merge TOS1 := TOS                                                                       */
     OPC_IMPORT,         /*  opt         TOS := import TOS.TOS1...                                                               */
     OPC_JUMP_IF_FALSE,  /*  req         if not TOS goto arg                                                                     */
     OPC_GOTO,           /*  req         ip := arg                                                                               */

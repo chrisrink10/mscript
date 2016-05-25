@@ -70,7 +70,6 @@ static ms_Result ParserParseForExpr(ms_Parser *prs, ms_Expr *expr, ms_StmtForExp
 static ms_Result ParserParseIfStatement(ms_Parser *prs, ms_StmtIf **ifstmt);
 static ms_Result ParserParseElseStatement(ms_Parser *prs, ms_StmtIfElse **elif);
 static ms_Result ParserParseImportStatement(ms_Parser *prs, ms_StmtImport **import);
-static ms_Result ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge);
 static ms_Result ParserParseReturnStatement(ms_Parser *prs, ms_StmtReturn **ret);
 static ms_Result ParserParseFunctionDeclaration(ms_Parser *prs, ms_StmtDeclaration **decl);
 static ms_Result ParserParseDeclaration(ms_Parser *prs, bool req_keyword, ms_StmtDeclaration **decl);
@@ -245,8 +244,8 @@ void ms_ParserDestroy(ms_Parser *prs) {
  *
  * module:          (stmt)*
  * stmt:            ('break' | 'continue' | del_stmt | for_stmt | if_stmt |
- *                  import_stmt | merge_stmt | ret_stmt | func_decl |
- *                  declare | assign | expr) ';'
+ *                  import_stmt | ret_stmt | func_decl | declare | assign |
+ *                  expr) ';'
  * for_stmt:        'for' ('var') expr ':=' expr ':' expr (':' expr) |
  *                  'for' ('var') expr 'in' expr block |
  *                  'for' expr block
@@ -254,7 +253,6 @@ void ms_ParserDestroy(ms_Parser *prs) {
  * else_stmt:       'else' if_stmt | 'else' block
  * del_stmt:        'delete' expr
  * import_stmt:     'import' expr (':' IDENTIFIER)
- * merge_stmt:      'merge' expr ':=' expr
  * ret_stmt:        'return' (expr)
  * block:           '{' stmt* '}'
  * func_decl:       'func' IDENTIFIER '(' ident_list ')' block
@@ -374,10 +372,6 @@ static ms_Result ParserParseStatement(ms_Parser *prs, ms_Stmt **stmt) {
         case KW_IMPORT:
             (*stmt)->type = STMTTYPE_IMPORT;
             res = ParserParseImportStatement(prs, &(*stmt)->cmpnt.import);
-            break;
-        case KW_MERGE:
-            (*stmt)->type = STMTTYPE_MERGE;
-            res = ParserParseMergeStatement(prs, &(*stmt)->cmpnt.merge);
             break;
         case KW_RETURN:
             (*stmt)->type = STMTTYPE_RETURN;
@@ -751,39 +745,6 @@ static ms_Result ParserParseImportStatement(ms_Parser *prs, ms_StmtImport **impo
     (*import)->alias->type = ms_IdentGetType(dsbuf_char_ptr(prs->cur->value));
     prs->cur->value = NULL;
     ParserConsumeToken(prs);
-    return ParserParseStatementTerminator(prs);
-}
-
-static ms_Result ParserParseMergeStatement(ms_Parser *prs, ms_StmtMerge **merge) {
-    assert(prs);
-    assert(merge);
-
-    *merge = calloc(1, sizeof(ms_StmtMerge));
-    if (!(*merge)) {
-        ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
-        return MS_RESULT_ERROR;
-    }
-
-    if (!ParserExpectToken(prs, KW_MERGE)) {
-        ParserErrorSet(prs, ERR_EXPECTED_KEYWORD, prs->cur, TOK_KW_MERGE, prs->line, prs->col);
-        return MS_RESULT_ERROR;
-    }
-
-    ParserConsumeToken(prs);
-    if (ParserParseExpression(prs, &(*merge)->left) == MS_RESULT_ERROR) {
-        return MS_RESULT_ERROR;
-    }
-
-    if (!ParserExpectToken(prs, OP_EQ)) {
-        ParserErrorSet(prs, ERR_EXPECTED_TOKEN, prs->cur, TOK_OP_EQ, prs->line, prs->col);
-        return MS_RESULT_ERROR;
-    }
-
-    ParserConsumeToken(prs);
-    if (ParserParseExpression(prs, &(*merge)->right) == MS_RESULT_ERROR) {
-        return MS_RESULT_ERROR;
-    }
-
     return ParserParseStatementTerminator(prs);
 }
 

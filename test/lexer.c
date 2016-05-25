@@ -85,7 +85,7 @@ static char *reserved_keyword_vals[] = {
     "protected", "yield", "from", "try", "except", "finally", "do", "and",
     "or", "mut", "const", "async", "await", "repeat", "until", "package",
     "num", "str", "bool", "datetime", "obj", "as", "with", "using", "spawn",
-    "val",
+    "val", "merge",
     NULL
 };
 
@@ -329,7 +329,6 @@ static MunitResult lex_TestLexKeywords(const MunitParameter params[], void *user
         { "continue", KW_CONTINUE },
         { "break", KW_BREAK },
         { "import", KW_IMPORT },
-        { "merge", KW_MERGE },
         { "var", KW_VAR },
         { "in", KW_IN },
         { "is", KW_IS },
