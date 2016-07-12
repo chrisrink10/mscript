@@ -1,0 +1,11 @@
+dependencies:
+  pre:
+    - sudo add-apt-repository --yes ppa:george-edison55/precise-backports
+    - sudo apt-get update
+    - sudo apt-get install cmake
+test:
+  pre:
+    - cmake .
+    - make mscript_test
+  override:
+    - ./bin/mscript_test

@@ -1,4 +1,7 @@
 # mscript
+
+[![CircleCI](https://circleci.com/gh/chrisrink10/mscript/tree/master.svg?style=svg)](https://circleci.com/gh/chrisrink10/mscript/tree/master)
+
 mscript is an interpreted programming language taking inspiration from several
 other programming languages such as Go, JavaScript, Python, and MUMPS/M (which
 is the source of the M in the name mscript).
