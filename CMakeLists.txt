@@ -61,6 +61,7 @@ set(MSCRIPT_SOURCE_FILES src/mscript.c
                          src/lexer.c
                          src/obj.c
                          src/parser.c
+                         src/verifier.c
                          src/vm.c)
 
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
