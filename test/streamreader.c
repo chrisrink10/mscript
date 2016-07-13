@@ -86,7 +86,6 @@ static void *sr_CreateTempFile(const MunitParameter params[], void *user_data) {
 
 static void sr_CleanUpTempFile(void *file) {
     munit_assert_cmp_int(remove((char *)file), ==, 0);
-    free(file);
 }
 
 /*

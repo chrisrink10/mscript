@@ -27,7 +27,6 @@ typedef enum {
 
 typedef enum {
     MS_ERROR_PARSER,                /** Error occurred during parsing */
-    MS_ERROR_VERIFIER,              /** Error occurred during AST verification */
     MS_ERROR_CODEGEN,               /** Error occurred during code generation */
     MS_ERROR_VM,                    /** Error occurred during runtime in the VM */
 } ms_ErrorType;

@@ -2,13 +2,10 @@ dependencies:
   pre:
     - sudo add-apt-repository --yes ppa:george-edison55/precise-backports
     - sudo apt-get update
-    - sudo apt-get install cmake valgrind
+    - sudo apt-get install cmake
 test:
   pre:
-    - mkdir $CIRCLE_TEST_REPORTS/valgrind
     - cmake .
-    - make mscript
     - make mscript_test
   override:
     - ./bin/mscript_test
-    - valgrind --leak-check=full --num-callers=50 --track-origins=yes --error-exitcode=1 --xml=yes --xml-file=$CIRCLE_TEST_REPORTS/valgrind/valgrind.xml ./bin/mscript_test --no-fork --log-visible info
