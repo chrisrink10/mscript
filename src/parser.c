@@ -53,6 +53,7 @@ static const char *const ERR_EXPECTED_IDENTIFIER = "Expected identifier (ln: %d,
 static const char *const ERR_EXPECTED_KEYWORD = "Expected keyword '%s' (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_STATEMENT = "Expected statement (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_TOKEN_OR_TOKEN = "Expected '%s' or '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
 static const char *const ERR_MUST_ASSIGN_TO_IDENT = "Assignment target must be identifier (ln: %d, col: %d)";
 static const char *const ERR_MUST_ASSIGN_TO_QIDENT = "Assignment target must be identifier or qualified identifier (ln: %d, col: %d)";
@@ -853,6 +854,12 @@ static ms_Result ParserParseDeclaration(ms_Parser *prs, bool req_keyword, ms_Stm
             return ParserParseDeclaration(prs, false, &(*decl)->next);
         }
 
+        /* give a better error message if if no `:=` or `;` token are found */
+        if (!ParserExpectToken(prs, SEMICOLON)) {
+            ParserErrorSet(prs, ERR_EXPECTED_TOKEN_OR_TOKEN, prs->cur, ":=", ";", prs->line, prs->col);
+            return MS_RESULT_ERROR;
+        }
+
         return ParserParseStatementTerminator(prs);
     }
 
@@ -959,6 +966,7 @@ static ms_Result ParserParseSimpleAssignment(ms_Parser *prs, ms_Expr *name, ms_S
         ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
         return MS_RESULT_ERROR;
     }
+    (*stmt)->cmpnt.assign->expr->expr = NULL;
     (*stmt)->cmpnt.assign->expr->next = NULL;
 
     return ParserParseExpression(prs, &(*stmt)->cmpnt.assign->expr->expr);
@@ -1037,6 +1045,7 @@ static ms_Result ParserParseMultipleAssignment(ms_Parser *prs, ms_Expr *first, m
             ParserErrorSet(prs, ERR_OUT_OF_MEMORY, prs->cur);
             return MS_RESULT_ERROR;
         }
+        (*expr)->expr = NULL;
         (*expr)->next = NULL;
 
         if (ParserParseExpression(prs, &(*expr)->expr) == MS_RESULT_ERROR) {
@@ -1138,6 +1147,12 @@ static ms_Result ParserParseStatementTerminator(ms_Parser *prs) {
 static ms_Result ParserParseExpression(ms_Parser *prs, ms_Expr **expr) {
     assert(prs);
     assert(expr);
+
+    if (!prs->cur) {
+        ParserErrorSet(prs, ERR_EXPECTED_EXPRESSION, prs->cur, prs->line, prs->col);
+        return MS_RESULT_ERROR;
+    }
+
     return (prs->cur->type == KW_SELECT) ?
            ParserParseSelectExpr(prs, expr) :
            ParserParseConditionalExpr(prs, expr);
