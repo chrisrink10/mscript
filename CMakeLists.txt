@@ -61,6 +61,7 @@ set(MSCRIPT_SOURCE_FILES src/mscript.c
                          src/lexer.c
                          src/obj.c
                          src/parser.c
+                         src/verifier.c
                          src/vm.c)
 
 add_executable(mscript ${MSCRIPT_SOURCE_FILES}
@@ -85,7 +86,8 @@ set(TESTING_SOURCE_FILES deps/munit/munit.c
                          test/streamreader.c
                          test/lexer.c
                          test/parser.c
-                         test/main.c)
+                         test/main.c
+                         test/verifier_test.c)
 
 add_executable(mscript_test ${MSCRIPT_SOURCE_FILES}
                             ${STREAM_SOURCE_FILES}

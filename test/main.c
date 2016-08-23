@@ -19,6 +19,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "streamreader.h"
+#include "verifier_test.h"
 
 static MunitSuite suites[] = {
     {
@@ -38,6 +39,13 @@ static MunitSuite suites[] = {
     {
         "/parser",
         parser_tests,
+        NULL,
+        1,
+        MUNIT_SUITE_OPTION_NONE
+    },
+    {
+        "/verifier",
+        verifier_tests,
         NULL,
         1,
         MUNIT_SUITE_OPTION_NONE

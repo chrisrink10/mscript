@@ -18,6 +18,7 @@
 #include <string.h>
 #include "mscript.h"
 #include "parser.h"
+#include "verifier.h"
 #include "vm.h"
 
 /*
@@ -127,6 +128,11 @@ static ms_Result StateParseAndExecute(ms_State *state, const ms_Error **err) {
 
     const ms_AST *ast;
     if (ms_ParserParse(state->prs, &ast, &state->err) == MS_RESULT_ERROR) {
+        *err = state->err;
+        return MS_RESULT_ERROR;
+    }
+
+    if (ms_ParserVerifyAST(ast, &state->err) == MS_RESULT_ERROR) {
         *err = state->err;
         return MS_RESULT_ERROR;
     }
