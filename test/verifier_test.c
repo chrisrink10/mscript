@@ -31,6 +31,7 @@ typedef struct {
 static MunitResult ver_TestProhibitRedeclaration(const MunitParameter params[], void *user_data);
 static MunitResult ver_TestProhibitUndefinedReference(const MunitParameter params[], void *user_data);
 static MunitResult ver_TestRequireBreakAndContinueInLoop(const MunitParameter params[], void *user_data);
+static MunitResult ver_TestProhibitBreakAndContinueInAnonFn(const MunitParameter params[], void *user_data);
 static MunitResult ver_TestRequireFunctionForReturnStmt(const MunitParameter params[], void *user_data);
 
 MunitTest verifier_tests[] = {
@@ -61,6 +62,14 @@ MunitTest verifier_tests[] = {
     {
         "/RequireFunctionForReturnStmt",
         ver_TestRequireFunctionForReturnStmt,
+        NULL,
+        NULL,
+        MUNIT_TEST_OPTION_NONE,
+        NULL
+    },
+    {
+        "/ProhibitBreakAndContinueInAnonFn",
+        ver_TestProhibitBreakAndContinueInAnonFn,
         NULL,
         NULL,
         MUNIT_TEST_OPTION_NONE,
@@ -279,6 +288,61 @@ static MunitResult ver_TestRequireBreakAndContinueInLoop(const MunitParameter pa
                 "    }\n"
                 "}",
             .expected = MS_RESULT_ERROR
+        },
+    };
+
+    size_t len = sizeof(tuples) / sizeof(tuples[0]);
+    TestVerifierResultTuple(tuples, len);
+    return MUNIT_OK;
+}
+
+static MunitResult ver_TestProhibitBreakAndContinueInAnonFn(const MunitParameter params[], void *user_data) {
+    VerifierResultTuple tuples[] = {
+        {
+            .val = "var index;\n"
+                "for index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        continue;\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "var index;\n"
+                "for index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        if index < 5 {\n"
+                "            continue;\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "var index;\n"
+                "for index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        var i;\n"
+                "        for i := index : 10 {\n"
+                "            continue;\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "var index;\n"
+                "for index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        var i;\n"
+                "        for i := index : 10 {\n"
+                "            if index + 5 < 10 {\n"
+                "                continue;\n"
+                "            }\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
         },
     };
 

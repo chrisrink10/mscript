@@ -93,6 +93,7 @@ static ms_Result ParserVerifyExprAtomValue(const ms_Value *val, ASTContext *ctx,
 static ms_Result ParserVerifyIdent(const ms_Ident *ident, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
 
 static inline bool VerifierInContext(ASTContext *ctx, ASTElementContextType type);
+static inline bool VerifierInConstrainedContext(ASTContext *ctx, ASTElementContextType ancestor, ASTElementContextType type);
 static inline bool VerifierSymbolExistsInCurrentScope(ASTContext *ctx, DSBuffer *buf);
 static inline bool VerifierSymbolExistsInLexicalScope(ASTContext *ctx, DSBuffer *buf);
 static void VerifierErrorSet(ms_Error **err, const char *msg, ...);
@@ -512,7 +513,7 @@ static ms_Result ParserVerifyBreakStmt(const ms_StmtBreak *brk, ASTContext *ctx,
     assert(qctx);
     assert(err);
 
-    if (!VerifierInContext(ctx, ASTCTX_FORSTMT)) {
+    if (!VerifierInConstrainedContext(ctx, ASTCTX_FUNCTION, ASTCTX_FORSTMT)) {
         VerifierErrorSet(err, "`break` statements may only appear within a `for` statement block");
         return MS_RESULT_ERROR;
     }
@@ -526,7 +527,7 @@ static ms_Result ParserVerifyContinueStmt(const ms_StmtContinue *cont, ASTContex
     assert(qctx);
     assert(err);
 
-    if (!VerifierInContext(ctx, ASTCTX_FORSTMT)) {
+    if (!VerifierInConstrainedContext(ctx, ASTCTX_FUNCTION, ASTCTX_FORSTMT)) {
         VerifierErrorSet(err, "`continue` statements may only appear within a `for` statement block");
         return MS_RESULT_ERROR;
     }
@@ -935,6 +936,58 @@ static inline bool VerifierInContext(ASTContext *ctx, ASTElementContextType type
     ASTContext *cur = ctx;
     while (cur) {
         if (cur->type == type) {
+            return true;
+        }
+        cur = cur->parent;
+    }
+
+    return false;
+}
+
+static inline bool VerifierInConstrainedContext(ASTContext *ctx, ASTElementContextType ancestor, ASTElementContextType type) {
+    assert(ctx);
+
+    /*
+     * We want to assert that an AST element appears in a context which
+     * does does _not_ cross the boundaries of another context. In the
+     * example which precipated creating this function, that constrained
+     * context is that `break` and `continue` statements must appear in
+     * loops, but they may not appear _alone_ inside of a function definition
+     * block within a loop, since that would invoke undefined behavior
+     * upon executing that function body outside of the loop context.
+     *
+     * e.g. this code would be invalid
+     *
+     *     var index;
+     *     for index := 1 : 10 {
+     *         var f := func() {
+     *             continue;
+     *         };
+     *     }
+     *
+     * ...but this code would not:
+     *
+     *     var index;
+     *     for index := 1 : 10 {
+     *         var f := func() {
+     *             var i;
+     *             for i := index : 10 {
+     *                 continue;
+     *             }
+     *         };
+     *     }
+     */
+
+    bool found_ancestor_context = false;
+    ASTContext *cur = ctx;
+    while (cur) {
+        if (cur->type == ancestor) {
+            found_ancestor_context = true;
+        }
+        if (cur->type == type) {
+            if (found_ancestor_context) {
+                return false;
+            }
             return true;
         }
         cur = cur->parent;
