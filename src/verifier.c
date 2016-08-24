@@ -56,6 +56,17 @@ typedef struct {
     DSArray *ctxlist;
 } QueueContext;
 
+static const char *const ERR_BREAK_OUTSIDE_FOR = "`break` statements may only appear within a `for` statement block";
+static const char *const ERR_CONTINUE_OUTSIDE_FOR = "`continue` statements may only appear within a `for` statement block";
+static const char *const ERR_REDECLARATION_IN_IMPORT = "cannot redclare variable `%s` using import alias";
+static const char *const ERR_RETURN_OUTSIDE_FUNC = "`return` statements must appear within a function declaration";
+static const char *const ERR_BAD_IDENT_IN_DECLARATION = "builtin identifiers and globals may not appear in `var` statement";
+static const char *const ERR_VAR_REDECLARATION = "redeclaration of variable `%s` prohibited";
+static const char *const ERR_ASSIGNMENT_COUNT_MISMATCH = "number of assignment targets does not match number of assignment expressions";
+static const char *const ERR_REFERENCE_TO_UNDEFINED = "reference to undefined variable `%s`";
+static const char *const ERR_INVALID_STATEMENT_TYPE = "Invalid statement type encountered.";
+static const char *const ERR_EMPTY_EXPR_ATOM = "encountered an empty expression atom";
+
 static ASTContext *ASTContextNew(ASTContext *parent, ASTElementContextType type);
 static void ASTContextDestroy(ASTContext *ctx);
 static ms_Result QueueContextInit(QueueContext *qctx);
@@ -500,7 +511,7 @@ static ms_Result ParserVerifyStatement(const ms_Stmt *stmt, ASTContext *ctx, Que
             return ParserVerifyExpression(stmt->cmpnt.expr, ctx, qctx, err);
         case STMTTYPE_EMPTY:
             assert(false);
-            VerifierErrorSet(err, "Invalid statement type encountered.");
+            VerifierErrorSet(err, ERR_INVALID_STATEMENT_TYPE);
             return MS_RESULT_ERROR;
     }
 
@@ -514,7 +525,7 @@ static ms_Result ParserVerifyBreakStmt(const ms_StmtBreak *brk, ASTContext *ctx,
     assert(err);
 
     if (!VerifierInConstrainedContext(ctx, ASTCTX_FUNCTION, ASTCTX_FORSTMT)) {
-        VerifierErrorSet(err, "`break` statements may only appear within a `for` statement block");
+        VerifierErrorSet(err, ERR_BREAK_OUTSIDE_FOR);
         return MS_RESULT_ERROR;
     }
 
@@ -528,7 +539,7 @@ static ms_Result ParserVerifyContinueStmt(const ms_StmtContinue *cont, ASTContex
     assert(err);
 
     if (!VerifierInConstrainedContext(ctx, ASTCTX_FUNCTION, ASTCTX_FORSTMT)) {
-        VerifierErrorSet(err, "`continue` statements may only appear within a `for` statement block");
+        VerifierErrorSet(err, ERR_CONTINUE_OUTSIDE_FOR);
         return MS_RESULT_ERROR;
     }
 
@@ -584,7 +595,7 @@ static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTCon
 
     if (inc->declare) {
         if (ms_ExprGetIdentType(inc->ident) != EXPRIDENT_NAME) {
-            VerifierErrorSet(err, "builtin identifiers and globals may not appear in `var` statement");
+            VerifierErrorSet(err, ERR_BAD_IDENT_IN_DECLARATION);
             return MS_RESULT_ERROR;
         }
 
@@ -626,7 +637,7 @@ static ms_Result ParserVerifyForIterator(const ms_StmtForIterator *iter, ASTCont
 
     if (iter->declare) {
         if (ms_ExprGetIdentType(iter->ident) != EXPRIDENT_NAME) {
-            VerifierErrorSet(err, "builtin identifiers and globals may not appear in `var` statement");
+            VerifierErrorSet(err, ERR_BAD_IDENT_IN_DECLARATION);
             return MS_RESULT_ERROR;
         }
 
@@ -692,8 +703,7 @@ static ms_Result ParserVerifyImportStmt(const ms_StmtImport *import, ASTContext 
 
     if (import->alias) {
         if (VerifierSymbolExistsInCurrentScope(ctx, import->alias->name)) {
-            VerifierErrorSet(err, "cannot redclare variable `%s` using import alias",
-                             dsbuf_char_ptr(import->alias->name));
+            VerifierErrorSet(err, ERR_REDECLARATION_IN_IMPORT, dsbuf_char_ptr(import->alias->name));
             return MS_RESULT_ERROR;
         }
     }
@@ -708,7 +718,7 @@ static ms_Result ParserVerifyReturnStmt(const ms_StmtReturn *ret, ASTContext *ct
     assert(err);
 
     if (!VerifierInContext(ctx, ASTCTX_FUNCTION)) {
-        VerifierErrorSet(err, "`return` statements must appear within a function declaration");
+        VerifierErrorSet(err, ERR_RETURN_OUTSIDE_FUNC);
         return MS_RESULT_ERROR;
     }
 
@@ -722,13 +732,12 @@ static ms_Result ParserVerifyDeclaration(const ms_StmtDeclaration *decl, ASTCont
     assert(err);
 
     if (decl->ident->type != IDENT_NAME) {
-        VerifierErrorSet(err, "builtin identifiers and globals may not appear in `var` statement");
+        VerifierErrorSet(err, ERR_BAD_IDENT_IN_DECLARATION);
         return MS_RESULT_ERROR;
     }
 
     if (VerifierSymbolExistsInCurrentScope(ctx, decl->ident->name)) {
-        VerifierErrorSet(err, "redeclaration of variable `%s` prohibited",
-                         dsbuf_char_ptr(decl->ident->name));
+        VerifierErrorSet(err, ERR_VAR_REDECLARATION, dsbuf_char_ptr(decl->ident->name));
         return MS_RESULT_ERROR;
     }
 
@@ -777,7 +786,7 @@ static ms_Result ParserVerifyAssignment(const ms_StmtAssignment *assign, ASTCont
     }
 
     if (ntargets != nexprs) {
-        VerifierErrorSet(err, "number of assignment targets does not match number of assignment expressions");
+        VerifierErrorSet(err, ERR_ASSIGNMENT_COUNT_MISMATCH);
         return MS_RESULT_ERROR;
     }
 
@@ -854,7 +863,7 @@ static ms_Result ParserVerifyExprAtom(const ms_ExprAtom *atom, ms_ExprAtomType t
         }
         case EXPRATOM_EMPTY:
             assert(false);
-            VerifierErrorSet(err, "encountered an empty expression atom");
+            VerifierErrorSet(err, ERR_EMPTY_EXPR_ATOM);
             return MS_RESULT_ERROR;
     }
 
@@ -927,8 +936,7 @@ static ms_Result ParserVerifyIdent(const ms_Ident *ident, ASTContext *ctx, Queue
     }
 
     if (!VerifierSymbolExistsInLexicalScope(ctx, ident->name)) {
-        VerifierErrorSet(err, "reference to undefined variable `%s`",
-                         dsbuf_char_ptr(ident->name));
+        VerifierErrorSet(err, ERR_REFERENCE_TO_UNDEFINED, dsbuf_char_ptr(ident->name));
         return MS_RESULT_ERROR;
     }
 
