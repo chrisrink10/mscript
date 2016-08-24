@@ -3649,11 +3649,11 @@ static MunitResult prs_TestCodeGenCompoundAssignment(const MunitParameter params
  */
 
 static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode *bc2) {
-    munit_assert_non_null(bc1);
-    munit_assert_non_null(bc2);
-    munit_assert_cmp_int(bc1->nops, ==, bc2->nops);
-    munit_assert_cmp_int(bc1->nvals, ==, bc2->nvals);
-    munit_assert_cmp_int(bc1->nidents, ==, bc2->nidents);
+    munit_assert_not_null(bc1);
+    munit_assert_not_null(bc2);
+    munit_assert_int(bc1->nops, ==, bc2->nops);
+    munit_assert_int(bc1->nvals, ==, bc2->nvals);
+    munit_assert_int(bc1->nidents, ==, bc2->nidents);
 
     for (size_t i = 0; i < bc1->nops; i++) {
         ms_VMOpCode opc1 = bc1->code[i];
@@ -3667,9 +3667,9 @@ static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode
 
         munit_logf(MUNIT_LOG_INFO, "  opc1='%s'", nm1);
         munit_logf(MUNIT_LOG_INFO, "  opc2='%s'", nm2);
-        munit_assert_cmp_int(type1, ==, type2);
-        munit_assert_cmp_int(arg1, ==, arg2);
-        munit_assert_cmp_int(opc1, ==, opc2);
+        munit_assert_int(type1, ==, type2);
+        munit_assert_int(arg1, ==, arg2);
+        munit_assert_int(opc1, ==, opc2);
     }
 
     for (size_t i = 0; i < bc1->nvals; i++) {
@@ -3688,19 +3688,19 @@ static MunitResult CompareByteCode(const ms_VMByteCode *bc1, const ms_VMByteCode
 }
 
 static MunitResult CompareFunctionValues(const ms_VMFunc *fn1, const ms_VMFunc *fn2) {
-    munit_assert_non_null(fn1);
-    munit_assert_non_null(fn2);
+    munit_assert_not_null(fn1);
+    munit_assert_not_null(fn2);
 
     size_t nargs1 = dsarray_len(fn1->args);
     size_t nargs2 = dsarray_len(fn2->args);
-    munit_assert_cmp_size(nargs1, ==, nargs2);
+    munit_assert_size(nargs1, ==, nargs2);
 
     for (size_t i = 0; i < nargs1; i++) {
         DSBuffer *arg1 = dsarray_get(fn1->args, i);
         DSBuffer *arg2 = dsarray_get(fn2->args, i);
 
-        munit_assert_non_null(arg1);
-        munit_assert_non_null(arg2);
+        munit_assert_not_null(arg1);
+        munit_assert_not_null(arg2);
 
         munit_assert(dsbuf_equals(arg1, arg2));
     }
@@ -3710,16 +3710,16 @@ static MunitResult CompareFunctionValues(const ms_VMFunc *fn1, const ms_VMFunc *
 }
 
 static MunitResult CompareValues(const ms_VMValue *val1, const ms_VMValue *val2) {
-    munit_assert_non_null(val1);
-    munit_assert_non_null(val2);
+    munit_assert_not_null(val1);
+    munit_assert_not_null(val2);
 
-    munit_assert_cmp_int(val1->type, ==, val2->type);
+    munit_assert_int(val1->type, ==, val2->type);
     switch (val1->type) {
         case VMVAL_FLOAT:
-            munit_assert_cmp_double(val1->val.f, ==, val2->val.f);
+            munit_assert_double(val1->val.f, ==, val2->val.f);
             break;
         case VMVAL_INT:
-            munit_assert_cmp_int(val1->val.i, ==, val2->val.i);
+            munit_assert_int(val1->val.i, ==, val2->val.i);
             break;
         case VMVAL_STR:
             munit_assert_true(dsbuf_equals(val1->val.s, val2->val.s));
@@ -3740,7 +3740,7 @@ static MunitResult CompareValues(const ms_VMValue *val1, const ms_VMValue *val2)
 
 static MunitResult TestCodeGenResultTuple(CodeGenResultTuple *tuples, size_t len) {
     ms_Parser *prs = ms_ParserNew();
-    munit_assert_non_null(prs);
+    munit_assert_not_null(prs);
 
     for (size_t i = 0; i < len; i++) {
         CodeGenResultTuple *tuple = &tuples[i];
@@ -3755,8 +3755,8 @@ static MunitResult TestCodeGenResultTuple(CodeGenResultTuple *tuples, size_t len
             ms_ErrorDestroy(err);
         }
 
-        munit_assert_cmp_int(pres, !=, MS_RESULT_ERROR);
-        munit_assert_non_null(ast);
+        munit_assert_int(pres, !=, MS_RESULT_ERROR);
+        munit_assert_not_null(ast);
         munit_assert_null(err);
 
         ms_VMByteCode *code;
@@ -3766,8 +3766,8 @@ static MunitResult TestCodeGenResultTuple(CodeGenResultTuple *tuples, size_t len
             ms_ErrorDestroy(err);
         }
 
-        munit_assert_cmp_int(gres, !=, MS_RESULT_ERROR);
-        munit_assert_non_null(code);
+        munit_assert_int(gres, !=, MS_RESULT_ERROR);
+        munit_assert_not_null(code);
         munit_assert_null(err);
 
         CompareByteCode(code, tuple->bc);

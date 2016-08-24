@@ -447,20 +447,20 @@ static MunitResult LexCompareStrings(const char *param, const char *val) {
      * we need to only compare that string to the lexed value which will
      * exclude the surrounding quotes*/
     size_t len = strlen(param);
-    munit_assert_cmp_size(len, >, 1);
+    munit_assert_size(len, >, 1);
     int cmp = strncmp(val, &param[1], len-2);
-    munit_assert_cmp_int(cmp, ==, 0);
+    munit_assert_int(cmp, ==, 0);
     return MUNIT_OK;
 }
 
 static MunitResult LexExpect(const char *param, ms_TokenType type) {
     ms_Lexer *lex = ms_LexerNew();
-    munit_assert_non_null(lex);
+    munit_assert_not_null(lex);
     munit_assert(ms_LexerInitString(lex, param));
 
     ms_Token *tok = ms_LexerNextToken(lex);
-    munit_assert_non_null(tok);
-    munit_assert_cmp_int(tok->type, ==, type);
+    munit_assert_not_null(tok);
+    munit_assert_int(tok->type, ==, type);
     if (type == STRING) {
         LexCompareStrings(param, dsbuf_char_ptr(tok->value));
     } else if (type != ERROR) {
@@ -475,7 +475,7 @@ static MunitResult LexExpect(const char *param, ms_TokenType type) {
 
 static MunitResult TestLexResultTuple(LexResultTuple *tokens, size_t len) {
     ms_Lexer *lex = ms_LexerNew();
-    munit_assert_non_null(lex);
+    munit_assert_not_null(lex);
 
     for (size_t i = 0; i < len; i++) {
         LexResultTuple *tuple = &tokens[0];

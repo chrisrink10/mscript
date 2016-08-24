@@ -60,6 +60,20 @@
 #  define _POSIX_C_SOURCE 200809L
 #endif
 
+/* Solaris freaks out if you try to use a POSIX or SUS standard without
+ * the "right" C standard. */
+#if defined(_XOPEN_SOURCE)
+#  undef _XOPEN_SOURCE
+#endif
+
+#if defined(__STDC_VERSION__)
+#  if __STDC_VERSION__ >= 201112L
+#    define _XOPEN_SOURCE 700
+#  elif __STDC_VERSION__ >= 199901L
+#    define _XOPEN_SOURCE 600
+#  endif
+#endif
+
 /* Because, according to Microsoft, POSIX is deprecated.  You've got
  * to appreciate the chutzpah. */
 #if defined(_MSC_VER) && !defined(_CRT_NONSTDC_NO_DEPRECATE)
@@ -76,6 +90,13 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <setjmp.h>
+
+#if !defined(MUNIT_NO_NL_LANGINFO) && !defined(_WIN32)
+#define MUNIT_NL_LANGINFO
+#include <locale.h>
+#include <langinfo.h>
+#include <strings.h>
+#endif
 
 #if !defined(_WIN32)
 #  include <unistd.h>
@@ -194,6 +215,21 @@ munit_logf_ex(MunitLogLevel level, const char* filename, int line, const char* f
   }
 }
 
+void
+munit_errorf_ex(const char* filename, int line, const char* format, ...) {
+  va_list ap;
+
+  va_start(ap, format);
+  munit_logf_exv(MUNIT_LOG_ERROR, stderr, filename, line, format, ap);
+  va_end(ap);
+
+#if defined(MUNIT_THREAD_LOCAL)
+  if (munit_error_jmp_buf_valid)
+    longjmp(munit_error_jmp_buf, 1);
+#endif
+  abort();
+}
+
 #if defined(__MINGW32__) || defined(__MINGW64__)
 #pragma GCC diagnostic pop
 #endif
@@ -235,6 +271,194 @@ munit_malloc_ex(const char* filename, int line, size_t size) {
   return ptr;
 }
 
+/*** Timer code ***/
+
+/* This section is definitely a bit messy, patches to clean it up
+ * gratefully accepted. */
+
+#define MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME 0
+#define MUNIT_CPU_TIME_METHOD_CLOCK 1
+#define MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES 2
+#define MUNIT_CPU_TIME_METHOD_GETRUSAGE 3
+
+#define MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME 8
+#define MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY 9
+#define MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER 10
+#define MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME 11
+
+/* clock_gettime gives us a good high-resolution timer, but on some
+ * platforms you have to link in librt.  I don't want to force a
+ * complicated build system, so by default we'll only use
+ * clock_gettime on C libraries where we know the standard c library
+ * is sufficient.  If you would like to test for librt in your build
+ * system and add it if necessary, you can define
+ * MUNIT_ALLOW_CLOCK_GETTIME and we'll assume that the necessary
+ * libraries are available. */
+#if !defined(MUNIT_ALLOW_CLOCK_GETTIME)
+#  if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+#    if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 17)
+#      define MUNIT_ALLOW_CLOCK_GETTIME
+#    endif
+#  endif
+#endif
+
+/* Solaris advertises _POSIX_TIMERS, and defines
+ * CLOCK_PROCESS_CPUTIME_ID and CLOCK_VIRTUAL, but doesn't actually
+ * implement them.  Mingw requires you to link to pthreads instead of
+ * librt (or just libc). */
+#if defined(MUNIT_ALLOW_CLOCK_GETTIME) && ((defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)) && !defined(__sun))
+#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
+#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
+#elif defined(_WIN32)
+#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
+#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
+#elif defined(__MACH__)
+#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETRUSAGE
+#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
+#else
+#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETRUSAGE
+#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
+#endif
+
+#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
+#include <time.h>
+typedef struct timespec MunitCpuClock;
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
+#include <time.h>
+typedef clock_t MunitCpuClock;
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
+#include <windows.h>
+typedef FILETIME MunitCpuClock;
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
+#include <sys/time.h>
+#include <sys/resource.h>
+typedef struct rusage MunitCpuClock;
+#endif
+
+#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
+#include <time.h>
+typedef struct timespec MunitWallClock;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
+typedef struct timeval MunitWallClock;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
+typedef LARGE_INTEGER MunitWallClock;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+typedef uint64_t MunitWallClock;
+#endif
+
+static void
+munit_wall_clock_get_time(MunitWallClock* wallclock) {
+#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
+  if (clock_gettime(CLOCK_MONOTONIC, wallclock) != 0) {
+    fputs("Unable to get wall clock time\n", stderr);
+    exit(EXIT_FAILURE);
+  }
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
+  if (QueryPerformanceCounter(wallclock) == 0) {
+    fputs("Unable to get wall clock time\n", stderr);
+    exit(EXIT_FAILURE);
+  }
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
+  if (gettimeofday(wallclock, NULL) != 0) {
+    fputs("Unable to get wall clock time\n", stderr);
+    exit(EXIT_FAILURE);
+  }
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
+  *wallclock = mach_absolute_time();
+#endif
+}
+
+#if defined(MUNIT_ENABLE_TIMING)
+
+static void
+munit_cpu_clock_get_time(MunitCpuClock* cpuclock) {
+#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
+  static const clockid_t clock_id =
+#if defined(_POSIX_CPUTIME) || defined(CLOCK_PROCESS_CPUTIME_ID)
+    CLOCK_PROCESS_CPUTIME_ID
+#elif defined(CLOCK_VIRTUAL)
+    CLOCK_VIRTUAL
+#else
+#error No clock found
+#endif
+    ;
+
+  if (clock_gettime(clock_id, cpuclock) != 0) {
+    fprintf(stderr, "Unable to get CPU clock time: %s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
+  FILETIME CreationTime, ExitTime, KernelTime;
+  if (!GetProcessTimes(GetCurrentProcess(), &CreationTime, &ExitTime, &KernelTime, cpuclock)) {
+    fputs("Unable to get CPU clock time\n", stderr);
+    exit(EXIT_FAILURE);
+  }
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
+  *cpuclock = clock();
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
+  if (getrusage(RUSAGE_SELF, cpuclock) != 0) {
+    fputs("Unable to get CPU clock time\n", stderr);
+    exit(EXIT_FAILURE);
+  }
+#endif
+}
+
+static double
+munit_wall_clock_get_elapsed(MunitWallClock* start, MunitWallClock* end) {
+#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
+  return
+    (double) (end->tv_sec - start->tv_sec) +
+    (((double) (end->tv_nsec - start->tv_nsec)) / 1000000000);
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
+  LARGE_INTEGER Frequency;
+  LONGLONG elapsed_ticks;
+  QueryPerformanceFrequency(&Frequency);
+  elapsed_ticks = end->QuadPart - start->QuadPart;
+  return ((double) elapsed_ticks) / ((double) Frequency.QuadPart);
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
+  return
+    (double) (end->tv_sec - start->tv_sec) +
+    (((double) (end->tv_usec - start->tv_usec)) / 1000000);
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
+  static mach_timebase_info_data_t timebase_info = { 0, 0 };
+  if (timebase_info.denom == 0)
+    (void) mach_timebase_info(&timebase_info);
+
+  return ((*end - *start) * timebase_info.numer / timebase_info.denom) / 1000000000.0;
+#endif
+}
+
+static double
+munit_cpu_clock_get_elapsed(MunitCpuClock* start, MunitCpuClock* end) {
+#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
+  return
+    (double) (end->tv_sec - start->tv_sec) +
+    (((double) (end->tv_nsec - start->tv_nsec)) / 1000000000);
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
+  ULONGLONG start_cpu, end_cpu;
+
+  start_cpu   = start->dwHighDateTime;
+  start_cpu <<= sizeof(DWORD) * 8;
+  start_cpu  |= start->dwLowDateTime;
+
+  end_cpu   = end->dwHighDateTime;
+  end_cpu <<= sizeof(DWORD) * 8;
+  end_cpu  |= end->dwLowDateTime;
+
+  return ((double) (end_cpu - start_cpu)) / 10000000;
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
+  return ((double) (*end - *start)) / CLOCKS_PER_SEC;
+#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
+  return
+    (double) ((end->ru_utime.tv_sec + end->ru_stime.tv_sec) - (start->ru_utime.tv_sec + start->ru_stime.tv_sec)) +
+    (((double) ((end->ru_utime.tv_usec + end->ru_stime.tv_usec) - (start->ru_utime.tv_usec + start->ru_stime.tv_usec))) / 1000000);
+#endif
+}
+
+#endif /* MUNIT_ENABLE_TIMING */
+
 /*** PRNG stuff ***/
 
 /* This is (unless I screwed up, which is entirely possible) the
@@ -253,6 +477,14 @@ munit_malloc_ex(const char* filename, int line, size_t size) {
 #elif defined(__clang__)
 #  if __has_extension(c_atomic)
 #    define HAVE_CLANG_ATOMICS
+#  endif
+#endif
+
+/* Workaround for http://llvm.org/bugs/show_bug.cgi?id=26911 */
+#if defined(__clang__) && defined(_WIN32)
+#  undef HAVE_STDATOMIC
+#  if defined(__c2__)
+#    undef HAVE_CLANG_ATOMICS
 #  endif
 #endif
 
@@ -331,7 +563,21 @@ munit_rand_seed(uint32_t seed) {
 
 static uint32_t
 munit_rand_generate_seed(void) {
-  uint32_t state = munit_rand_next_state((uint32_t) time(NULL) + MUNIT_PRNG_INCREMENT);
+  MunitWallClock wc;
+  uint32_t seed, state;
+
+  munit_wall_clock_get_time(&wc);
+#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
+  seed = (uint32_t) wc.tv_nsec;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
+  seed = (uint32_t) wc.QuadPart;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
+  seed = (uint32_t) wc.tv_usec;
+#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
+  seed = (uint32_t) wc;
+#endif
+
+  state = munit_rand_next_state(seed + MUNIT_PRNG_INCREMENT);
   return munit_rand_from_state(state);
 }
 
@@ -381,28 +627,31 @@ munit_rand_memory(size_t size, uint8_t data[MUNIT_ARRAY_PARAM(size)]) {
   } while (!munit_atomic_cas(&munit_rand_state, &old, state));
 }
 
-static int32_t
-munit_rand_state_at_most(uint32_t* state, uint32_t salt, int32_t max) {
-  /* https://stackoverflow.com/questions/2509679/how-to-generate-a-random-number-from-within-a-range#6852396 */
-  munit_assert_cmp_int32(max, >, 0);
-  const uint64_t
-    num_bins = ((uint64_t) max) + 1,
-    num_rand = ((uint64_t) INT32_MAX) + 1,
-    bin_size = num_rand / num_bins,
-    defect   = num_rand % num_bins;
+static uint32_t
+munit_rand_state_at_most(uint32_t* state, uint32_t salt, uint32_t max) {
+  if (max == UINT32_MAX)
+    return munit_rand_state_uint32(state) ^ salt;
 
-  int64_t x;
+  max++;
+
+  /* We want (UINT32_MAX + 1) % max, which in unsigned arithmetic is the same
+   * as (UINT32_MAX + 1 - max) % max = -max % max. We compute -max using not
+   * to avoid compiler warnings.
+   */
+  const uint32_t min = (~max + UINT32_C(1)) % max;
+
+  uint32_t x;
   do {
-    x = (int64_t) (munit_rand_state_uint32(state) ^ salt);
-  } while (num_rand - defect <= (uint64_t) x);
+    x = munit_rand_state_uint32(state) ^ salt;
+  } while (x < min);
 
-  return (int32_t) (x / bin_size);
+  return x % max;
 }
 
-static int32_t
-munit_rand_at_most(uint32_t salt, int32_t max) {
+static uint32_t
+munit_rand_at_most(uint32_t salt, uint32_t max) {
   uint32_t old, state;
-  int32_t retval;
+  uint32_t retval;
 
   do {
     state = old = munit_atomic_load(&munit_rand_state);
@@ -417,11 +666,11 @@ munit_rand_int_range(int min, int max) {
   if (min > max)
     return munit_rand_int_range(max, min);
 
-  uint64_t range = (((int64_t) max) - ((int64_t) min));
-  if (range > INT32_MAX)
-    range = INT32_MAX;
+  uint64_t range = (uint64_t) max - (uint64_t) min;
+  if (range > UINT32_MAX)
+    range = UINT32_MAX;
 
-  return min + munit_rand_at_most(0, (int32_t) range);
+  return min + munit_rand_at_most(0, (uint32_t) range);
 }
 
 double
@@ -435,181 +684,11 @@ munit_rand_double(void) {
     /* See http://mumble.net/~campbell/tmp/random_real.c for how to do
      * this right.  Patches welcome if you feel that this is too
      * biased. */
-    do {
-      retval = munit_rand_state_uint32(&state) / ((double) UINT32_MAX);
-    } while (MUNIT_UNLIKELY(MUNIT_UNLIKELY(retval >= 1.0) || MUNIT_UNLIKELY(retval <= 0.0)));
+    retval = munit_rand_state_uint32(&state) / (UINT32_MAX + 1.0);
   } while (!munit_atomic_cas(&munit_rand_state, &old, state));
 
   return retval;
 }
-
-/*** Timer code ***/
-
-#if defined(MUNIT_ENABLE_TIMING)
-
-/* This section is definitely a bit messy, patches to clean it up
- * gratefully accepted. */
-
-#define MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME 0
-#define MUNIT_CPU_TIME_METHOD_CLOCK 1
-#define MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES 2
-#define MUNIT_CPU_TIME_METHOD_GETRUSAGE 3
-
-#define MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME 8
-#define MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY 9
-#define MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER 10
-#define MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME 11
-
-#if defined(_POSIX_TIMERS) && (_POSIX_TIMERS > 0)
-#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
-#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
-#elif defined(_WIN32)
-#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
-#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
-#elif defined(__MACH__)
-#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETRUSAGE
-#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
-#else
-#  define MUNIT_CPU_TIME_METHOD  MUNIT_CPU_TIME_METHOD_GETRUSAGE
-#  define MUNIT_WALL_TIME_METHOD MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
-#endif
-
-#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
-#include <time.h>
-typedef struct timespec MunitCpuClock;
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
-#include <time.h>
-typedef clock_t MunitCpuClock;
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
-#include <windows.h>
-typedef FILETIME MunitCpuClock;
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
-#include <sys/time.h>
-#include <sys/resource.h>
-typedef struct rusage MunitCpuClock;
-#endif
-
-#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
-#include <time.h>
-typedef struct timespec MunitWallClock;
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
-typedef struct timeval MunitWallClock;
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
-typedef LARGE_INTEGER MunitWallClock;
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
-#include <mach/mach.h>
-#include <mach/mach_time.h>
-typedef uint64_t MunitWallClock;
-#endif
-
-static void
-munit_wall_clock_get_time(MunitWallClock* wallclock) {
-#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
-  if (clock_gettime(CLOCK_MONOTONIC, wallclock) != 0) {
-    fputs("Unable to get wall clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
-  if (QueryPerformanceCounter(wallclock) == 0) {
-    fputs("Unable to get wall clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
-  if (gettimeofday(wallclock, NULL) != 0) {
-    fputs("Unable to get wall clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
-  *wallclock = mach_absolute_time();
-#endif
-}
-
-static void
-munit_cpu_clock_get_time(MunitCpuClock* cpuclock) {
-#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
-  static const clockid_t clock_id =
-#if defined(_POSIX_CPUTIME) || defined(CLOCK_PROCESS_CPUTIME_ID)
-    CLOCK_PROCESS_CPUTIME_ID
-#elif defined(CLOCK_VIRTUAL)
-    CLOCK_VIRTUAL
-#else
-#error No clock found
-#endif
-    ;
-
-  if (clock_gettime(clock_id, cpuclock) != 0) {
-    fputs("Unable to get CPU clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
-  FILETIME CreationTime, ExitTime, KernelTime;
-  if (!GetProcessTimes(GetCurrentProcess(), &CreationTime, &ExitTime, &KernelTime, cpuclock)) {
-    fputs("Unable to get CPU clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
-  *cpuclock = clock();
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
-  if (getrusage(RUSAGE_SELF, cpuclock) != 0) {
-    fputs("Unable to get CPU clock time\n", stderr);
-    exit(EXIT_FAILURE);
-  }
-#endif
-}
-
-static double
-munit_wall_clock_get_elapsed(MunitWallClock* start, MunitWallClock* end) {
-#if MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_CLOCK_GETTIME
-  return
-    (double) (end->tv_sec - start->tv_sec) +
-    (((double) (end->tv_nsec - start->tv_nsec)) / 1000000000);
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_QUERYPERFORMANCECOUNTER
-  LARGE_INTEGER Frequency;
-  LONGLONG elapsed_ticks;
-  QueryPerformanceFrequency(&Frequency);
-  elapsed_ticks = end->QuadPart - start->QuadPart;
-  return ((double) elapsed_ticks) / ((double) Frequency.QuadPart);
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_GETTIMEOFDAY
-  return
-    (double) (end->tv_sec - start->tv_sec) +
-    (((double) (end->tv_usec - start->tv_usec)) / 1000000);
-#elif MUNIT_WALL_TIME_METHOD == MUNIT_WALL_TIME_METHOD_MACH_ABSOLUTE_TIME
-  static mach_timebase_info_data_t timebase_info = { 0, 0 };
-  if (timebase_info.denom == 0)
-    (void) mach_timebase_info(&timebase_info);
-
-  return ((*end - *start) * timebase_info.numer / timebase_info.denom) / 1000000000.0;
-#endif
-}
-
-static double
-munit_cpu_clock_get_elapsed(MunitCpuClock* start, MunitCpuClock* end) {
-#if MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK_GETTIME
-  return
-    (double) (end->tv_sec - start->tv_sec) +
-    (((double) (end->tv_nsec - start->tv_nsec)) / 1000000000);
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETPROCESSTIMES
-  ULONGLONG start_cpu, end_cpu;
-
-  start_cpu   = start->dwHighDateTime;
-  start_cpu <<= sizeof(DWORD) * 8;
-  start_cpu  |= start->dwLowDateTime;
-
-  end_cpu   = end->dwHighDateTime;
-  end_cpu <<= sizeof(DWORD) * 8;
-  end_cpu  |= end->dwLowDateTime;
-
-  return ((double) (end_cpu - start_cpu)) / 10000000;
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_CLOCK
-  return ((double) (*end - *start)) / CLOCKS_PER_SEC;
-#elif MUNIT_CPU_TIME_METHOD == MUNIT_CPU_TIME_METHOD_GETRUSAGE
-  return
-    (double) ((end->ru_utime.tv_sec + end->ru_stime.tv_sec) - (start->ru_utime.tv_sec + start->ru_stime.tv_sec)) +
-    (((double) ((end->ru_utime.tv_usec + end->ru_stime.tv_usec) - (start->ru_utime.tv_usec + start->ru_stime.tv_usec))) / 1000000);
-#endif
-}
-
-#endif /* MUNIT_ENABLE_TIMING */
 
 /*** Test suite handling ***/
 
@@ -725,18 +804,21 @@ munit_splice(int from, int to) {
 #if !defined(_WIN32)
   ssize_t len;
   ssize_t bytes_written;
+  ssize_t write_res;
 #else
   int len;
   int bytes_written;
+  int write_res;
 #endif
   do {
     len = read(from, buf, sizeof(buf));
     if (len > 0) {
       bytes_written = 0;
       do {
-        bytes_written += write(to, buf + bytes_written, len - bytes_written);
-        if (bytes_written < 0)
+        write_res = write(to, buf + bytes_written, len - bytes_written);
+        if (write_res < 0)
           break;
+        bytes_written += write_res;
       } while (bytes_written < len);
     }
     else
@@ -787,7 +869,7 @@ munit_test_runner_exec(MunitTestRunner* runner, const MunitTest* test, const Mun
       report->cpu_clock += munit_cpu_clock_get_elapsed(&cpu_clock_begin, &cpu_clock_end);
 #endif
     } else {
-      switch (result) {
+      switch ((int) result) {
         case MUNIT_SKIP:
           report->skipped++;
           break;
@@ -797,7 +879,6 @@ munit_test_runner_exec(MunitTestRunner* runner, const MunitTest* test, const Mun
         case MUNIT_ERROR:
           report->errored++;
           break;
-        case MUNIT_OK:
         default:
           break;
       }
@@ -813,11 +894,13 @@ munit_test_runner_exec(MunitTestRunner* runner, const MunitTest* test, const Mun
 #  define MUNIT_RESULT_STRING_SKIP  ":|"
 #  define MUNIT_RESULT_STRING_FAIL  ":("
 #  define MUNIT_RESULT_STRING_ERROR ":o"
+#  define MUNIT_RESULT_STRING_TODO  ":/"
 #else
 #  define MUNIT_RESULT_STRING_OK    "OK   "
 #  define MUNIT_RESULT_STRING_SKIP  "SKIP "
 #  define MUNIT_RESULT_STRING_FAIL  "FAIL "
 #  define MUNIT_RESULT_STRING_ERROR "ERROR"
+#  define MUNIT_RESULT_STRING_TODO  "TODO "
 #endif
 
 static void
@@ -836,7 +919,7 @@ munit_replace_stderr(FILE* stderr_buf) {
     int errfd = fileno(stderr_buf);
     if (MUNIT_UNLIKELY(errfd == -1)) {
       exit(EXIT_FAILURE);
-      }
+    }
 
     dup2(errfd, STDERR_FILENO);
 
@@ -911,22 +994,24 @@ munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest*
     if (fork_pid == 0) {
       close(pipefd[0]);
 
-      munit_replace_stderr(stderr_buf);
-      result = munit_test_runner_exec(runner, test, params, &report);
+      const int orig_stderr = munit_replace_stderr(stderr_buf);
+      munit_test_runner_exec(runner, test, params, &report);
 
       /* Note that we don't restore stderr.  This is so we can buffer
        * things written to stderr later on (such as by
        * asan/tsan/ubsan, valgrind, etc.) */
+      close(orig_stderr);
 
       ssize_t bytes_written = 0;
       do {
-        bytes_written += write(pipefd[1], ((uint8_t*) (&report)) + bytes_written, sizeof(report) - bytes_written);
-        if (bytes_written < 0) {
+        ssize_t write_res = write(pipefd[1], ((uint8_t*) (&report)) + bytes_written, sizeof(report) - bytes_written);
+        if (write_res < 0) {
           if (stderr_buf != NULL) {
             munit_log_errno(MUNIT_LOG_ERROR, stderr, "unable to write to pipe");
           }
           exit(EXIT_FAILURE);
         }
+        bytes_written += write_res;
       } while ((size_t) bytes_written < sizeof(report));
 
       if (stderr_buf != NULL)
@@ -965,7 +1050,11 @@ munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest*
         }
       } else {
         if (WIFSIGNALED(status)) {
+#if defined(_XOPEN_VERSION) && (_XOPEN_VERSION >= 700)
           munit_logf_internal(MUNIT_LOG_ERROR, stderr_buf, "child killed by signal %d (%s)", WTERMSIG(status), strsignal(WTERMSIG(status)));
+#else
+          munit_logf_internal(MUNIT_LOG_ERROR, stderr_buf, "child killed by signal %d", WTERMSIG(status));
+#endif
         } else if (WIFSTOPPED(status)) {
           munit_logf_internal(MUNIT_LOG_ERROR, stderr_buf, "child stopped by signal %d", WSTOPSIG(status));
         }
@@ -1002,7 +1091,18 @@ munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest*
  print_result:
 
   fputs("[ ", MUNIT_OUTPUT_FILE);
-  if (report.failed > 0) {
+  if ((test->options & MUNIT_TEST_OPTION_TODO) == MUNIT_TEST_OPTION_TODO) {
+    if (report.failed != 0 || report.errored != 0 || report.skipped != 0) {
+      munit_test_runner_print_color(runner, MUNIT_RESULT_STRING_TODO, '3');
+      result = MUNIT_OK;
+    } else {
+      munit_test_runner_print_color(runner, MUNIT_RESULT_STRING_ERROR, '1');
+      if (MUNIT_LIKELY(stderr_buf != NULL))
+        munit_log_internal(MUNIT_LOG_ERROR, stderr_buf, "Test marked TODO, but was successful.");
+      runner->report.failed++;
+      result = MUNIT_ERROR;
+    }
+  } else if (report.failed > 0) {
     munit_test_runner_print_color(runner, MUNIT_RESULT_STRING_FAIL, '1');
     runner->report.failed++;
     result = MUNIT_FAIL;
@@ -1159,7 +1259,7 @@ munit_test_runner_run_test(MunitTestRunner* runner,
     if (wild_params_l != 0) {
       const size_t first_wild = params_l;
       for (const MunitParameter* wp = wild_params ; wp != NULL && wp->name != NULL ; wp++) {
-        for (const MunitParameterEnum* pe = test->parameters ; pe != NULL && pe->name != NULL ; pe++) {
+        for (const MunitParameterEnum* pe = test->parameters ; pe != NULL && pe->name != NULL && pe->values != NULL ; pe++) {
           if (strcmp(wp->name, pe->name) == 0) {
             if (MUNIT_UNLIKELY(munit_parameters_add(&params_l, &params, pe->name, pe->values[0]) != MUNIT_OK))
               goto cleanup;
@@ -1260,7 +1360,18 @@ munit_print_help(int argc, char* const argv[MUNIT_ARRAY_PARAM(argc + 1)], void* 
        " --color auto|always|never\n"
        "           Colorize (or don't) the output.\n"
      /* 12345678901234567890123456789012345678901234567890123456789012345678901234567890 */
-       " --help    Print this help message and exit.");
+       " --help    Print this help message and exit.\n");
+#if defined(MUNIT_NL_LANGINFO)
+  setlocale(LC_ALL, "");
+  fputs((strcasecmp("UTF-8", nl_langinfo(CODESET)) == 0) ? "µnit" : "munit", stdout);
+#else
+  puts("munit");
+#endif
+  printf(" %d.%d.%d\n"
+         "Full documentation at: https://nemequ.github.io/munit/\n",
+         (MUNIT_CURRENT_VERSION >> 16) & 0xff,
+         (MUNIT_CURRENT_VERSION >> 8) & 0xff,
+         (MUNIT_CURRENT_VERSION >> 0) & 0xff);
   for (const MunitArgument* arg = arguments ; arg != NULL && arg->name != NULL ; arg++)
     arg->write_help(arg, user_data);
 }
@@ -1507,11 +1618,12 @@ munit_suite_main_custom(const MunitSuite* suite, void* user_data,
           goto cleanup;
       }
     } else {
-      runner.tests = realloc((void*) runner.tests, sizeof(char*) * (tests_size + 2));
-      if (runner.tests == NULL) {
+      const char** runner_tests = realloc((void*) runner.tests, sizeof(char*) * (tests_size + 2));
+      if (runner_tests == NULL) {
         munit_log_internal(MUNIT_LOG_ERROR, stderr, "failed to allocate memory");
         goto cleanup;
       }
+      runner.tests = runner_tests;
       runner.tests[tests_size++] = argv[arg];
       runner.tests[tests_size] = NULL;
     }

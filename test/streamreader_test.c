@@ -78,14 +78,14 @@ static void *sr_CreateTempFile(const MunitParameter params[], void *user_data) {
     mkstemp(tmpname);
 
     FILE *f = fopen(tmpname, "r+");
-    munit_assert_non_null(f);
-    munit_assert_cmp_int(fprintf(f, TestString), >, 0);
-    munit_assert_cmp_int(fclose(f), ==, 0);
+    munit_assert_not_null(f);
+    munit_assert_int(fprintf(f, TestString), >, 0);
+    munit_assert_int(fclose(f), ==, 0);
     return tmpname;
 }
 
 static void sr_CleanUpTempFile(void *file) {
-    munit_assert_cmp_int(remove((char *)file), ==, 0);
+    munit_assert_int(remove((char *)file), ==, 0);
     free(file);
 }
 
@@ -95,12 +95,12 @@ static void sr_CleanUpTempFile(void *file) {
 
 static MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file) {
     ms_StreamReader *stream = ms_StreamNewFile((char *) file);
-    munit_assert_non_null(stream);
+    munit_assert_not_null(stream);
 
     const char *cur = &TestString[0];
     while (cur[0] != '\0') {
         int next = ms_StreamNextChar(stream);
-        munit_assert_cmp_int(next, ==, cur[0]);
+        munit_assert_int(next, ==, cur[0]);
         cur++;
     }
 
@@ -110,7 +110,7 @@ static MunitResult sr_TestFileNextChar(const MunitParameter params[], void *file
 
 static MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) {
     ms_StreamReader *stream = ms_StreamNewFile((char *) file);
-    munit_assert_non_null(stream);
+    munit_assert_not_null(stream);
 
     while (ms_StreamNextChar(stream) != EOF) {
         /* do nothing */
@@ -120,7 +120,7 @@ static MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) 
     while (1) {
         if (pos == 0) { break; }
         int next = ms_StreamUnread(stream);
-        munit_assert_cmp_int(next, ==, TestString[pos]);
+        munit_assert_int(next, ==, TestString[pos]);
         pos--;
     }
     ms_StreamDestroy(stream);
@@ -129,12 +129,12 @@ static MunitResult sr_TestFileUnread(const MunitParameter params[], void *file) 
 
 static MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na) {
     ms_StreamReader *stream = ms_StreamNewString(TestString);
-    munit_assert_non_null(stream);
+    munit_assert_not_null(stream);
 
     const char *cur = &TestString[0];
     while (cur[0] != '\0') {
         int next = ms_StreamNextChar(stream);
-        munit_assert_cmp_int(next, ==, cur[0]);
+        munit_assert_int(next, ==, cur[0]);
         cur++;
     }
 
@@ -144,7 +144,7 @@ static MunitResult sr_TestStringNextChar(const MunitParameter params[], void *na
 
 static MunitResult sr_TestStringUnread(const MunitParameter params[], void *na) {
     ms_StreamReader *stream = ms_StreamNewString(TestString);
-    munit_assert_non_null(stream);
+    munit_assert_not_null(stream);
 
     while (ms_StreamNextChar(stream) != EOF) {
         /* do nothing */
@@ -154,7 +154,7 @@ static MunitResult sr_TestStringUnread(const MunitParameter params[], void *na) 
     while (1) {
         if (pos == 0) { break; }
         int next = ms_StreamUnread(stream);
-        munit_assert_cmp_int(next, ==, TestString[pos]);
+        munit_assert_int(next, ==, TestString[pos]);
         pos--;
     }
     ms_StreamDestroy(stream);

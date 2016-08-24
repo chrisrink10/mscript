@@ -512,15 +512,15 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len);
 static MunitResult prs_TestParseErrors(const MunitParameter params[], void *user_data) {
     const char *code = munit_parameters_get(params, "code");
     ms_Parser *prs = ms_ParserNew();
-    munit_assert_non_null(prs);
+    munit_assert_not_null(prs);
 
     munit_assert(ms_ParserInitString(prs, code));
     const ms_AST *ast;
     ms_Error *err;
     ms_Result pres = ms_ParserParse(prs, &ast, &err);
 
-    munit_assert_cmp_int(pres, ==, MS_RESULT_ERROR);
-    munit_assert_non_null(err);
+    munit_assert_int(pres, ==, MS_RESULT_ERROR);
+    munit_assert_not_null(err);
 
     ms_ErrorDestroy(err);
     ms_ParserDestroy(prs);
@@ -1624,22 +1624,22 @@ static MunitResult prs_TestParseCompoundAssignment(const MunitParameter params[]
  */
 
 static MunitResult CompareASTToComponent(const ms_AST *ast, ASTComponentType type, ASTComponent *cmpnt) {
-    munit_assert_non_null(ast);
+    munit_assert_not_null(ast);
 
     switch(type) {
         case ASTCMPNT_MODULE:
             CompareAST(ast, cmpnt->module);
             break;
         case ASTCMPNT_STMT: {
-            munit_assert_cmp_int(dsarray_len(ast), ==, 1);
+            munit_assert_int(dsarray_len(ast), ==, 1);
             const ms_Stmt *stmt = dsarray_get(ast, 0);
             CompareStatements(stmt, &cmpnt->stmt);
             break;
         }
         case ASTCMPNT_EXPR: {
-            munit_assert_cmp_int(dsarray_len(ast), ==, 1);
+            munit_assert_int(dsarray_len(ast), ==, 1);
             const ms_Stmt *stmt = dsarray_get(ast, 0);
-            munit_assert_cmp_int(stmt->type, ==, STMTTYPE_EXPRESSION);
+            munit_assert_int(stmt->type, ==, STMTTYPE_EXPRESSION);
             const ms_Expr *expr = stmt->cmpnt.expr;
             CompareExpressions(expr, &cmpnt->expr);
             break;
@@ -1650,10 +1650,10 @@ static MunitResult CompareASTToComponent(const ms_AST *ast, ASTComponentType typ
 }
 
 static MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2) {
-    munit_assert_non_null(ast1);
-    munit_assert_non_null(ast2);
+    munit_assert_not_null(ast1);
+    munit_assert_not_null(ast2);
 
-    munit_assert_cmp_int(dsarray_len(ast1), ==, dsarray_len(ast2));
+    munit_assert_int(dsarray_len(ast1), ==, dsarray_len(ast2));
     size_t len = dsarray_len(ast1);
     for (size_t i = 0; i < len; i++) {
         const ms_Stmt *stmt1 = dsarray_get(ast1, i);
@@ -1665,10 +1665,10 @@ static MunitResult CompareAST(const ms_AST *ast1, const ms_AST *ast2) {
 }
 
 static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2) {
-    munit_assert_non_null(stmt1);
-    munit_assert_non_null(stmt2);
+    munit_assert_not_null(stmt1);
+    munit_assert_not_null(stmt2);
 
-    munit_assert_cmp_int(stmt1->type, ==, stmt2->type);
+    munit_assert_int(stmt1->type, ==, stmt2->type);
     switch(stmt1->type) {
         case STMTTYPE_EMPTY:        // Fall through
         case STMTTYPE_BREAK:        // Fall through
@@ -1711,10 +1711,10 @@ static MunitResult CompareStatements(const ms_Stmt *stmt1, const ms_Stmt *stmt2)
 }
 
 static MunitResult CompareArgumentList(const ms_ArgList *al1, const ms_ArgList *al2) {
-    munit_assert_non_null(al1);
-    munit_assert_non_null(al2);
+    munit_assert_not_null(al1);
+    munit_assert_not_null(al2);
 
-    munit_assert_cmp_int(dsarray_len(al1), ==, dsarray_len(al2));
+    munit_assert_int(dsarray_len(al1), ==, dsarray_len(al2));
     size_t len = dsarray_len(al1);
     for (size_t i = 0; i < len; i++) {
         const ms_Ident *ident1 = dsarray_get(al1, i);
@@ -1726,10 +1726,10 @@ static MunitResult CompareArgumentList(const ms_ArgList *al1, const ms_ArgList *
 }
 
 static MunitResult CompareBlocks(const ms_StmtBlock *blk1, const ms_StmtBlock *blk2) {
-    munit_assert_non_null(blk1);
-    munit_assert_non_null(blk2);
+    munit_assert_not_null(blk1);
+    munit_assert_not_null(blk2);
 
-    munit_assert_cmp_int(dsarray_len(blk1), ==, dsarray_len(blk2));
+    munit_assert_int(dsarray_len(blk1), ==, dsarray_len(blk2));
     size_t len = dsarray_len(blk1);
     for (size_t i = 0; i < len; i++) {
         const ms_Stmt *stmt1 = dsarray_get(blk1, i);
@@ -1741,10 +1741,10 @@ static MunitResult CompareBlocks(const ms_StmtBlock *blk1, const ms_StmtBlock *b
 }
 
 static MunitResult CompareForStatement(const ms_StmtFor *for1, const ms_StmtFor *for2) {
-    munit_assert_non_null(for1);
-    munit_assert_non_null(for2);
+    munit_assert_not_null(for1);
+    munit_assert_not_null(for2);
 
-    munit_assert_cmp_int(for1->type, ==, for2->type);
+    munit_assert_int(for1->type, ==, for2->type);
     switch (for1->type) {
         case FORSTMT_ITERATOR:
             munit_assert(for1->clause.iter->declare == for2->clause.iter->declare);
@@ -1769,10 +1769,10 @@ static MunitResult CompareForStatement(const ms_StmtFor *for1, const ms_StmtFor 
 }
 
 static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_StmtIfElse *elif2) {
-    munit_assert_non_null(elif1);
-    munit_assert_non_null(elif2);
+    munit_assert_not_null(elif1);
+    munit_assert_not_null(elif2);
 
-    munit_assert_cmp_int(elif1->type, ==, elif2->type);
+    munit_assert_int(elif1->type, ==, elif2->type);
     switch (elif1->type) {
         case IFELSE_IF:
             CompareExpressions(elif1->clause.ifstmt->expr, elif2->clause.ifstmt->expr);
@@ -1790,8 +1790,8 @@ static MunitResult CompareIfElseStatement(const ms_StmtIfElse *elif1, const ms_S
 }
 
 static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms_StmtDeclaration *decl2) {
-    munit_assert_non_null(decl1);
-    munit_assert_non_null(decl2);
+    munit_assert_not_null(decl1);
+    munit_assert_not_null(decl2);
 
     CompareIdent(decl1->ident, decl2->ident);
     if ((decl1->expr) || (decl2->expr)) {
@@ -1805,8 +1805,8 @@ static MunitResult CompareDeclarations(const ms_StmtDeclaration *decl1, const ms
 }
 
 static MunitResult CompareAssignment(const ms_StmtAssignment *assign1, const ms_StmtAssignment *assign2) {
-    munit_assert_non_null(assign1);
-    munit_assert_non_null(assign2);
+    munit_assert_not_null(assign1);
+    munit_assert_not_null(assign2);
 
     ms_StmtAssignTarget *ident1 = assign1->ident;
     ms_StmtAssignTarget *ident2 = assign2->ident;
@@ -1832,29 +1832,29 @@ static MunitResult CompareAssignment(const ms_StmtAssignment *assign1, const ms_
 }
 
 static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2) {
-    munit_assert_non_null(expr1);
-    munit_assert_non_null(expr2);
+    munit_assert_not_null(expr1);
+    munit_assert_not_null(expr2);
 
-    munit_assert_cmp_int(expr1->type, ==, expr2->type);
+    munit_assert_int(expr1->type, ==, expr2->type);
     switch(expr1->type) {
         case EXPRTYPE_UNARY:
-            munit_assert_cmp_int(expr1->cmpnt.u->type, ==, expr2->cmpnt.u->type);
-            munit_assert_cmp_int(expr1->cmpnt.u->op, ==, expr1->cmpnt.u->op);
+            munit_assert_int(expr1->cmpnt.u->type, ==, expr2->cmpnt.u->type);
+            munit_assert_int(expr1->cmpnt.u->op, ==, expr1->cmpnt.u->op);
             CompareExpressionAtoms(expr1->cmpnt.u->type, &expr1->cmpnt.u->atom, &expr2->cmpnt.u->atom);
             break;
         case EXPRTYPE_BINARY:
-            munit_assert_cmp_int(expr1->cmpnt.b->ltype, ==, expr2->cmpnt.b->ltype);
+            munit_assert_int(expr1->cmpnt.b->ltype, ==, expr2->cmpnt.b->ltype);
             CompareExpressionAtoms(expr1->cmpnt.b->ltype, &expr1->cmpnt.b->latom, &expr2->cmpnt.b->latom);
-            munit_assert_cmp_int(expr1->cmpnt.b->op, ==, expr1->cmpnt.b->op);
-            munit_assert_cmp_int(expr1->cmpnt.b->rtype, ==, expr2->cmpnt.b->rtype);
+            munit_assert_int(expr1->cmpnt.b->op, ==, expr1->cmpnt.b->op);
+            munit_assert_int(expr1->cmpnt.b->rtype, ==, expr2->cmpnt.b->rtype);
             CompareExpressionAtoms(expr1->cmpnt.b->rtype, &expr1->cmpnt.b->ratom, &expr2->cmpnt.b->ratom);
             break;
         case EXPRTYPE_CONDITIONAL:
-            munit_assert_cmp_int(expr1->cmpnt.c->condtype, ==, expr2->cmpnt.c->condtype);
+            munit_assert_int(expr1->cmpnt.c->condtype, ==, expr2->cmpnt.c->condtype);
             CompareExpressionAtoms(expr1->cmpnt.c->condtype, &expr1->cmpnt.c->cond, &expr2->cmpnt.c->cond);
-            munit_assert_cmp_int(expr1->cmpnt.c->truetype, ==, expr2->cmpnt.c->truetype);
+            munit_assert_int(expr1->cmpnt.c->truetype, ==, expr2->cmpnt.c->truetype);
             CompareExpressionAtoms(expr1->cmpnt.c->truetype, &expr1->cmpnt.c->iftrue, &expr2->cmpnt.c->iftrue);
-            munit_assert_cmp_int(expr1->cmpnt.c->falsetype, ==, expr2->cmpnt.c->falsetype);
+            munit_assert_int(expr1->cmpnt.c->falsetype, ==, expr2->cmpnt.c->falsetype);
             CompareExpressionAtoms(expr1->cmpnt.c->falsetype, &expr1->cmpnt.c->iffalse, &expr2->cmpnt.c->iffalse);
             break;
 
@@ -1864,8 +1864,8 @@ static MunitResult CompareExpressions(const ms_Expr *expr1, const ms_Expr *expr2
 }
 
 static MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAtom *atom1, const ms_ExprAtom *atom2) {
-    munit_assert_non_null(atom1);
-    munit_assert_non_null(atom2);
+    munit_assert_not_null(atom1);
+    munit_assert_not_null(atom2);
 
     switch(type) {
         case EXPRATOM_EXPRESSION:
@@ -1889,10 +1889,10 @@ static MunitResult CompareExpressionAtoms(ms_ExprAtomType type, const ms_ExprAto
 }
 
 static MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprList *el2) {
-    munit_assert_non_null(el1);
-    munit_assert_non_null(el2);
+    munit_assert_not_null(el1);
+    munit_assert_not_null(el2);
 
-    munit_assert_cmp_int(dsarray_len(el1), ==, dsarray_len(el2));
+    munit_assert_int(dsarray_len(el1), ==, dsarray_len(el2));
     size_t len = dsarray_len(el1);
     for (size_t i = 0; i < len; i++) {
         const ms_Expr *expr1 = dsarray_get(el1, i);
@@ -1904,10 +1904,10 @@ static MunitResult CompareExpressionList(const ms_ExprList *el1, const ms_ExprLi
 }
 
 static MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2) {
-    munit_assert_non_null(id1);
-    munit_assert_non_null(id1);
+    munit_assert_not_null(id1);
+    munit_assert_not_null(id1);
 
-    munit_assert_cmp_int(id1->type, ==, id2->type);
+    munit_assert_int(id1->type, ==, id2->type);
     const char *s1 = dsbuf_char_ptr(id1->name);
     const char *s2 = dsbuf_char_ptr(id2->name);
     munit_logf(MUNIT_LOG_INFO, "  ident1='%s'", s1);
@@ -1918,16 +1918,16 @@ static MunitResult CompareIdent(const ms_Ident *id1, const ms_Ident *id2) {
 }
 
 static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
-    munit_assert_non_null(val1);
-    munit_assert_non_null(val2);
+    munit_assert_not_null(val1);
+    munit_assert_not_null(val2);
 
-    munit_assert_cmp_int(val1->type, ==, val2->type);
+    munit_assert_int(val1->type, ==, val2->type);
     switch (val1->type) {
         case MSVAL_FLOAT:
-            munit_assert_cmp_double(val1->val.f, ==, val2->val.f);
+            munit_assert_double(val1->val.f, ==, val2->val.f);
             break;
         case MSVAL_INT:
-            munit_assert_cmp_int(val1->val.i, ==, val2->val.i);
+            munit_assert_int(val1->val.i, ==, val2->val.i);
             break;
         case MSVAL_STR:
             munit_assert_true(dsbuf_equals(val1->val.s, val2->val.s));
@@ -1941,7 +1941,7 @@ static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
         case MSVAL_ARRAY: {
             size_t len1 = dsarray_len(val1->val.a);
             size_t len2 = dsarray_len(val2->val.a);
-            munit_assert_cmp_size(len1, ==, len2);
+            munit_assert_size(len1, ==, len2);
             for(size_t i = 0; i < len1; i++) {
                 ms_Expr *expr1 = dsarray_get(val1->val.a, i);
                 ms_Expr *expr2 = dsarray_get(val2->val.a, i);
@@ -1952,12 +1952,12 @@ static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
         case MSVAL_OBJECT: {
             size_t len1 = dsarray_len(val1->val.o);
             size_t len2 = dsarray_len(val2->val.o);
-            munit_assert_cmp_size(len1, ==, len2);
+            munit_assert_size(len1, ==, len2);
             for(size_t i = 0; i < len1; i++) {
                 ms_ValObjectTuple *tuple1 = dsarray_get(val1->val.o, i);
                 ms_ValObjectTuple *tuple2 = dsarray_get(val2->val.o, i);
-                munit_assert_non_null(tuple1);
-                munit_assert_non_null(tuple2);
+                munit_assert_not_null(tuple1);
+                munit_assert_not_null(tuple2);
                 CompareExpressions(tuple1->key, tuple2->key);
                 CompareExpressions(tuple1->val, tuple2->val);
             }
@@ -1972,8 +1972,8 @@ static MunitResult CompareValues(const ms_Value *val1, const ms_Value *val2) {
 }
 
 static MunitResult CompareFunctions(const ms_ValFunc *fn1, const ms_ValFunc *fn2) {
-    munit_assert_non_null(fn1);
-    munit_assert_non_null(fn2);
+    munit_assert_not_null(fn1);
+    munit_assert_not_null(fn2);
 
     if ((fn1->ident) || (fn2->ident)) {
         CompareIdent(fn1->ident, fn2->ident);
@@ -1986,7 +1986,7 @@ static MunitResult CompareFunctions(const ms_ValFunc *fn1, const ms_ValFunc *fn2
 
 static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
     ms_Parser *prs = ms_ParserNew();
-    munit_assert_non_null(prs);
+    munit_assert_not_null(prs);
 
     for (size_t i = 0; i < len; i++) {
         ParseResultTuple *tuple = &tuples[i];
@@ -2000,8 +2000,8 @@ static MunitResult TestParseResultTuple(ParseResultTuple *tuples, size_t len) {
             munit_logf(MUNIT_LOG_INFO, "err = %s", err->msg);
         }
 
-        munit_assert_cmp_int(pres, !=, MS_RESULT_ERROR);
-        munit_assert_non_null(ast);
+        munit_assert_int(pres, !=, MS_RESULT_ERROR);
+        munit_assert_not_null(ast);
         munit_assert_null(err);
 
         CompareASTToComponent(ast, tuple->type, &tuple->cmpnt);

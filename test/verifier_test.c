@@ -520,7 +520,7 @@ static MunitResult ver_TestRequireFunctionForReturnStmt(const MunitParameter par
 
 static MunitResult TestVerifierResultTuple(VerifierResultTuple *tuples, size_t len) {
     ms_Parser *prs = ms_ParserNew();
-    munit_assert_non_null(prs);
+    munit_assert_not_null(prs);
 
     for (size_t i = 0; i < len; i++) {
         VerifierResultTuple *tuple = &tuples[i];
@@ -535,8 +535,8 @@ static MunitResult TestVerifierResultTuple(VerifierResultTuple *tuples, size_t l
             ms_ErrorDestroy(err);
         }
 
-        munit_assert_cmp_int(pres, !=, MS_RESULT_ERROR);
-        munit_assert_non_null(ast);
+        munit_assert_int(pres, !=, MS_RESULT_ERROR);
+        munit_assert_not_null(ast);
         munit_assert_null(err);
 
         ms_Result vres = ms_ParserVerifyAST(ast, &err);
@@ -545,7 +545,7 @@ static MunitResult TestVerifierResultTuple(VerifierResultTuple *tuples, size_t l
             ms_ErrorDestroy(err);
         }
 
-        munit_assert_cmp_int(vres, ==, tuple->expected);
+        munit_assert_int(vres, ==, tuple->expected);
     }
 
     ms_ParserDestroy(prs);
