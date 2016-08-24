@@ -52,6 +52,7 @@ static const char *const ERR_EXPECTED_EXPRESSION = "Expected expression (ln: %d,
 static const char *const ERR_EXPECTED_IDENTIFIER = "Expected identifier (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_KEYWORD = "Expected keyword '%s' (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_STATEMENT = "Expected statement (ln: %d, col: %d)";
+static const char *const ERR_EXPECTED_ASSIGNMENT = "Expected simple or compound assignment operator (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_TOKEN = "Expected '%s' (ln: %d, col: %d)";
 static const char *const ERR_EXPECTED_TOKEN_OR_TOKEN = "Expected '%s' or '%s' (ln: %d, col: %d)";
 static const char *const ERR_INVALID_SYNTAX_GOT_TOK = "Invalid syntax '%s' (ln: %d, col: %d)";
@@ -918,7 +919,7 @@ static ms_Result ParserParseAssignment(ms_Parser *prs, ms_Stmt **stmt) {
         }
 
         return ParserParseStatementTerminator(prs);
-    } else if (ParserExpectTokenAny(prs, compound_ops, sizeof(compound_ops))) {
+    } else if (ParserExpectTokenAny(prs, compound_ops, sizeof(compound_ops) / sizeof(compound_ops[0]))) {
         if (ParserIdentIsInvalidAssignmentTarget(ident_type)) {
             ms_ExprDestroy(name);
             ParserErrorSet(prs, ERR_MUST_ASSIGN_TO_QIDENT, prs->cur, prs->line, prs->col);
@@ -1064,7 +1065,7 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
     assert(stmt);
 
     /* translate compound operator to binary op */
-    ms_ExprBinaryOp op = BINARY_EMPTY;
+    ms_ExprBinaryOp op;
     switch (prs->cur->type) {
         case OP_PLUS_EQUALS:            op = BINARY_PLUS;           break;
         case OP_MINUS_EQUALS:           op = BINARY_MINUS;          break;
@@ -1077,7 +1078,9 @@ static ms_Result ParserParseCompoundAssignment(ms_Parser *prs, ms_Expr *name, ms
         case OP_BITWISE_XOR_EQUALS:     op = BINARY_BITWISE_XOR;    break;
         case OP_SHIFT_LEFT_EQUALS:      op = BINARY_SHIFT_LEFT;     break;
         case OP_SHIFT_RIGHT_EQUALS:     op = BINARY_SHIFT_RIGHT;    break;
-        default:                        assert(false);              break;
+        default:
+            ParserErrorSet(prs, ERR_EXPECTED_ASSIGNMENT, prs->cur, prs->line, prs->col);
+            return MS_RESULT_ERROR;
     }
 
     ParserConsumeToken(prs);
@@ -1802,7 +1805,7 @@ static ms_Result ParserParseAtomExpr(ms_Parser *prs, ms_Expr **expr) {
         LPAREN, LBRACKET, PERIOD, OP_SAFE_REFERENCE, OP_SAFE_GETATTR
     };
 
-    while (ParserExpectTokenAny(prs, accessor_tokens, sizeof(accessor_tokens))) {
+    while (ParserExpectTokenAny(prs, accessor_tokens, sizeof(accessor_tokens) / sizeof(accessor_tokens[0]))) {
         ms_TokenType ttype = prs->cur->type;
         ms_ExprBinaryOp op;
         ms_Expr *right;

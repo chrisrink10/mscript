@@ -148,12 +148,16 @@ static char* bad_code[] = {
     "var name :="
     "name :=;",
     "name :=",
+    "name =;",
+    "name =",
     "x +=;",
     "x +=",
     "x, y := 10;",
     "x, y := 10",
     "x, y := ;",
     "x, y :=",
+    "x, y =;",
+    "x, y =",
     "10 :=;",
     "10 := 12;",
     NULL
