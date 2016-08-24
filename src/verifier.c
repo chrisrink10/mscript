@@ -79,8 +79,8 @@ static ms_Result ParserVerifyBreakStmt(const ms_StmtBreak *brk, ASTContext *ctx,
 static ms_Result ParserVerifyContinueStmt(const ms_StmtContinue *cont, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
 static ms_Result ParserVerifyDeleteStmt(const ms_StmtDelete *del, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
 static ms_Result ParserVerifyForStmt(const ms_StmtFor *forstmt, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
-static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
-static ms_Result ParserVerifyForIterator(const ms_StmtForIterator *iter, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
+static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTContext *ctx, QueueContext *qctx, ASTContext *childctx, ms_Error **err);
+static ms_Result ParserVerifyForIterator(const ms_StmtForIterator *iter, ASTContext *ctx, QueueContext *qctx, ASTContext *childctx, ms_Error **err);
 static ms_Result ParserVerifyIfStmt(const ms_StmtIf *ifstmt, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
 static ms_Result ParserVerifyElseIfStmt(const ms_StmtIfElse *elif, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
 static ms_Result ParserVerifyImportStmt(const ms_StmtImport *import, ASTContext *ctx, QueueContext *qctx, ms_Error **err);
@@ -550,14 +550,19 @@ static ms_Result ParserVerifyForStmt(const ms_StmtFor *forstmt, ASTContext *ctx,
     assert(qctx);
     assert(err);
 
+    ASTContext *blockctx;
+    if (ParserEnqueueBlockWithChild(forstmt->block, ctx, ASTCTX_FORSTMT, qctx, &blockctx) == MS_RESULT_ERROR) {
+        return MS_RESULT_ERROR;
+    }
+
     switch (forstmt->type) {
         case FORSTMT_INCREMENT:
-            if (ParserVerifyForIncrement(forstmt->clause.inc, ctx, qctx, err) == MS_RESULT_ERROR) {
+            if (ParserVerifyForIncrement(forstmt->clause.inc, ctx, qctx, blockctx, err) == MS_RESULT_ERROR) {
                 return MS_RESULT_ERROR;
             }
             break;
         case FORSTMT_ITERATOR:
-            if (ParserVerifyForIterator(forstmt->clause.iter, ctx, qctx, err) == MS_RESULT_ERROR) {
+            if (ParserVerifyForIterator(forstmt->clause.iter, ctx, qctx, blockctx, err) == MS_RESULT_ERROR) {
                 return MS_RESULT_ERROR;
             }
             break;
@@ -568,30 +573,30 @@ static ms_Result ParserVerifyForStmt(const ms_StmtFor *forstmt, ASTContext *ctx,
             break;
     }
 
-    ASTContext *blockctx;
-    if (ParserEnqueueBlockWithChild(forstmt->block, ctx, ASTCTX_FORSTMT, qctx, &blockctx) == MS_RESULT_ERROR) {
-        return MS_RESULT_ERROR;
-    }
-    /* TODO: insert for stmt variables into block context */
-
     return MS_RESULT_SUCCESS;
 }
 
-static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTContext *ctx, QueueContext *qctx, ms_Error **err) {
+static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTContext *ctx, QueueContext *qctx, ASTContext *childctx, ms_Error **err) {
     assert(inc);
     assert(ctx);
     assert(qctx);
     assert(err);
 
     if (inc->declare) {
-        if (inc->ident->type != IDENT_NAME) {
+        if (ms_ExprGetIdentType(inc->ident) != EXPRIDENT_NAME) {
             VerifierErrorSet(err, "builtin identifiers and globals may not appear in `var` statement");
             return MS_RESULT_ERROR;
         }
-    }
 
-    if (ParserVerifyExpression(inc->ident, ctx, qctx, err) == MS_RESULT_ERROR) {
-        return MS_RESULT_ERROR;
+        assert(inc->ident->type == EXPRTYPE_UNARY);
+        assert(inc->ident->cmpnt.u);
+        assert(inc->ident->cmpnt.u->type == EXPRATOM_IDENT);
+        assert(inc->ident->cmpnt.u->atom.ident);
+        dsdict_put(childctx->symbols, inc->ident->cmpnt.u->atom.ident->name, &VERIFIER_SYMBOL_VAL);
+    } else {
+        if (ParserVerifyExpression(inc->ident, ctx, qctx, err) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
     }
 
     if (ParserVerifyExpression(inc->init, ctx, qctx, err) == MS_RESULT_ERROR) {
@@ -613,21 +618,27 @@ static ms_Result ParserVerifyForIncrement(const ms_StmtForIncrement *inc, ASTCon
     return MS_RESULT_SUCCESS;
 }
 
-static ms_Result ParserVerifyForIterator(const ms_StmtForIterator *iter, ASTContext *ctx, QueueContext *qctx, ms_Error **err) {
+static ms_Result ParserVerifyForIterator(const ms_StmtForIterator *iter, ASTContext *ctx, QueueContext *qctx, ASTContext *childctx, ms_Error **err) {
     assert(iter);
     assert(ctx);
     assert(qctx);
     assert(err);
 
     if (iter->declare) {
-        if (iter->ident->type != IDENT_NAME) {
+        if (ms_ExprGetIdentType(iter->ident) != EXPRIDENT_NAME) {
             VerifierErrorSet(err, "builtin identifiers and globals may not appear in `var` statement");
             return MS_RESULT_ERROR;
         }
-    }
 
-    if (ParserVerifyExpression(iter->ident, ctx, qctx, err) == MS_RESULT_ERROR) {
-        return MS_RESULT_ERROR;
+        assert(iter->ident->type == EXPRTYPE_UNARY);
+        assert(iter->ident->cmpnt.u);
+        assert(iter->ident->cmpnt.u->type == EXPRATOM_IDENT);
+        assert(iter->ident->cmpnt.u->atom.ident);
+        dsdict_put(childctx->symbols, iter->ident->cmpnt.u->atom.ident->name, &VERIFIER_SYMBOL_VAL);
+    } else {
+        if (ParserVerifyExpression(iter->ident, ctx, qctx, err) == MS_RESULT_ERROR) {
+            return MS_RESULT_ERROR;
+        }
     }
 
     if (ParserVerifyExpression(iter->iter, ctx, qctx, err) == MS_RESULT_ERROR) {

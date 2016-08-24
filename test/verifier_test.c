@@ -156,6 +156,20 @@ static MunitResult ver_TestProhibitRedeclaration(const MunitParameter params[], 
                 "}",
             .expected = MS_RESULT_SUCCESS
         },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    var i := 11;\n"
+                "}",
+            .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    if i < 3 {\n"
+                "         var i := 11;\n"
+                "    }\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
     };
 
     size_t len = sizeof(tuples) / sizeof(tuples[0]);
@@ -274,7 +288,7 @@ static MunitResult ver_TestRequireBreakAndContinueInLoop(const MunitParameter pa
                 "    if x {\n"
                 "        return x;\n"
                 "    } else {\n"
-                "        break;"
+                "        break;\n"
                 "    }\n"
                 "}",
             .expected = MS_RESULT_ERROR
@@ -284,10 +298,58 @@ static MunitResult ver_TestRequireBreakAndContinueInLoop(const MunitParameter pa
                 "    if x {\n"
                 "        return x;\n"
                 "    } else {\n"
-                "        continue;"
+                "        continue;\n"
                 "    }\n"
                 "}",
             .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    break;\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    continue;\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    if i < 5 {\n"
+                "        break;\n"
+                "    }\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    if i < 5 {\n"
+                "        continue;\n"
+                "    }\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    if i < 5 {\n"
+                "        var x := 10;\n"
+                "    } else {\n"
+                "        break;\n"
+                "    }\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var i := 1 : 10 {\n"
+                "    if i < 5 {\n"
+                "        var x := 10;\n"
+                "    } else {\n"
+                "        continue;\n"
+                "    }\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
         },
     };
 
@@ -336,6 +398,46 @@ static MunitResult ver_TestProhibitBreakAndContinueInAnonFn(const MunitParameter
                 "    var f := func() {\n"
                 "        var i;\n"
                 "        for i := index : 10 {\n"
+                "            if index + 5 < 10 {\n"
+                "                continue;\n"
+                "            }\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        continue;\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "for var index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        if index < 5 {\n"
+                "            continue;\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_ERROR
+        },
+        {
+            .val = "for var index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        for var i := index : 10 {\n"
+                "            continue;\n"
+                "        }\n"
+                "    };\n"
+                "}",
+            .expected = MS_RESULT_SUCCESS
+        },
+        {
+            .val = "for var index := 1 : 10 {\n"
+                "    var f := func() {\n"
+                "        for var i := index : 10 {\n"
                 "            if index + 5 < 10 {\n"
                 "                continue;\n"
                 "            }\n"
