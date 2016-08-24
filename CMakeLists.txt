@@ -82,10 +82,10 @@ set(C_TEST_WARNING_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter -Wno-missing-fi
 
 # Testing code
 set(TESTING_SOURCE_FILES deps/munit/munit.c
-                         test/codegen.c
-                         test/streamreader.c
-                         test/lexer.c
-                         test/parser.c
+                         test/codegen_test.c
+                         test/streamreader_test.c
+                         test/lexer_test.c
+                         test/parser_test.c
                          test/main.c
                          test/verifier_test.c)
 

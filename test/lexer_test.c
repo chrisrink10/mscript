@@ -15,7 +15,7 @@
  *----------------------------------------------------------------------------*/
 
 #include <stdio.h>
-#include "lexer.h"
+#include "lexer_test.h"
 #include "../src/lexer.h"
 
 typedef struct LexResultTuple {

@@ -15,7 +15,7 @@
  *----------------------------------------------------------------------------*/
 
 #include <string.h>
-#include "streamreader.h"
+#include "streamreader_test.h"
 
 /*
  * TEST DEFINITIONS

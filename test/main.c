@@ -15,10 +15,10 @@
  *----------------------------------------------------------------------------*/
 
 #include "munit/munit.h"
-#include "codegen.h"
-#include "lexer.h"
-#include "parser.h"
-#include "streamreader.h"
+#include "codegen_test.h"
+#include "lexer_test.h"
+#include "parser_test.h"
+#include "streamreader_test.h"
 #include "verifier_test.h"
 
 static MunitSuite suites[] = {

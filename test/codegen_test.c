@@ -14,7 +14,7 @@
  *  limitations under the License.
  *----------------------------------------------------------------------------*/
 
-#include "codegen.h"
+#include "codegen_test.h"
 #include "../src/bytecode.h"
 #include "../src/parser.h"
 #include "../src/vm.h"

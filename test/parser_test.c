@@ -14,7 +14,7 @@
  *  limitations under the License.
  *----------------------------------------------------------------------------*/
 
-#include "parser.h"
+#include "parser_test.h"
 #include "../src/lang.h"
 #include "../src/parser.h"
 #include "../src/vm.h"
