@@ -2972,8 +2972,8 @@ static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[],
                     })),
                 },
                 .code = (ms_VMOpCode[]){
-                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_SET_NAME, 0),
                 },
                 .idents = (DSBuffer*[]){
@@ -3005,8 +3005,8 @@ static MunitResult prs_TestCodeGenFuncDeclaration(const MunitParameter params[],
                     })),
                 },
                 .code = (ms_VMOpCode[]){
-                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_SET_NAME, 0),
                 },
                 .idents = (DSBuffer*[]){
@@ -3044,8 +3044,8 @@ static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], voi
                     VM_STR("Calvin"),
                 },
                 .code = (ms_VMOpCode[]){
-                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_SET_NAME, 0),
                 },
                 .idents = (DSBuffer*[]){
@@ -3061,8 +3061,8 @@ static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], voi
                     VM_STR("Calvin"),
                 },
                 .code = (ms_VMOpCode[]){
-                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 0),
                     VM_OPC(OPC_SET_NAME, 0),
                     VM_OPC(OPC_NEW_NAME, 1),
                 },
@@ -3081,8 +3081,8 @@ static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], voi
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_NEW_NAME, 0),
-                    VM_OPC(OPC_NEW_NAME, 1),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 1),
                     VM_OPC(OPC_SET_NAME, 1),
                 },
                 .idents = (DSBuffer*[]){
@@ -3100,8 +3100,8 @@ static MunitResult prs_TestCodeGenDeclaration(const MunitParameter params[], voi
                 },
                 .code = (ms_VMOpCode[]){
                     VM_OPC(OPC_NEW_NAME, 0),
-                    VM_OPC(OPC_NEW_NAME, 1),
                     VM_OPC(OPC_PUSH, 0),
+                    VM_OPC(OPC_NEW_NAME, 1),
                     VM_OPC(OPC_SET_NAME, 1),
                     VM_OPC(OPC_NEW_NAME, 2),
                 },

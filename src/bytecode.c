@@ -969,12 +969,31 @@ static void StmtDeclarationToOpCodes(const ms_StmtDeclaration *decl, CodeGenCont
     assert(ctx);
     assert(decl->ident->type == IDENT_NAME);
 
+    /*
+     * if a variable declaration includes an initializing expression, it is
+     * important that the expression value is pushed first in the case that
+     * the initializing expression contains the new name (e.g. the variable
+     * shadows a variable name from a parent scope), otherwise the value
+     * for that name in a shadowing declaration will _always_ be `null`
+     *
+     * e.g. the value associated with the name `index` declared within the
+     *      loop body below will always be equal to `null + 1`, rather than
+     *      the value of index from the enclosing scope `index` value
+     *
+     *     for var index := 1 : 10 {
+     *         var index := index + 1;
+     *     }
+     */
+
+    if (decl->expr) {
+        ExprToOpCodes(decl->expr, ctx);
+    }
+
     int index;
     PushIdent(decl->ident, &index, ctx);
     PushOpCode(OPC_NEW_NAME, index, ctx);
 
     if (decl->expr) {
-        ExprToOpCodes(decl->expr, ctx);
         PushOpCode(OPC_SET_NAME, index, ctx);
     }
 
