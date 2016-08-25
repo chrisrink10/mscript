@@ -253,6 +253,7 @@ begin_lex:              // Jump label for ignored input
             // Whitespace
         case '\r':
         case '\n':
+            LexerIncrementLine(lex);
         case ' ':
         case '\t':
         case '\f':
